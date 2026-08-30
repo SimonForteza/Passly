@@ -18,32 +18,36 @@ cualquier parte del sistema, no solo la que programó.
 
 ## Forma del sistema (cómo queda corriendo)
 
-Passly son **dos partes** que se hablan entre sí:
+Passly son un **backend** y **dos clientes** que se hablan entre sí:
 
 - **Backend — el corazón del TP (~80% de la nota).** Los 9 componentes Java
   sobre WildFly. **No es una página web:** es un servidor de aplicaciones que
   expone *APIs* (REST + un SOAP). Pura lógica, sin pantallas.
-- **Frontend — la cara visible.** Web app con 3 vistas según rol: el comprador
-  compra, el organizador administra sus eventos y ve ventas, el validador
-  escanea QRs. Es el medio para **demostrar** que el backend funciona; lo visual
-  suma puntos extra (temas claro/oscuro, responsive) pero **no** es donde se
-  juega la materia.
+- **App web — el sistema principal.** La usan el **comprador** (compra entradas)
+  y el **organizador** (administra sus eventos y ve reportes de ventas). Es el
+  medio para **demostrar** que el backend funciona; lo visual suma puntos extra
+  (temas claro/oscuro, buen diseño) pero **no** es donde se juega la materia.
+- **App móvil — solo el validador.** Escanea los QR de las entradas en la puerta
+  del evento y las marca como usadas. El escaneo de QR en puerta es un uso natural
+  de mobile (cámara del teléfono).
 
 Cuando prende todo, el sistema es:
 
 - una **base de datos relacional** con los datos;
 - **WildFly** corriendo los 9 componentes, con **Artemis** adentro (colas y
-  tópicos), exponiendo **REST** (al frontend y a la pasarela) y **SOAP con WSDL**
-  (al "AFIP" legado, mockeado);
-- el **frontend web** con las 3 vistas por rol;
+  tópicos), exponiendo **REST** (a los dos clientes y a la pasarela) y **SOAP con
+  WSDL** (al "AFIP" legado, mockeado);
+- la **app web** para comprador y organizador;
+- la **app móvil del validador** para el escaneo de QR en puerta;
 - dos **sistemas externos**: pasarela de pago (REST) y AFIP (SOAP simulado).
 
 **Recorrido end-to-end** (este único flujo toca casi todo el checklist):
-comprador elige entradas → el frontend llama por REST a `ServicioDeVentas` →
-hold en inventario + cobro por la pasarela (REST) → al confirmarse el pago se
-encola "emitir tickets" → un worker genera el QR, factura contra AFIP (SOAP) y
-publica `TicketEmitido` → Notificaciones manda el mail. En el evento, el
-validador escanea el QR y `ServicioDeValidacion` marca la entrada como usada.
+el comprador elige entradas **desde la app web** → la web llama por REST a
+`ServicioDeVentas` → hold en inventario + cobro por la pasarela (REST) → al
+confirmarse el pago se encola "emitir tickets" → un worker genera el QR, factura
+contra AFIP (SOAP) y publica `TicketEmitido` → Notificaciones manda el mail. En
+el evento, la **app móvil del validador** escanea el QR y `ServicioDeValidacion`
+marca la entrada como usada.
 
 ## Lenguajes y datos
 
@@ -53,10 +57,12 @@ validador escanea el QR y `ServicioDeValidacion` marca la entrada como usada.
   Java (`Evento`, `Ticket`, `Orden`…) y el ORM genera las tablas y el SQL. Para
   consultar se usa **JPQL** (sobre objetos Java, no sobre tablas). SQL crudo solo
   en el caso puntual donde JPA no alcanza.
-- **HTML / CSS / JavaScript** — el frontend web. Si se elige un framework
-  (React/Angular), se suma **TypeScript**.
-- **XML** — configuración y el **WSDL** del servicio SOAP (el contrato de AFIP se
-  describe en XML).
+- **App web** — **HTML/CSS/JS** (o un framework, a definir). Consume el backend
+  por REST.
+- **App móvil del validador** — **su propio stack (a definir)**. Consume el
+  backend por REST; para escanear QR usa la cámara.
+- **XML** — configuración del backend y el **WSDL** del servicio SOAP (el
+  contrato de AFIP se describe en XML).
 
 ## Stack y entorno
 
@@ -65,7 +71,10 @@ validador escanea el QR y `ServicioDeValidacion` marca la entrada como usada.
 - **Base de datos:** relacional (PostgreSQL o MySQL) vía **JPA / Hibernate**.
 - **Mensajería:** JMS con **Artemis embebido en WildFly** (no hace falta broker aparte).
 - **Seguridad:** Jakarta Security / Elytron con `@RolesAllowed`.
-- (Ajustar versiones exactas según el `pom.xml` real.)
+- **App web:** HTML/CSS/JS o framework (a definir). Consume el backend por **REST**.
+- **App móvil (validador):** stack a definir. Consume el backend por **REST**;
+  para escanear QR usa la cámara.
+- (Ajustar versiones exactas según el `pom.xml` real y el build de cada cliente.)
 
 ### Entorno local (Fedora, dual-boot)
 
@@ -131,7 +140,8 @@ del TP). El resto son stateless.
 
 - **SOAP legado (con WSDL):** AFIP. En homologación conviene **mockear** el
   endpoint SOAP en vez de pelear con certificados de producción.
-- **REST moderno:** pasarela de pago + la API que consume la app validadora.
+- **REST moderno:** pasarela de pago + la API REST del backend, consumida por la
+  **app web** (comprador/organizador) y la **app móvil del validador**.
 - **Cola punto a punto (P2P):** al confirmarse el pago se encola "emitir tickets
   de la orden X"; **un solo** worker genera los QR y persiste.
 - **Tópico pub/sub:** al emitirse el ticket se publica `TicketEmitido`, que
@@ -187,7 +197,10 @@ El detalle exhaustivo de cada entrega vive en `docs/entregas.md`.
   "Calidad de documentación" de la rúbrica, hecho sin trabajo extra.
 - **Declarar uso de IA** en el documento de cada entrega obligatoria: qué se usó
   y para qué. Cada integrante debe poder defender cualquier parte igual.
-- **Web app → responsive obligatorio** + prototipo navegable en Figma para el 19/10.
+- **App web → responsive obligatorio.**
+- **App móvil del validador → adaptarse a distintos tamaños de pantalla y a la
+  orientación (vertical/horizontal).**
+- Prototipo navegable en Figma para el 19/10.
 
 ## Estructura del repo
 
@@ -203,15 +216,16 @@ passly/
 │   ├── integraciones.md   ← SOAP/REST/cola/tópico y justificación de cada canal
 │   ├── entregas.md        ← detalle completo de cada entrega y su checklist
 │   └── adr/               ← Architecture Decision Records (puntos extra §7)
-└── src/                   ← código (un módulo/paquete por componente)
+├── src/                   ← backend: código (un módulo/paquete por componente)
+├── web/                   ← app web (comprador + organizador; stack a definir)
+└── app-validador/         ← app móvil del validador (escaneo de QR; stack a definir)
 ```
 
 ## Dudas abiertas (confirmar / decidir)
 
-- **Frontend:** falta decidir en grupo qué tecnología. Opciones: web con
-  framework (React/Angular → suma TypeScript), algo más simple servido por el
-  propio WildFly (Jakarta Faces), o mobile. No lo exige el checklist, pero define
-  los lenguajes del lado visual y si aplica el requisito de responsive.
+- **Tecnología de cada cliente:** el frontend ya está decidido (app web +
+  app móvil del validador); queda por definir **qué tecnología** usa cada uno
+  (framework de la web; stack de la app móvil).
 - **Base de datos:** elegir PostgreSQL o MySQL.
 - **Fecha de la Entrega Final:** la tabla del TP dice **21/12**; el detalle de esa
   misma entrega y todo el anexo dicen **30/11**. Confirmar con la cátedra.
