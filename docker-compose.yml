@@ -1,0 +1,37 @@
+# Infraestructura de desarrollo de Passly.
+#
+# Hoy solo la base de datos. El broker ActiveMQ Artemis se agrega en la Obligatoria 2,
+# cuando existan la cola orden.pagada y el topico ticket.emitido.
+#
+# El backend NO se containeriza: corre como JAR ejecutable con Tomcat embebido
+# (./mvnw spring-boot:run). El contenedor que administra el ciclo de vida de los
+# componentes es el contenedor IoC de Spring, que es lo que evalua la Unidad II.
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: passly-db
+    environment:
+      POSTGRES_DB: passly
+      POSTGRES_USER: passly
+      # Base local y descartable: esta credencial no es un secreto y por eso puede
+      # vivir en el repo. Las credenciales reales (Supabase) van por variables de
+      # entorno y nunca se commitean. Ver .env.example.
+      POSTGRES_PASSWORD: passly
+    ports:
+      # Mismo puerto 5432 que usaremos contra Supabase: nunca el 6543 (PgBouncer en
+      # modo transaccion), que rompe los prepared statements de JPA.
+      - "5432:5432"
+    volumes:
+      - passly-pgdata:/var/lib/postgresql/data
+      # Postgres ejecuta estos scripts UNA SOLA VEZ, al inicializar el volumen.
+      # Para rehacer el esquema desde cero: docker compose down -v && docker compose up -d
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U passly -d passly"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  passly-pgdata:
