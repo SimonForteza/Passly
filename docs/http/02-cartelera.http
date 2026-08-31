@@ -1,0 +1,4 @@
+@baseUrl = http://localhost:8080
+
+### Listar eventos publicados (cartelera publica)
+GET {{baseUrl}}/api/eventos

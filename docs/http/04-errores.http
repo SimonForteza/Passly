@@ -1,0 +1,10 @@
+@baseUrl = http://localhost:8080
+
+### Evento inexistente -> 404 ProblemDetail
+GET {{baseUrl}}/api/eventos/999999
+
+### Crear evento invalido -> 400 con el detalle por campo
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+
+{ "nombre": "" }

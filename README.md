@@ -33,8 +33,8 @@ curl http://localhost:8080/api/eventos              # cartelera publica
 curl http://localhost:8080/actuator/modulith         # modelo de modulos detectado
 ```
 
-Guion completo de demo (crear, publicar, el 409 al republicar, etc.) en el plan de
-implementacion del componente y en `docs/`.
+Guion completo de demo (crear, publicar, el 409 al republicar, etc.) como archivos `.http`
+listos para la extension REST Client de VS Code en [docs/http/](docs/http/).
 
 ## Correr los tests
 

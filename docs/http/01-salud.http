@@ -1,0 +1,7 @@
+@baseUrl = http://localhost:8080
+
+### Health
+GET {{baseUrl}}/actuator/health
+
+### Modelo de modulos detectado por Spring Modulith
+GET {{baseUrl}}/actuator/modulith
