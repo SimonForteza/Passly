@@ -11,64 +11,48 @@
 	<groupId>com.passly</groupId>
 	<artifactId>backend</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
+	<name>passly-backend</name>
+	<description>Backend de Passly - venta y validacion de entradas para eventos</description>
+
 	<properties>
-		<java.version>17</java.version>
+		<java.version>21</java.version>
+		<!-- Spring Modulith 2.x es la linea alineada con Spring Boot 4.x (1.4.x lo esta con Boot 3.5.x). -->
 		<spring-modulith.version>2.1.1</spring-modulith.version>
 	</properties>
+
 	<dependencies>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-actuator</artifactId>
-		</dependency>
-<!--		<dependency>-->
-<!--			<groupId>org.springframework.boot</groupId>-->
-<!--			<artifactId>spring-boot-starter-data-jpa</artifactId>-->
-<!--		</dependency>-->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-validation</artifactId>
-		</dependency>
+		<!-- ============ Capa de presentacion ============ -->
+		<!-- OJO: en Spring Boot 4 el starter web pasa a llamarse 'webmvc'. -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
+		<!-- Bean Validation: la validacion de forma (@Valid) vive en presentacion, no en negocio. -->
 		<dependency>
-			<groupId>org.springframework.modulith</groupId>
-			<artifactId>spring-modulith-observability-api</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.modulith</groupId>
-			<artifactId>spring-modulith-starter-core</artifactId>
-		</dependency>
-		<!--
-		Comentado temporalmente: requieren datasource configurado (Supabase/Postgres).
-		Se reactivan al implementar ServicioDeEventos con persistencia real.
-
-		<dependency>
-			<groupId>org.springframework.modulith</groupId>
-			<artifactId>spring-modulith-starter-jpa</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
 
+		<!-- ============ Capa de datos ============ -->
+		<!-- Trae Hibernate 7.1, Jakarta Persistence 3.2, HikariCP y el soporte de @Transactional. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<!-- Scope runtime: ninguna clase del proyecto nombra al driver. -->
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
 		</dependency>
+
+		<!-- ============ Modularizacion ============ -->
+		<!-- Deteccion del modelo de modulos y API de ApplicationModules. -->
+		<dependency>
+			<groupId>org.springframework.modulith</groupId>
+			<artifactId>spring-modulith-starter-core</artifactId>
+		</dependency>
+		<!-- Expone el modelo de modulos por HTTP en /actuator/modulith. -->
 		<dependency>
 			<groupId>org.springframework.modulith</groupId>
 			<artifactId>spring-modulith-actuator</artifactId>
@@ -76,36 +60,43 @@
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.modulith</groupId>
-			<artifactId>spring-modulith-observability-core</artifactId>
-			<scope>runtime</scope>
+			<artifactId>spring-modulith-observability-api</artifactId>
 		</dependency>
+
+		<!-- ============ Operacion ============ -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-actuator-test</artifactId>
-			<scope>test</scope>
+			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-jpa-test</artifactId>
-			<scope>test</scope>
-		</dependency>
+
+		<!--
+		NO activar todavia (y saber por que):
+
+		spring-modulith-starter-jpa  -> es el Event Publication Registry: persiste los eventos de
+		                                dominio para la mensajeria y crea la tabla event_publication.
+		                                No hay ningun evento publicado aun. Entra en la Obligatoria 2,
+		                                junto con la cola orden.pagada y el topico ticket.emitido.
 		-->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-validation-test</artifactId>
-			<scope>test</scope>
-		</dependency>
+
+		<!-- ============ Tests ============ -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- Aporta ApplicationModules.verify() y el Documenter que genera los diagramas. -->
+		<dependency>
 			<groupId>org.springframework.modulith</groupId>
 			<artifactId>spring-modulith-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
@@ -123,8 +114,31 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<jvmArguments>-Duser.timezone=UTC</jvmArguments>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<argLine>-Duser.timezone=UTC</argLine>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>
+
+	<!--
+	Por que -Duser.timezone=UTC: en Windows, la JVM reporta el timezone del sistema como
+	'America/Buenos_Aires', pero la imagen oficial de postgres solo reconoce el alias IANA
+	completo 'America/Argentina/Buenos_Aires'. El driver pgjdbc manda ese nombre en el
+	handshake de conexion y Postgres lo rechaza con:
+	  FATAL: invalid value for parameter "TimeZone": "America/Buenos_Aires"
+
+	Fijar la JVM en UTC evita el problema de raiz (y de paso estandariza logs y timestamps
+	del proceso). No afecta los datos: fechaHora se guarda como timestamptz, Postgres la
+	persiste siempre en UTC internamente y el TimeZone de sesion solo cambia el formato de
+	salida; se mapea a OffsetDateTime, que conserva su propio offset.
+	-->
 
 </project>
