@@ -28,10 +28,11 @@ import java.util.List;
  * queda donde estan los datos que protege.
  *
  * <p><b>Sobre la visibilidad:</b> esta clase es {@code public} porque la usa
- * {@code EventoServiceImpl}, que vive en {@code ...internal} — y la visibilidad de paquete de
- * Java <b>no es jerarquica</b>: {@code internal} e {@code internal.datos} son paquetes distintos
- * y no se ven entre si. Que sea {@code public} no la vuelve parte del contrato: quien impone la
- * frontera es Spring Modulith, que hace fallar el build si otro modulo la importa.
+ * {@code EventoServiceImpl}, que vive en {@code ...internal.negocio} — y la visibilidad de
+ * paquete de Java <b>no es jerarquica</b>: {@code internal.negocio} e {@code internal.datos} son
+ * paquetes distintos y no se ven entre si. Que sea {@code public} no la vuelve parte del
+ * contrato: quien impone la frontera es Spring Modulith, que hace fallar el build si otro modulo
+ * la importa.
  */
 @Entity
 @Table(name = "evento", schema = "eventos")

@@ -1,4 +1,4 @@
-package com.passly.eventos.internal;
+package com.passly.eventos.internal.negocio;
 
 import com.passly.eventos.EstadoEvento;
 import com.passly.eventos.EventoNoEncontradoException;

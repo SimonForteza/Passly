@@ -1,4 +1,4 @@
-package com.passly.eventos.internal;
+package com.passly.eventos.internal.negocio;
 
 import com.passly.eventos.dto.EventoDTO;
 import com.passly.eventos.dto.TipoEntradaDTO;
