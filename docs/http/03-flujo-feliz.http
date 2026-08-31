@@ -1,0 +1,31 @@
+@baseUrl = http://localhost:8080
+
+### 1. Crear evento (nace en BORRADOR)
+# @name crearEvento
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+
+{
+  "nombre": "Show de prueba",
+  "descripcion": "Demo en vivo",
+  "fechaHora": "2027-03-15T21:00:00-03:00",
+  "lugar": "Teatro Gran Rex",
+  "tiposEntrada": [
+    { "nombre": "General", "precio": 20000, "cupoTotal": 100 }
+  ]
+}
+
+### 2. Consultar el evento recien creado (deberia seguir en BORRADOR)
+GET {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}
+
+### 3. Publicar el evento
+POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
+
+### 4. Cartelera: ahora deberia aparecer
+GET {{baseUrl}}/api/eventos
+
+### 5. Republicar -> 409 Conflict (la regla de negocio real)
+POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
+
+### 6. Disponibilidad del tipo de entrada creado
+GET {{baseUrl}}/api/tipos-entrada/{{crearEvento.response.body.$.tiposEntrada[0].id}}/disponibilidad

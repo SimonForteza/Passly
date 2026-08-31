@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: passly-backend
+
+  datasource:
+    # Los tres valores salen de variables de entorno. El default apunta al Postgres
+    # descartable de docker-compose.yml, para que el repo recien clonado arranque sin
+    # setup. Cuando el destino sea Supabase, las variables ganan y no se commitea nada.
+    #
+    # Puerto 5432 siempre: el 6543 de Supabase es PgBouncer en modo transaccion y rompe
+    # los prepared statements de JPA (CLAUDE.md 3, "Trampas conocidas de Supabase").
+    url: ${PASSLY_DB_URL:jdbc:postgresql://localhost:5432/passly}
+    username: ${PASSLY_DB_USER:passly}
+    password: ${PASSLY_DB_PASSWORD:passly}
+
+  jpa:
+    hibernate:
+      # Hibernate crea y evoluciona las tablas al arrancar. El esquema 'eventos' en cambio
+      # lo crea db/init/01-esquemas.sql: Hibernate crea tablas, no esquemas.
+      #
+      # Deuda tecnica declarada: 'update' no versiona el esquema ni sabe borrar columnas.
+      # Antes de la Obligatoria 2 conviene pasar a Flyway, o exportar el DDL y usar 'validate'.
+      ddl-auto: update
+
+    # Boot lo trae en true. Desactivarlo cierra la sesion de Hibernate al salir de la capa
+    # de negocio: si alguna vez una entidad se filtrara hasta el controller, el acceso lazy
+    # fallaria en vez de funcionar en silencio. Es el respaldo tecnico de la regla
+    # "las entidades JPA nunca salen del componente" (CLAUDE.md 4.3).
+    open-in-view: false
+
+    # Para la demo: hace visible en consola el SQL que dispara cada endpoint. Se apaga en prod.
+    show-sql: true
+    properties:
+      hibernate.format_sql: true
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # /actuator/modulith devuelve el modelo de modulos que Spring Modulith detecto.
+        include: health,info,modulith
+
+logging:
+  level:
+    com.passly: debug
