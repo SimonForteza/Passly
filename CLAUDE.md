@@ -83,8 +83,8 @@ se reintenta desde la cola.
 
 | Necesidad | Tecnología | Por qué |
 |---|---|---|
-| Plataforma | **Spring Boot 3.x / Java 21** | Habilitado explícitamente por la cátedra. Su contenedor administra ciclo de vida, scopes, transacciones y seguridad de forma declarativa |
-| Modularización | **Spring Modulith 1.4.x** | Verifica automáticamente las fronteras entre componentes y genera diagramas desde el código |
+| Plataforma | **Spring Boot 4.1.1 / Java 21** | Habilitado explícitamente por la cátedra. Su contenedor administra ciclo de vida, scopes, transacciones y seguridad de forma declarativa |
+| Modularización | **Spring Modulith 2.1.1** | Verifica automáticamente las fronteras entre componentes y genera diagramas desde el código |
 | Persistencia | **Supabase (PostgreSQL)** | Postgres gestionado, compatible con JPA, con soporte nativo de esquemas |
 | Acceso a datos | **Spring Data JPA + Hibernate** | Patrón DAO y transacciones declarativas |
 | Mensajería | **ActiveMQ Artemis (Docker)** | Broker JMS nativo, alineado con la Unidad V |
@@ -93,6 +93,13 @@ se reintenta desde la cola.
 | Build | **Maven** | — |
 | App web | **React + Vite** (a confirmar) | Consume el backend por REST. Responsive obligatorio |
 | App móvil | **React Native** (a confirmar) | Cámara para escaneo de QR. Debe adaptarse a distintos tamaños y orientaciones |
+
+**Nota de versión (post-31/08):** el scaffold inicial se armó sobre Spring Boot 4.1.1 /
+Spring Modulith 2.1.1. Es la combinación correcta según la matriz de compatibilidad oficial
+(Modulith 2.x está alineado con Boot 4.x; Modulith 1.4.x lo está con Boot 3.5.x, no con 3.x en
+general), pero difiere de lo que decía esta tabla en el informe entregado el 31/08. Si lo
+preguntan: la versión se verificó contra la documentación oficial antes de fijarla, no se
+copió de memoria, y el par 4.1.1 / 2.1.1 es consistente entre sí.
 
 **Por qué Artemis y no RabbitMQ:** la Unidad V es JMS específicamente. Artemis
 y ActiveMQ Classic hablan JMS nativo; RabbitMQ implementa AMQP y obligaría a una
@@ -156,13 +163,15 @@ Un paquete por componente. Lo público en la raíz, todo lo demás en `internal`
 com.passly/
 ├── eventos/
 │   ├── EventoService.java          ← interfaz, public
-│   ├── dto/EventoDTO.java          ← public
+│   ├── dto/
+│   │   ├── package-info.java       ← @NamedInterface("dto")
+│   │   └── EventoDTO.java          ← public
 │   └── internal/
 │       ├── web/EventoController.java        package-private
 │       ├── EventoServiceImpl.java           package-private
 │       └── datos/
-│           ├── EventoRepository.java        package-private
-│           └── Evento.java                  entidad JPA
+│           ├── EventoRepository.java        public (ver nota de visibilidad)
+│           └── Evento.java                  entidad JPA, public (ídem)
 ├── ventas/          ← STATEFUL (hold)
 ├── usuarios/
 ├── pagos/
@@ -181,6 +190,22 @@ com.passly/
    siempre con DTOs.
 3. **Ningún join entre esquemas de distintos componentes.** Si Ventas necesita el
    precio de un evento, llama a `EventoService.consultarDisponibilidad()`.
+
+**Corrección (post-31/08, tras implementar Eventos):** este árbol tenía dos imprecisiones.
+
+- **`dto/` no es público por default.** Spring Modulith cierra los módulos por defecto: *todo*
+  sub-paquete es interno, `dto/` incluido, salvo que se lo marque explícitamente con
+  `@org.springframework.modulith.NamedInterface("dto")` en un `package-info.java`. Sin eso, el
+  build falla el día que otro componente importe un DTO de Eventos. Con un solo componente
+  implementado no se nota — por eso conviene ponerlo desde el primer módulo, no cuando ya duela.
+- **`EventoRepository` y `Evento` no pueden ser package-private como decía la regla 1.** La
+  visibilidad de paquete de Java **no es jerárquica**: `internal` e `internal.datos` son
+  paquetes distintos y no se ven entre sí, así que `EventoServiceImpl` (en `internal`) no puede
+  usar una clase package-private de `internal.datos`. Tienen que ser `public`. Eso no debilita
+  la frontera: `public` ahí significa "visible dentro del artefacto", no "parte del contrato".
+  Quien impone la frontera real es Spring Modulith (§4.4) — si otro componente importa
+  `eventos.internal.datos.Evento`, el build falla igual, aunque el compilador de Java lo
+  permita. Es un buen argumento para el oral, no un defecto a esconder.
 
 ### 4.4 Verificación de fronteras (Spring Modulith)
 
@@ -298,6 +323,14 @@ despliega en una unidad única, sería asumir el costo completo de una arquitect
 distribuida sin ninguno de sus beneficios — el antipatrón **monolito distribuido**.
 Este es el segundo **ADR** a escribir.
 
+**En desarrollo se corre contra Postgres local en Docker, no contra Supabase directo**
+(`docker-compose.yml`, esquema inicializado por `db/init/`). El componente no sabe contra qué
+Postgres corre: la URL, el usuario y la contraseña salen de variables de entorno
+(`PASSLY_DB_URL` / `PASSLY_DB_USER` / `PASSLY_DB_PASSWORD`, ver `.env.example`), con un default
+que apunta al contenedor local. Pasar a Supabase es cambiar esas tres variables, nada de código.
+Se eligió así para no depender de red durante el desarrollo diario y para no tener credenciales
+reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
+
 ### 4.9 Patrones de diseño (mínimo: 3 distintos, justificados)
 
 | Patrón | Dónde | Qué problema resuelve |
@@ -403,13 +436,16 @@ passly/
 ├── CLAUDE.md              ← este archivo
 ├── CLAUDE.local.md        ← rutas y entorno personales (gitignored)
 ├── README.md              ← qué es Passly y cómo levantarlo
-├── docker-compose.yml     ← ActiveMQ Artemis
+├── docker-compose.yml     ← Postgres local de desarrollo (Artemis se suma en la Obligatoria 2)
+├── db/init/               ← scripts de inicialización del contenedor (CREATE SCHEMA por componente)
+├── .env.example           ← plantilla de variables de entorno, sin secretos
 ├── docs/
 │   ├── arquitectura.md    ← mapa de componentes y decisiones
 │   ├── componentes.md     ← interfaz, operaciones y responsabilidad de cada uno
 │   ├── patrones.md        ← qué patrón, dónde, por qué, alternativas descartadas
 │   ├── integraciones.md   ← SOAP/REST/cola/tópico y justificación de cada canal
 │   ├── entregas.md        ← detalle completo de cada entrega
+│   ├── ddl-eventos.sql    ← DDL de referencia del esquema eventos (Hibernate lo genera)
 │   └── adr/               ← Architecture Decision Records (puntos extra §7)
 ├── backend/               ← Spring Boot, un paquete por componente
 │   ├── pom.xml
@@ -425,13 +461,17 @@ passly/
 **Entrega del 31/08 lista:** informe con arquitectura, 8 componentes con
 interfaces, stack justificado y diagramas.
 
-**Próximo paso inmediato:** implementar `ServicioDeEventos` completo —
-`pom.xml`, las tres capas, esquema `eventos` en Supabase, `application.yml`
-apuntando al puerto 5432, y un endpoint REST andando.
+**`ServicioDeEventos` implementado y verificado end-to-end** (31/08): las tres capas
+separadas, esquema `eventos` propio, Spring Modulith verificando fronteras y generando
+documentación desde el código, datos de demo, y el flujo completo probado con curl —
+incluido el 409 al intentar republicar un evento. Corre contra Postgres local en Docker; el
+paso a Supabase es solo cambiar variables de entorno (§4.8).
+
+**Próximo paso inmediato:** `ServicioDeUsuarios` — habilita la seguridad por rol sobre Eventos.
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 
-1. `ServicioDeEventos` — raíz, sin dependencias
+1. ~~`ServicioDeEventos` — raíz, sin dependencias~~ ✅ hecho
 2. `ServicioDeUsuarios` — habilita la seguridad por rol sobre Eventos
 3. `ServicioDeVentas` — el stateful, con callbacks de ciclo de vida
 4. `ServicioDeTickets` — firma criptográfica del QR
