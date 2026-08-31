@@ -1,0 +1,164 @@
+# ===========================================================================
+# Passly — .gitignore raíz
+# Backend: Spring Boot / Maven (Java 21) · Web: React + Vite · Móvil: React Native
+# ===========================================================================
+
+# ----------------------------------------------------------------------------
+# Secretos y configuración local — NUNCA subir
+# ----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.local
+CLAUDE.local.md
+application-local.yml
+application-local.yaml
+application-local.properties
+application-secret*.yml
+application-secret*.properties
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+secrets/
+credentials.json
+service-account*.json
+
+# ----------------------------------------------------------------------------
+# Java / Maven / Gradle
+# ----------------------------------------------------------------------------
+target/
+build/
+!**/src/**/build/
+bin/
+out/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+!**/maven-wrapper.jar
+!**/gradle-wrapper.jar
+hs_err_pid*
+replay_pid*
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+.gradle/
+
+# Spring Modulith — artefactos generados desde el código
+build/generated-spring-modulith/
+**/generated-spring-modulith/
+spring-modulith-docs/
+
+# ----------------------------------------------------------------------------
+# IntelliJ IDEA / JetBrains
+# ----------------------------------------------------------------------------
+.idea/
+*.iml
+*.ipr
+*.iws
+.idea_modules/
+atlassian-ide-plugin.xml
+
+# ----------------------------------------------------------------------------
+# VS Code
+# ----------------------------------------------------------------------------
+.vscode/
+!.vscode/extensions.json
+*.code-workspace
+.history/
+
+# ----------------------------------------------------------------------------
+# Eclipse / STS / NetBeans
+# ----------------------------------------------------------------------------
+.settings/
+.project
+.classpath
+.factorypath
+.apt_generated/
+.springBeans
+.sts4-cache/
+nbproject/private/
+nbbuild/
+nbdist/
+
+# ----------------------------------------------------------------------------
+# Node / React / Vite (web y móvil)
+# ----------------------------------------------------------------------------
+node_modules/
+.pnp
+.pnp.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.yarn/cache
+.yarn/unplugged
+.eslintcache
+.cache/
+
+# Builds de frontend
+dist/
+dist-ssr/
+.vite/
+.next/
+.nuxt/
+.svelte-kit/
+coverage/
+*.tsbuildinfo
+
+# ----------------------------------------------------------------------------
+# React Native / Expo / Metro (app-validador)
+# ----------------------------------------------------------------------------
+.expo/
+.expo-shared/
+web-build/
+.metro-health-check*
+*.jsbundle
+
+# Android
+*.apk
+*.aab
+*.keystore
+!debug.keystore
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/app/release/
+
+# iOS
+ios/build/
+ios/Pods/
+ios/*.xcworkspace/xcuserdata/
+*.xcuserstate
+DerivedData/
+
+# ----------------------------------------------------------------------------
+# Docker
+# ----------------------------------------------------------------------------
+docker-compose.override.yml
+
+# ----------------------------------------------------------------------------
+# Logs y temporales
+# ----------------------------------------------------------------------------
+*.log
+logs/
+*.tmp
+*.pid
+*.seed
+*.swp
+*~
+
+# ----------------------------------------------------------------------------
+# Sistema operativo
+# ----------------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/

@@ -1,234 +1,457 @@
 # CLAUDE.md — Passly
 
-> Este archivo es la memoria persistente del proyecto para Claude Code: se lee al
-> inicio de cada sesión. Mantenerlo actualizado cuando se tome una decisión de
-> arquitectura. El detalle largo va en `docs/`; acá queda solo lo esencial.
+> Memoria persistente del proyecto. Se lee al inicio de cada sesión de Claude Code.
+> Actualizar cuando se tome una decisión de arquitectura. El detalle largo va en
+> `docs/`; acá queda solo lo esencial y las razones.
 
-## Qué es Passly
+---
 
-Plataforma de **venta y validación de tickets para eventos** (tipo Passline).
-Un comprador compra entradas online; el sistema cobra, emite un ticket con QR
-único firmado, y en la puerta del evento un validador escanea el QR y lo marca
-como usado (sin permitir doble uso).
+## 1. Qué es Passly
 
-Es el **TP Integrador de Desarrollo de Aplicaciones II** (comisión Lunes TM,
-2.º cuatrimestre 2026). No es solo programar: es tomar y poder **defender
-oralmente** decisiones de arquitectura. Cada integrante debe poder explicar
-cualquier parte del sistema, no solo la que programó.
+Plataforma de **venta y validación de entradas para eventos** (tipo Passline).
+Un comprador adquiere entradas online, el sistema cobra a través de una pasarela
+externa, emite un ticket con **QR único firmado criptográficamente**, y en la
+puerta del evento un validador escanea ese QR y lo marca como usado, impidiendo
+todo doble uso.
 
-## Forma del sistema (cómo queda corriendo)
+Es el **TP Integrador de Desarrollo de Aplicaciones II** (3.4.218, comisión
+Lunes TM, 2.º cuatrimestre 2026).
 
-Passly son un **backend** y **dos clientes** que se hablan entre sí:
+**Lo que se evalúa no es la cantidad de código sino la calidad de las decisiones
+de arquitectura y la capacidad de defenderlas oralmente.** Cada integrante debe
+poder explicar cualquier parte del sistema, no solo la que programó. Un sistema
+técnicamente simple pero bien justificado rinde mejor que uno más grande con
+decisiones improvisadas.
 
-- **Backend — el corazón del TP (~80% de la nota).** Los 9 componentes Java
-  sobre WildFly. **No es una página web:** es un servidor de aplicaciones que
-  expone *APIs* (REST + un SOAP). Pura lógica, sin pantallas.
-- **App web — el sistema principal.** La usan el **comprador** (compra entradas)
-  y el **organizador** (administra sus eventos y ve reportes de ventas). Es el
-  medio para **demostrar** que el backend funciona; lo visual suma puntos extra
-  (temas claro/oscuro, buen diseño) pero **no** es donde se juega la materia.
-- **App móvil — solo el validador.** Escanea los QR de las entradas en la puerta
-  del evento y las marca como usadas. El escaneo de QR en puerta es un uso natural
-  de mobile (cámara del teléfono).
+### Enlaces
 
-Cuando prende todo, el sistema es:
+| Recurso | URL |
+|---|---|
+| **Repositorio** | https://github.com/SimonForteza/Passly |
+| Spring Boot — documentación | https://docs.spring.io/spring-boot/index.html |
+| Spring Modulith — documentación | https://docs.spring.io/spring-modulith/reference/index.html |
+| Supabase — documentación | https://supabase.com/docs |
 
-- una **base de datos relacional** con los datos;
-- **WildFly** corriendo los 9 componentes, con **Artemis** adentro (colas y
-  tópicos), exponiendo **REST** (a los dos clientes y a la pasarela) y **SOAP con
-  WSDL** (al "AFIP" legado, mockeado);
-- la **app web** para comprador y organizador;
-- la **app móvil del validador** para el escaneo de QR en puerta;
-- dos **sistemas externos**: pasarela de pago (REST) y AFIP (SOAP simulado).
+> Ante una duda de API, configuración o versión, consultar la documentación
+> oficial antes de asumir. Spring Modulith y Supabase evolucionan rápido y el
+> conocimiento previo puede estar desactualizado.
 
-**Recorrido end-to-end** (este único flujo toca casi todo el checklist):
-el comprador elige entradas **desde la app web** → la web llama por REST a
-`ServicioDeVentas` → hold en inventario + cobro por la pasarela (REST) → al
-confirmarse el pago se encola "emitir tickets" → un worker genera el QR, factura
-contra AFIP (SOAP) y publica `TicketEmitido` → Notificaciones manda el mail. En
-el evento, la **app móvil del validador** escanea el QR y `ServicioDeValidacion`
-marca la entrada como usada.
+---
 
-## Lenguajes y datos
+## 2. Forma del sistema
 
-- **Java** — todo el backend (Jakarta EE). El grueso del trabajo y de la nota.
-- **SQL / base relacional** — PostgreSQL o MySQL. Pero con **JPA (Hibernate, ya
-  incluido en WildFly)** casi no se escribe SQL a mano: se definen *entidades*
-  Java (`Evento`, `Ticket`, `Orden`…) y el ORM genera las tablas y el SQL. Para
-  consultar se usa **JPQL** (sobre objetos Java, no sobre tablas). SQL crudo solo
-  en el caso puntual donde JPA no alcanza.
-- **App web** — **HTML/CSS/JS** (o un framework, a definir). Consume el backend
-  por REST.
-- **App móvil del validador** — **su propio stack (a definir)**. Consume el
-  backend por REST; para escanear QR usa la cámara.
-- **XML** — configuración del backend y el **WSDL** del servicio SOAP (el
-  contrato de AFIP se describe en XML).
+Passly es **un backend y dos clientes**.
 
-## Stack y entorno
+- **Backend — el corazón del TP.** Ocho componentes Java sobre Spring Boot.
+  No es una página web: es un servidor que expone APIs (REST + un SOAP).
+  Lógica pura, sin pantallas.
+- **App web** — la usan el **comprador** (compra entradas) y el **organizador**
+  (administra eventos y ve reportes). Es el medio para demostrar que el backend
+  funciona. Lo visual suma, pero no es donde se juega la nota.
+- **App móvil** — solo el **validador**. Escanea QR en la puerta del evento.
+  El uso de la cámara justifica naturalmente que sea mobile y no web.
 
-- **Backend:** Jakarta EE sobre **WildFly (EE10)**. Empaquetado **WAR**.
-- **Build:** Maven 3.9.x. **JDK** por DNF.
-- **Base de datos:** relacional (PostgreSQL o MySQL) vía **JPA / Hibernate**.
-- **Mensajería:** JMS con **Artemis embebido en WildFly** (no hace falta broker aparte).
-- **Seguridad:** Jakarta Security / Elytron con `@RolesAllowed`.
-- **App web:** HTML/CSS/JS o framework (a definir). Consume el backend por **REST**.
-- **App móvil (validador):** stack a definir. Consume el backend por **REST**;
-  para escanear QR usa la cámara.
-- (Ajustar versiones exactas según el `pom.xml` real y el build de cada cliente.)
+### Recorrido end-to-end
 
-### Entorno local (Fedora, dual-boot)
+Este único flujo toca casi todo el checklist y es el que se demuestra en vivo:
 
-- Herramientas pesadas y proyectos viven en el **HDD ext4 en `/mnt/hdd`**; el
-  SSD queda para el sistema.
-- Repo local de Maven **redirigido a `/mnt/hdd/maven-repo`** vía `~/.m2/settings.xml`.
-- WildFly y el proyecto viven bajo `/mnt/hdd/`.
-- **VS Code es Flatpak** (PATH aislado). La terminal usa un perfil con
-  `flatpak-spawn --host bash` para ejecutar comandos en el host real. El warning
-  `ioctl` que aparece es inofensivo.
+```
+App web → REST → ServicioDeVentas
+  ├─ hold temporal de entradas (componente stateful)
+  ├─ cobro vía pasarela de pago (REST saliente)
+  └─ [TRANSACCIÓN DECLARATIVA]
+       descuento de cupo → registro de pago → emisión de tickets
+            │
+            ├─ publica en COLA P2P  → ServicioDeFacturacion → AFIP (SOAP)
+            └─ publica en TÓPICO    → ServicioDeNotificaciones (mail)
+                                    → ServicioDeAccesos (precarga validación)
 
-> Estas rutas son personales de mi máquina: si esto se comparte con el equipo,
-> mover lo específico de mi entorno a `CLAUDE.local.md` (gitignored).
+En el evento: App móvil → REST → ServicioDeAccesos → marca el ticket como usado
+```
 
-## Arquitectura
+**Detalle importante para la defensa:** la facturación contra AFIP queda
+**fuera** de la transacción, a propósito. Meter una llamada a un sistema externo
+lento dentro de un `@Transactional` mantiene la fila de la base bloqueada y
+además no es rollbackeable. Por eso la venta se confirma en la transacción y la
+factura sale por cola, con reintento. Si preguntan "¿qué pasa si AFIP está caído
+a mitad del flujo?", la respuesta es que la venta ya está confirmada y el mensaje
+se reintenta desde la cola.
 
-### Regla de oro
+---
+
+## 3. Stack
+
+| Necesidad | Tecnología | Por qué |
+|---|---|---|
+| Plataforma | **Spring Boot 3.x / Java 21** | Habilitado explícitamente por la cátedra. Su contenedor administra ciclo de vida, scopes, transacciones y seguridad de forma declarativa |
+| Modularización | **Spring Modulith 1.4.x** | Verifica automáticamente las fronteras entre componentes y genera diagramas desde el código |
+| Persistencia | **Supabase (PostgreSQL)** | Postgres gestionado, compatible con JPA, con soporte nativo de esquemas |
+| Acceso a datos | **Spring Data JPA + Hibernate** | Patrón DAO y transacciones declarativas |
+| Mensajería | **ActiveMQ Artemis (Docker)** | Broker JMS nativo, alineado con la Unidad V |
+| SOAP | **Spring Web Services + JAXB** | Generación y consumo de contratos WSDL |
+| Seguridad | **Spring Security** | Autorización por rol declarativa |
+| Build | **Maven** | — |
+| App web | **React + Vite** (a confirmar) | Consume el backend por REST. Responsive obligatorio |
+| App móvil | **React Native** (a confirmar) | Cámara para escaneo de QR. Debe adaptarse a distintos tamaños y orientaciones |
+
+**Por qué Artemis y no RabbitMQ:** la Unidad V es JMS específicamente. Artemis
+y ActiveMQ Classic hablan JMS nativo; RabbitMQ implementa AMQP y obligaría a una
+capa de compatibilidad que después hay que explicar. Levantarlo en Docker (y no
+embebido) es más defendible: la consigna pide mostrar el broker configurado y
+funcionando.
+
+### Trampas conocidas de Supabase
+
+- **Conectarse al puerto 5432, no al 6543.** El 6543 es PgBouncer en modo
+  transacción, que rompe prepared statements de JPA y puede romper las
+  transacciones multipaso, que son justamente lo que hay que demostrar. Si
+  aparecen errores raros, agregar `prepareThreshold=0` a la URL JDBC.
+- **No usar la API REST autogenerada de Supabase (PostgREST) como "la integración
+  REST".** Sería el frontend pegándole directo a la base, salteándose todos los
+  componentes: la negación del TP. La integración REST es la pasarela de pago.
+- **Supabase Auth no reemplaza la seguridad declarativa.** Puede usarse como
+  proveedor de identidad, pero la autorización por rol tiene que estar en el
+  backend con Spring Security y anotaciones, porque eso es lo que se evalúa.
+
+---
+
+## 4. Arquitectura
+
+### 4.1 Regla de oro
 
 **Rebanadas verticales, no capas horizontales.** Se termina un componente
-completo (sus 3 capas, desplegado y andando) antes de arrancar el siguiente. La
-unidad de avance es "un componente que funciona", no "una capa a medias en todos".
+completo (sus tres capas, desplegado y andando) antes de arrancar el siguiente.
+La unidad de avance es "un componente que funciona", no "una capa a medias en
+todos".
 
 **Todo tiene que correr en vivo.** En cada entrega se muestra la app funcionando,
 no diagramas ni código sin ejecutar. Nada de demos falseadas.
 
-### Arquitectura en capas (en cada componente)
+### 4.2 Paradigma: monolito modular, no monolito ni microservicios
 
-`presentación (JAX-RS / JAX-WS)` → `negocio (EJB)` → `datos (DAO + JPA)`
+El backend se despliega como **un único artefacto**, pero eso no lo hace un
+monolito. Lo que define el paradigma es dónde están las fronteras y qué las hace
+cumplir.
 
-Las tres capas separadas y explícitas. El esqueleto de referencia es el
-componente base: `Resource` (recurso) → `Service` (EJB) → `DAO`.
+- **Monolito:** cualquier clase accede a los internos de cualquier otra; la
+  separación en paquetes es convención sin mecanismo.
+- **Monolito modular (lo nuestro):** cada componente publica una interfaz y
+  encapsula su implementación, sus entidades y su acceso a datos. La frontera es
+  el contrato, no el proceso.
+- **Microservicios:** proceso autónomo por servicio, base privada, comunicación
+  solo por red. Se gana autonomía de despliegue; se pierden las transacciones
+  declarativas.
 
-### Componentes (9 — mínimo pedido: 6)
+**Por qué no microservicios:** el flujo crítico (retener → cobrar → emitir) tiene
+que ser transaccional, y la consigna exige transacciones declarativas en un flujo
+multipaso. Distribuir en procesos obligaría a reemplazar eso por una saga con
+compensación: todo el costo de una arquitectura distribuida sin ninguno de sus
+beneficios. Este es un **ADR** a escribir.
 
-| Componente | Responsabilidad | Estado |
+### 4.3 Estructura de paquetes
+
+Un paquete por componente. Lo público en la raíz, todo lo demás en `internal`.
+
+```
+com.passly/
+├── eventos/
+│   ├── EventoService.java          ← interfaz, public
+│   ├── dto/EventoDTO.java          ← public
+│   └── internal/
+│       ├── web/EventoController.java        package-private
+│       ├── EventoServiceImpl.java           package-private
+│       └── datos/
+│           ├── EventoRepository.java        package-private
+│           └── Evento.java                  entidad JPA
+├── ventas/          ← STATEFUL (hold)
+├── usuarios/
+├── pagos/
+├── tickets/
+├── accesos/
+├── notificaciones/
+└── facturacion/
+```
+
+**Reglas duras:**
+
+1. `EventoServiceImpl` es **package-private**. Spring la instancia por reflexión
+   igual; los demás componentes la inyectan por el tipo `EventoService` sin poder
+   nombrar la clase concreta.
+2. Las **entidades JPA nunca salen del componente**. Las fronteras se cruzan
+   siempre con DTOs.
+3. **Ningún join entre esquemas de distintos componentes.** Si Ventas necesita el
+   precio de un evento, llama a `EventoService.consultarDisponibilidad()`.
+
+### 4.4 Verificación de fronteras (Spring Modulith)
+
+La visibilidad de Java cubre el acceso directo, pero no impide que alguien
+declare un repositorio público por descuido ni evita ciclos de dependencia.
+Spring Modulith cierra esa brecha:
+
+```java
+@Test
+void verificarModulos() {
+    ApplicationModules.of(PasslyApplication.class).verify();
+}
+```
+
+Si un componente accede a los `internal` de otro, o si aparece un ciclo, **el
+build falla**. Ese es el argumento fuerte en la defensa: *"la frontera no es una
+convención del equipo, está verificada en el build."*
+
+`Documenter` genera además el diagrama de dependencias desde el código, lo que
+mantiene la documentación sincronizada con la implementación real.
+
+> La verificación es trivial mientras exista un solo componente. Adquiere valor
+> real a partir del segundo. Incorporarla al set de tests cuando haya 3+.
+
+### 4.5 Capas dentro de cada componente
+
+```
+presentación (Controller + DTO) → negocio (Service) → datos (Repository + Entity)
+```
+
+- **Presentación:** traduce HTTP a llamadas sobre la interfaz de negocio.
+  Sin lógica de dominio, sin conocer entidades.
+- **Negocio:** reglas del dominio y límites transaccionales (`@Transactional`).
+- **Datos:** patrón DAO sobre Spring Data JPA. Entidades mapeadas al esquema
+  propio del componente.
+
+### 4.6 Componentes (8 — mínimo pedido: 6)
+
+| Componente / Interfaz | Responsabilidad | Estado |
 |---|---|---|
-| ServicioDeUsuarios | Registro/login de compradores, organizadores, validadores; roles | stateless |
-| ServicioDeEventos | Alta/gestión de eventos: fecha, lugar, tipos de entrada, cupos, precios | stateless |
-| **ServicioDeInventario** | Stock de entradas por sector/tipo; **hold temporal (~10 min)** mientras el comprador paga | **stateful** |
-| ServicioDeVentas | Orquesta la compra (reserva → cobro → emisión). Es el **Facade** | stateless |
-| ServicioDePagos | Integración REST con pasarela moderna (Mercado Pago/Stripe) | stateless |
-| ServicioDeFacturacion | Integración SOAP con AFIP (facturación electrónica) | stateless |
-| ServicioDeTickets | Genera el ticket con QR único firmado tras confirmar pago | stateless |
-| ServicioDeValidacion | Valida el QR en puerta y marca la entrada como usada (evita doble uso) | stateless |
-| ServicioDeNotificaciones | Envía el ticket por mail, recordatorios, avisos (multicanal) | stateless |
+| `ServicioDeUsuarios` / `UsuarioService` | Registro y autenticación de compradores, organizadores y validadores. Roles y credenciales | stateless |
+| `ServicioDeEventos` / `EventoService` | Alta, edición y publicación de eventos. Tipos de entrada, precios y cupos | stateless |
+| **`ServicioDeVentas` / `VentaService`** | Orquesta la compra. Mantiene el **hold temporal (~5 min)** mientras el comprador paga. Es el **Facade** | **stateful** |
+| `ServicioDePagos` / `PagoService` | Adapter REST hacia la pasarela de pago | stateless |
+| `ServicioDeTickets` / `TicketService` | Emite tickets con QR firmado. Custodia el estado de uso | stateless |
+| `ServicioDeAccesos` / `AccesoService` | Valida el QR en puerta y garantiza el uso único | stateless |
+| `ServicioDeNotificaciones` / `NotificacionService` | Envío multicanal: ticket, recordatorios, cancelaciones | stateless |
+| `ServicioDeFacturacion` / `FacturacionService` | Adapter SOAP hacia AFIP, con reintento ante rechazo | stateless |
 
-El **stateful obligatorio** es `ServicioDeInventario`, justificado por el hold
-temporal de entradas (mismo patrón que `ServicioDeTurnos` en el caso MediConecta
-del TP). El resto son stateless.
+**Grafo de dependencias:**
 
-### Patrones de diseño (mínimo: 3 distintos, justificados)
+| Origen | Destino | Naturaleza |
+|---|---|---|
+| Ventas | Eventos | Síncrona — disponibilidad y precio |
+| Ventas | Usuarios | Síncrona — identidad y rol |
+| Ventas | Pagos | Síncrona — cobro |
+| Ventas | Tickets | Síncrona — emisión dentro de la transacción |
+| Ventas | Facturación | **Asincrónica** — cola P2P `orden.pagada` |
+| Tickets | Notificaciones, Accesos | **Asincrónica** — tópico `ticket.emitido` |
+| Accesos | Tickets | Síncrona — verificación de firma y marcado |
+| **Eventos** | — | **Sin dependencias salientes** |
 
-- **Facade** → `ServicioDeVentas` esconde inventario + pago + emisión + facturación.
-- **Adapter** → interfaz común de "proveedor externo" sobre AFIP (SOAP) y pasarela (REST).
-- **DAO** → acceso a datos desacoplado de la lógica en todos los componentes.
-- **Strategy** (reserva) → políticas de precio intercambiables (early-bird, dinámico, descuentos).
-- **Factory** (reserva) → creación de tickets/facturas según tipo de entrada.
+`ServicioDeEventos` es la raíz del grafo: por eso se implementa primero.
+`ServicioDeVentas` concentra la mayor cantidad de dependencias salientes: es el
+componente más complejo y el que más cuidado requiere para no volverse un punto
+de acoplamiento excesivo.
 
-> "Reserva" = candidatos extra por si se descarta alguno. Cada patrón hay que
-> saber justificar **qué problema resuelve** y **por qué se descartaron alternativas**.
+**Por qué Tickets y Accesos están separados** (pregunta probable en el oral):
+operan sobre la misma entidad pero tienen responsabilidades distintas. Tickets es
+propietario del ticket y su estado; Accesos resuelve el acto de validación en
+puerta. La separación permite además que Accesos se suscriba al tópico para
+precargar la información de validación, lo que no tendría sentido si fueran uno.
 
-### Integraciones externas
+### 4.7 Estado: stateful vs stateless
 
-- **SOAP legado (con WSDL):** AFIP. En homologación conviene **mockear** el
-  endpoint SOAP en vez de pelear con certificados de producción.
-- **REST moderno:** pasarela de pago + la API REST del backend, consumida por la
-  **app web** (comprador/organizador) y la **app móvil del validador**.
-- **Cola punto a punto (P2P):** al confirmarse el pago se encola "emitir tickets
-  de la orden X"; **un solo** worker genera los QR y persiste.
-- **Tópico pub/sub:** al emitirse el ticket se publica `TicketEmitido`, que
-  reciben **varios** suscriptores a la vez (Notificaciones, Analítica…).
+**`ServicioDeVentas` es el stateful.** Durante la compra, la selección parcial de
+entradas vive en memoria mientras dura un hold de ~5 minutos, crece llamada a
+llamada y expira si el comprador abandona. Se implementa con `@SessionScope` (o
+un scope de conversación) y **callbacks de ciclo de vida** (`@PostConstruct`,
+`@PreDestroy`) con logs visibles, que son la evidencia de que el contenedor lo
+administra.
 
-### Seguridad y transacciones
+**Todo lo demás es stateless.** Singletons de Spring, sin memoria del cliente
+entre llamadas.
+
+**Distinción crítica para la defensa:** *persistir datos no vuelve stateful a un
+componente*. El estado relevante es el **conversacional en memoria**, no el del
+negocio en disco. `ServicioDeFacturacion` puede guardar mil facturas y sigue
+siendo stateless.
+
+**Trade-off a declarar por escrito:** el hold podría persistirse en base o en
+caché y volver el componente stateless — de hecho es lo que se hace en producción
+para escalar. Se eligió la variante stateful deliberadamente para demostrar la
+gestión de ciclo de vida por contenedor, contenido central de la Unidad II.
+Reconocer el trade-off suma más que esconderlo.
+
+### 4.8 Persistencia
+
+**Una sola base física en Supabase, un esquema de Postgres por componente.**
+
+```
+passly (base)
+├── eventos.evento, eventos.tipo_entrada
+├── ventas.orden, ventas.item_orden
+├── tickets.ticket
+├── accesos.validacion
+└── ...
+```
+
+En JPA: `@Table(name = "evento", schema = "eventos")`.
+
+**Por qué no una base por componente:** eliminaría las transacciones ACID locales
+entre componentes y obligaría a sagas con compensación. Como el sistema se
+despliega en una unidad única, sería asumir el costo completo de una arquitectura
+distribuida sin ninguno de sus beneficios — el antipatrón **monolito distribuido**.
+Este es el segundo **ADR** a escribir.
+
+### 4.9 Patrones de diseño (mínimo: 3 distintos, justificados)
+
+| Patrón | Dónde | Qué problema resuelve |
+|---|---|---|
+| **Facade** | `ServicioDeVentas` | Esconde la orquestación de inventario, pago, emisión y facturación tras una sola operación de compra |
+| **Adapter** | `ServicioDePagos` (REST) y `ServicioDeFacturacion` (SOAP) | Interfaz común de "proveedor externo" sobre dos protocolos incompatibles |
+| **DAO** | Capa de datos de todos los componentes | Desacopla la lógica del mecanismo de persistencia |
+| **Strategy** *(reserva)* | Política de precios | Early-bird, general, cortesía, dinámico — intercambiables |
+| **Factory** *(reserva)* | Creación de tickets/facturas | Según tipo de entrada |
+
+> "Reserva" = candidatos extra por si se descarta alguno. De cada patrón hay que
+> saber **qué problema resuelve** y **por qué se descartaron las alternativas**.
+
+### 4.10 Integraciones
+
+- **SOAP con WSDL (legado):** AFIP. Mockear el endpoint en vez de pelear con
+  certificados de homologación.
+- **REST (partner moderno):** pasarela de pago. Más la API REST propia que
+  consumen la app web y la app móvil.
+- **Cola punto a punto:** `orden.pagada` → Facturación. Un solo consumidor,
+  porque una orden no puede facturarse dos veces. **Esa es la justificación de
+  por qué es cola y no tópico.**
+- **Tópico pub/sub:** `ticket.emitido` → Notificaciones + Accesos + métricas del
+  organizador. Varios suscriptores independientes. **Esa es la justificación de
+  por qué es tópico y no cola.**
+
+### 4.11 Seguridad y transacciones
 
 - **Roles:** `COMPRADOR`, `ORGANIZADOR`, `VALIDADOR`, `ADMIN`.
 - **Operaciones sensibles (≥2):** solo el ORGANIZADOR crea/edita su evento; solo
-  el VALIDADOR marca tickets usados; solo el COMPRADOR dueño descarga su entrada.
-- **Transacción declarativa** (`@Transactional`) en el flujo crítico
-  **reservar hold → cobrar → emitir → facturar**. Si falla un paso, se libera el hold.
+  el VALIDADOR marca tickets como usados; solo el COMPRADOR dueño descarga su
+  entrada. Con `@PreAuthorize`.
+- **Transacción declarativa:** `@Transactional` sobre confirmar compra —
+  descuento de cupo → registro de pago → emisión de tickets. Si falla un paso, se
+  revierte todo y se libera el hold. **La facturación queda afuera** (ver §2).
 
-## Requisitos técnicos transversales (checklist §6 — la vara de evaluación)
+---
+
+## 5. Checklist §6 — la vara de evaluación
 
 - [ ] 6+ componentes de negocio, cada uno con interfaz explícita y documentada
-- [ ] 1 stateful + 1 stateless, ambos justificados
+- [ ] 1 stateful + 1 stateless, ambos justificados por escrito
 - [ ] Arquitectura en capas explícita en cada componente
 - [ ] 3+ patrones de diseño distintos, aplicados y justificados
-- [ ] 1 integración SOAP con WSDL (sistema legado) → AFIP
-- [ ] 1 integración REST (partner moderno / API externa) → pasarela
+- [ ] 1 integración SOAP con WSDL (legado) → AFIP
+- [ ] 1 integración REST (partner moderno) → pasarela de pago
 - [ ] 2 procesos async: 1 cola P2P + 1 tópico pub/sub
 - [ ] Seguridad declarativa (auth + rol) en 2+ operaciones sensibles
 - [ ] Transacciones declarativas en 1 flujo crítico multipaso
-- [ ] Stack consistente y justificado (Jakarta EE)
-- [ ] Repo Git con historial incremental (no un volcado final)
+- [ ] Stack consistente y justificado (Spring Boot)
+- [ ] Repo Git con historial incremental, no un volcado final
 
-## Cronograma de entregas
+### Puntos extra (§7)
 
-Regla del §4 del anexo: **cada entrega suma funcionalidad real y verificable
-sobre la anterior**. No se puede mostrar menos que en la entrega previa.
+- [ ] Resiliencia: si un externo cae, el resto sigue funcionando (Circuit Breaker opcional)
+- [ ] Heterogeneidad: un componente en otra tecnología que igual se integra
+- [ ] Escalabilidad: escalar un componente bajo carga y medir la mejora
+- [ ] **2 ADR** — los dos ya identificados: (a) monolito modular vs. microservicios,
+  (b) esquema por componente vs. base por componente
 
-| # | Fecha | Carácter | Qué se entrega (resumen) |
+---
+
+## 6. Cronograma
+
+**Regla del §4 del anexo:** cada entrega suma funcionalidad real y verificable
+sobre la anterior. No se puede mostrar menos que en la entrega previa.
+
+| # | Fecha | Carácter | Qué se entrega |
 |---|---|---|---|
-| Checkpoint 1 | **31/08** | Fecha NO obligatoria (formativa) | 6+ componentes identificados con interfaces + diagrama de arquitectura + stack justificado + **1 componente desplegado en capas, corriendo** + doc 2-4 pág |
+| Checkpoint 1 | **31/08** | Formativo, no obligatorio | 6+ componentes con interfaces + diagrama + stack justificado + **1 componente desplegado y corriendo** + doc 2-4 pág |
 | Obligatoria 1 | **14/09** | Obligatoria, defensa oral | 3+ componentes andando + 1 stateful/1 stateless + 3 patrones + seguridad por rol + doc 5-8 pág |
-| Checkpoint 2 | **19/10** | Fecha NO obligatoria (formativa) | Diagrama de integración (SOA) + 1 proceso async real + **doc funcional + manual de usuario + prototipo Figma** |
+| Checkpoint 2 | **19/10** | Formativo, no obligatorio | Diagrama SOA + 1 proceso async real + doc funcional + manual de usuario + **prototipo Figma** |
 | Obligatoria 2 | **09/11** | Obligatoria, defensa oral | 2 async (cola + tópico) + SOAP/AFIP + REST + transacciones + doc 8-12 pág con diagramas de secuencia |
 | Prueba individual | a confirmar | Verificación individual | Cada integrante responde sobre cualquier parte del sistema |
-| Final | **21/12 o 30/11** (confirmar) | Obligatoria, defensa oral | Sistema completo integrado punta a punta + doc 10-15 pág + repo con historial de todos |
+| Final | **21/12 o 30/11** (confirmar) | Obligatoria, defensa oral | Sistema completo punta a punta + doc 10-15 pág + repo con historial de todos |
 
-El detalle exhaustivo de cada entrega vive en `docs/entregas.md`.
+Detalle exhaustivo en `docs/entregas.md`.
 
-## Convenciones de trabajo
+---
+
+## 7. Convenciones de trabajo
 
 - **Git:** commits incrementales y frecuentes, con participación visible de
   **todos** los integrantes. Nada de un único commit final.
-- **Jira** (o Trello/Azure DevOps): tablero al día en **todo momento**, no la
-  víspera. Acceso de lectura al docente desde la primera entrega. El docente
-  puede pedir verlo sin aviso.
-- **Documentación = subproducto del trabajo.** Los `.md` de `docs/` se escriben
-  a medida que se decide, y en cada entrega se exportan a PDF. Es el 15% de
-  "Calidad de documentación" de la rúbrica, hecho sin trabajo extra.
-- **Declarar uso de IA** en el documento de cada entrega obligatoria: qué se usó
-  y para qué. Cada integrante debe poder defender cualquier parte igual.
-- **App web → responsive obligatorio.**
-- **App móvil del validador → adaptarse a distintos tamaños de pantalla y a la
-  orientación (vertical/horizontal).**
+- **Jira / Trello / Azure DevOps:** tablero al día **en todo momento**, no la
+  víspera. Acceso de lectura al docente desde la primera entrega; puede pedirlo
+  sin aviso.
+- **Documentación = subproducto del trabajo.** Los `.md` de `docs/` se escriben a
+  medida que se decide, y en cada entrega se exportan a PDF. Es el 15% de la
+  rúbrica, obtenido sin trabajo extra.
+- **Declarar uso de IA** en cada entrega obligatoria: qué se usó y para qué. Cada
+  integrante debe poder defender cualquier parte igual.
+- **App web:** responsive obligatorio.
+- **App móvil:** adaptarse a distintos tamaños de pantalla y a la orientación.
 - Prototipo navegable en Figma para el 19/10.
 
-## Estructura del repo
+---
+
+## 8. Estructura del repo
 
 ```
 passly/
-├── CLAUDE.md              ← este archivo (briefing del proyecto)
-├── CLAUDE.local.md        ← rutas/entorno personales (gitignored)
+├── CLAUDE.md              ← este archivo
+├── CLAUDE.local.md        ← rutas y entorno personales (gitignored)
 ├── README.md              ← qué es Passly y cómo levantarlo
+├── docker-compose.yml     ← ActiveMQ Artemis
 ├── docs/
 │   ├── arquitectura.md    ← mapa de componentes y decisiones
-│   ├── componentes.md     ← cada componente: interfaz, operaciones, responsabilidad
+│   ├── componentes.md     ← interfaz, operaciones y responsabilidad de cada uno
 │   ├── patrones.md        ← qué patrón, dónde, por qué, alternativas descartadas
 │   ├── integraciones.md   ← SOAP/REST/cola/tópico y justificación de cada canal
-│   ├── entregas.md        ← detalle completo de cada entrega y su checklist
+│   ├── entregas.md        ← detalle completo de cada entrega
 │   └── adr/               ← Architecture Decision Records (puntos extra §7)
-├── src/                   ← backend: código (un módulo/paquete por componente)
-├── web/                   ← app web (comprador + organizador; stack a definir)
-└── app-validador/         ← app móvil del validador (escaneo de QR; stack a definir)
+├── backend/               ← Spring Boot, un paquete por componente
+│   ├── pom.xml
+│   └── src/main/java/com/passly/
+├── web/                   ← app web (comprador + organizador)
+└── app-validador/         ← app móvil del validador
 ```
 
-## Dudas abiertas (confirmar / decidir)
+---
 
-- **Tecnología de cada cliente:** el frontend ya está decidido (app web +
-  app móvil del validador); queda por definir **qué tecnología** usa cada uno
-  (framework de la web; stack de la app móvil).
-- **Base de datos:** elegir PostgreSQL o MySQL.
+## 9. Estado actual
+
+**Entrega del 31/08 lista:** informe con arquitectura, 8 componentes con
+interfaces, stack justificado y diagramas.
+
+**Próximo paso inmediato:** implementar `ServicioDeEventos` completo —
+`pom.xml`, las tres capas, esquema `eventos` en Supabase, `application.yml`
+apuntando al puerto 5432, y un endpoint REST andando.
+
+**Orden de implementación sugerido** (sale del grafo de dependencias):
+
+1. `ServicioDeEventos` — raíz, sin dependencias
+2. `ServicioDeUsuarios` — habilita la seguridad por rol sobre Eventos
+3. `ServicioDeVentas` — el stateful, con callbacks de ciclo de vida
+4. `ServicioDeTickets` — firma criptográfica del QR
+5. El resto, según lo que pida cada entrega
+
+---
+
+## 10. Dudas abiertas
+
+- **Framework de la app web y stack de la app móvil:** decididos como React /
+  React Native, falta confirmarlo con el equipo.
 - **Fecha de la Entrega Final:** la tabla del TP dice **21/12**; el detalle de esa
-  misma entrega y todo el anexo dicen **30/11**. Confirmar con la cátedra.
+  misma entrega dice **30/11**. Confirmar con la cátedra por Teams.
 - **Nota mínima de la final:** la tabla dice **mín. 4**; el detalle dice
   **mín. 8 → aprobación directa**. Confirmar.
+- **¿Separar `ServicioDeInventario` de `ServicioDeVentas`?** Hoy Ventas es a la
+  vez Facade y titular del hold, lo que le da dos responsabilidades. Extraer el
+  stock y el hold a un componente propio dejaría a Ventas como Facade puro y
+  stateless, y movería el estado a Inventario. Sería un diseño más limpio y
+  sumaría un noveno componente. **Evaluarlo para la Obligatoria 1 del 14/09**;
+  no cambiarlo antes, porque el informe del 31/08 ya documenta 8 componentes con
+  Ventas stateful.
 - Confirmar que la comisión maneja las mismas fechas de checkpoints.
