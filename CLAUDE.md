@@ -159,27 +159,49 @@ beneficios. Este es un **ADR** a escribir.
 
 Un paquete por componente. Lo público en la raíz, todo lo demás en `internal`.
 
+Estructura **real** de `eventos` (único componente implementado hoy). Los internos
+están divididos en tres sub-paquetes que reflejan las capas de §4.5 —
+`web` / `negocio` / `datos`:
+
 ```
 com.passly/
-├── eventos/
-│   ├── EventoService.java          ← interfaz, public
+├── PasslyApplication.java              ← arranque Spring Boot
+├── eventos/                            ← ÚNICO componente implementado
+│   ├── EventoService.java              ← interfaz, public (el contrato)
+│   ├── EstadoEvento.java               ← enum public (BORRADOR / PUBLICADO)
+│   ├── EventoNoEncontradoException.java          ┐ excepciones públicas
+│   ├── TipoEntradaNoEncontradoException.java      │ del contrato
+│   ├── TransicionDeEstadoInvalidaException.java   ┘
 │   ├── dto/
-│   │   ├── package-info.java       ← @NamedInterface("dto")
-│   │   └── EventoDTO.java          ← public
+│   │   ├── package-info.java           ← @NamedInterface("dto")
+│   │   ├── EventoDTO.java
+│   │   ├── TipoEntradaDTO.java
+│   │   ├── DisponibilidadDTO.java
+│   │   ├── CrearEventoRequest.java
+│   │   └── CrearTipoEntradaRequest.java
 │   └── internal/
-│       ├── web/EventoController.java        package-private
-│       ├── EventoServiceImpl.java           package-private
+│       ├── CargaDeDatosDemo.java       package-private, @Profile("demo") — seeder
+│       ├── negocio/
+│       │   ├── EventoServiceImpl.java  package-private (movido acá en el refactor)
+│       │   └── EventoMapper.java       package-private
+│       ├── web/
+│       │   ├── EventoController.java   package-private
+│       │   └── ManejadorDeErrores.java package-private (@RestControllerAdvice)
 │       └── datos/
-│           ├── EventoRepository.java        public (ver nota de visibilidad)
-│           └── Evento.java                  entidad JPA, public (ídem)
-├── ventas/          ← STATEFUL (hold)
-├── usuarios/
-├── pagos/
-├── tickets/
-├── accesos/
-├── notificaciones/
-└── facturacion/
+│           ├── EventoRepository.java   public (ver nota de visibilidad)
+│           ├── Evento.java             entidad JPA, public (ídem)
+│           ├── TipoEntradaRepository.java  public
+│           └── TipoEntrada.java        entidad JPA, public
 ```
+
+> **Nota:** `EventoServiceImpl` ya no cuelga suelto de `internal/` — vive en
+> `internal/negocio/` (commit `refactor(eventos): mover la capa de negocio a
+> internal/negocio/`). Sigue siendo package-private; ver la nota de visibilidad
+> más abajo sobre por qué eso obliga a que `datos/` sea `public`.
+
+**Aspiracional — todavía no existen** (se crean rebanada por rebanada, §4.1):
+`ventas/` (STATEFUL, hold), `usuarios/`, `pagos/`, `tickets/`, `accesos/`,
+`notificaciones/`, `facturacion/`.
 
 **Reglas duras:**
 
@@ -227,8 +249,18 @@ convención del equipo, está verificada en el build."*
 `Documenter` genera además el diagrama de dependencias desde el código, lo que
 mantiene la documentación sincronizada con la implementación real.
 
-> La verificación es trivial mientras exista un solo componente. Adquiere valor
-> real a partir del segundo. Incorporarla al set de tests cuando haya 3+.
+> **Estado: el andamiaje ya está puesto.** El test vive en
+> `backend/src/test/java/com/passly/EstructuraDeModulosTest.java` y corre verde
+> (3 tests): `noHayViolacionesDeFrontera()` (el `verify()` de arriba),
+> `eventosEsLaRaizDelGrafoDeDependencias()` — que hoy sí es una afirmación no
+> trivial: el build verifica que Eventos no depende de ningún otro componente
+> (§4.6) — y `generarDocumentacion()`, que emite los diagramas PlantUML/AsciiDoc
+> (`target/spring-modulith-docs/`) con el `Documenter`.
+>
+> Con un solo componente el `verify()` es casi tautológico; su valor real aparece
+> con el segundo. La decisión fue **montar el andamiaje desde el primer módulo**
+> en vez de esperar a tener 3+: así el segundo componente nace con la red debajo
+> en lugar de escribirse primero y auditarse después.
 
 ### 4.5 Capas dentro de cada componente
 
@@ -407,7 +439,8 @@ sobre la anterior. No se puede mostrar menos que en la entrega previa.
 | Prueba individual | a confirmar | Verificación individual | Cada integrante responde sobre cualquier parte del sistema |
 | Final | **21/12 o 30/11** (confirmar) | Obligatoria, defensa oral | Sistema completo punta a punta + doc 10-15 pág + repo con historial de todos |
 
-Detalle exhaustivo en `docs/entregas.md`.
+Detalle exhaustivo previsto en `docs/entregas.md` (aspiracional: ese archivo
+todavía no existe; ver §8).
 
 ---
 
@@ -440,19 +473,26 @@ passly/
 ├── db/init/               ← scripts de inicialización del contenedor (CREATE SCHEMA por componente)
 ├── .env.example           ← plantilla de variables de entorno, sin secretos
 ├── docs/
-│   ├── arquitectura.md    ← mapa de componentes y decisiones
-│   ├── componentes.md     ← interfaz, operaciones y responsabilidad de cada uno
-│   ├── patrones.md        ← qué patrón, dónde, por qué, alternativas descartadas
-│   ├── integraciones.md   ← SOAP/REST/cola/tópico y justificación de cada canal
-│   ├── entregas.md        ← detalle completo de cada entrega
 │   ├── ddl-eventos.sql    ← DDL de referencia del esquema eventos (Hibernate lo genera)
-│   └── adr/               ← Architecture Decision Records (puntos extra §7)
+│   └── http/              ← peticiones .http (REST Client) + README:
+│                            salud, cartelera, flujo feliz (incl. republicar → 409), errores
 ├── backend/               ← Spring Boot, un paquete por componente
 │   ├── pom.xml
-│   └── src/main/java/com/passly/
-├── web/                   ← app web (comprador + organizador)
-└── app-validador/         ← app móvil del validador
+│   ├── mvnw, mvnw.cmd, .mvn/  ← Maven wrapper
+│   └── src/
+│       ├── main/java/com/passly/     ← código (§4.3)
+│       ├── main/resources/application.yml
+│       └── test/java/com/passly/     ← EstructuraDeModulosTest, PasslyApplicationTests
+└── (aspiracional — todavía no existen):
+    ├── docs/arquitectura.md, docs/componentes.md, docs/patrones.md,
+    │   docs/integraciones.md, docs/entregas.md, docs/adr/  ← se escriben a medida que se decide
+    ├── web/               ← app web (comprador + organizador)
+    └── app-validador/     ← app móvil del validador
 ```
+
+> `CLAUDE.local.md` es un archivo personal opcional (gitignored); puede no existir
+> en un clon recién hecho. Los `.md` de `docs/` listados como aspiracionales todavía
+> no están escritos: hoy `docs/` contiene solo `ddl-eventos.sql` y `http/`.
 
 ---
 
@@ -495,3 +535,13 @@ paso a Supabase es solo cambiar variables de entorno (§4.8).
   no cambiarlo antes, porque el informe del 31/08 ya documenta 8 componentes con
   Ventas stateful.
 - Confirmar que la comisión maneja las mismas fechas de checkpoints.
+
+### Deuda técnica declarada
+
+- **`ddl-auto: update` → migrar a Flyway (o `validate`) antes de la Obligatoria 2.**
+  Hoy Hibernate crea y evoluciona las tablas al arrancar (`ddl-auto: update` en
+  `application.yml`). Sirve para el desarrollo diario, pero no versiona el esquema
+  ni sabe borrar columnas. El plan —declarado hasta ahora solo en comentarios de
+  `backend/src/main/resources/application.yml` y `docs/ddl-eventos.sql`— es pasar a
+  Flyway, o exportar el DDL y usar `ddl-auto: validate`, antes de la Obligatoria 2.
+  `docs/ddl-eventos.sql` es el punto de partida para esa migración.
