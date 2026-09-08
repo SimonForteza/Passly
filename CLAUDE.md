@@ -159,14 +159,14 @@ beneficios. Este es un **ADR** a escribir.
 
 Un paquete por componente. Lo público en la raíz, todo lo demás en `internal`.
 
-Estructura **real** de `eventos` (único componente implementado hoy). Los internos
-están divididos en tres sub-paquetes que reflejan las capas de §4.5 —
+Estructura **real** de `eventos`, que sirve de **plantilla** para los demás componentes. Los
+internos están divididos en tres sub-paquetes que reflejan las capas de §4.5 —
 `web` / `negocio` / `datos`:
 
 ```
 com.passly/
 ├── PasslyApplication.java              ← arranque Spring Boot
-├── eventos/                            ← ÚNICO componente implementado
+├── eventos/                            ← componente de referencia (plantilla)
 │   ├── EventoService.java              ← interfaz, public (el contrato)
 │   ├── EstadoEvento.java               ← enum public (BORRADOR / PUBLICADO)
 │   ├── EventoNoEncontradoException.java          ┐ excepciones públicas
@@ -199,8 +199,13 @@ com.passly/
 > internal/negocio/`). Sigue siendo package-private; ver la nota de visibilidad
 > más abajo sobre por qué eso obliga a que `datos/` sea `public`.
 
+**Ya implementado con esta misma estructura:** `usuarios/` (PAS-5) — mismas capas
+`web`/`negocio`/`datos`, DTOs con `@NamedInterface`, impl package-private. Suma además un
+`@Bean PasswordEncoder` propio en `internal/negocio/` (BCrypt) para guardar la credencial
+hasheada; ver §9.
+
 **Aspiracional — todavía no existen** (se crean rebanada por rebanada, §4.1):
-`ventas/` (STATEFUL, hold), `usuarios/`, `pagos/`, `tickets/`, `accesos/`,
+`ventas/` (STATEFUL, hold), `pagos/`, `tickets/`, `accesos/`,
 `notificaciones/`, `facturacion/`.
 
 **Reglas duras:**
@@ -507,12 +512,22 @@ documentación desde el código, datos de demo, y el flujo completo probado con 
 incluido el 409 al intentar republicar un evento. Corre contra Postgres local en Docker; el
 paso a Supabase es solo cambiar variables de entorno (§4.8).
 
-**Próximo paso inmediato:** `ServicioDeUsuarios` — habilita la seguridad por rol sobre Eventos.
+**`ServicioDeUsuarios` implementado** (PAS-5): las tres capas separadas, esquema `usuarios`
+propio, los roles del dominio (`COMPRADOR` / `ORGANIZADOR` / `VALIDADOR` / `ADMIN`) como parte
+del contrato, y la credencial guardada **hasheada con BCrypt**. El `PasswordEncoder` es un
+`@Bean` propio del componente (`spring-security-crypto` — solo la librería de hashing, sin
+filter chain ni `@PreAuthorize`): **PAS-6 reutiliza ese mismo encoder para verificar el login**,
+y el hash nunca sale del componente (el `UsuarioDTO` no lo incluye). El test de fronteras de
+Modulith sigue en verde con el segundo módulo.
+
+**Próximo paso inmediato:** **PAS-6 — seguridad por rol** (Spring Security + `@PreAuthorize`)
+sobre Eventos y Usuarios, reutilizando el `PasswordEncoder` del componente Usuarios para el
+login. Después, `ServicioDeVentas` (el stateful, con callbacks de ciclo de vida).
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 
 1. ~~`ServicioDeEventos` — raíz, sin dependencias~~ ✅ hecho
-2. `ServicioDeUsuarios` — habilita la seguridad por rol sobre Eventos
+2. ~~`ServicioDeUsuarios` — roles y credenciales, base de la seguridad por rol~~ ✅ hecho
 3. `ServicioDeVentas` — el stateful, con callbacks de ciclo de vida
 4. `ServicioDeTickets` — firma criptográfica del QR
 5. El resto, según lo que pida cada entrega
