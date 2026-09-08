@@ -5,6 +5,7 @@
 -- se crea aca, en la inicializacion del contenedor.
 --
 -- A medida que se implemente cada componente se agrega su esquema a este archivo:
--- usuarios, ventas, tickets, accesos, notificaciones, facturacion.
+-- ventas, tickets, accesos, notificaciones, facturacion.
 
 create schema if not exists eventos;
+create schema if not exists usuarios;
