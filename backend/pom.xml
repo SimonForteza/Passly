@@ -46,6 +46,19 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- ============ Credenciales (solo hashing) ============ -->
+		<!--
+		SOLO la libreria de hashing de Spring Security, NO el starter de seguridad: no trae
+		filter chain, ni @PreAuthorize, ni configuracion de auth/autorizacion (eso es PAS-6).
+		Aporta BCryptPasswordEncoder para que ServicioDeUsuarios guarde la credencial hasheada.
+		El @Bean PasswordEncoder se declara dentro del componente usuarios, que en PAS-6 va a
+		reutilizar el mismo encoder para verificar el login. La version la gestiona el BOM de Boot.
+		-->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-crypto</artifactId>
+		</dependency>
+
 		<!-- ============ Modularizacion ============ -->
 		<!-- Deteccion del modelo de modulos y API de ApplicationModules. -->
 		<dependency>
