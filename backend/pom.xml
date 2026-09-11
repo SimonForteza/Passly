@@ -46,13 +46,23 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- ============ Credenciales (solo hashing) ============ -->
+		<!-- ============ Seguridad (PAS-6) ============ -->
 		<!--
-		SOLO la libreria de hashing de Spring Security, NO el starter de seguridad: no trae
-		filter chain, ni @PreAuthorize, ni configuracion de auth/autorizacion (eso es PAS-6).
-		Aporta BCryptPasswordEncoder para que ServicioDeUsuarios guarde la credencial hasheada.
-		El @Bean PasswordEncoder se declara dentro del componente usuarios, que en PAS-6 va a
-		reutilizar el mismo encoder para verificar el login. La version la gestiona el BOM de Boot.
+		Starter completo de Spring Security: filter chain, HTTP Basic, method security
+		(@EnableMethodSecurity / @PreAuthorize) y el AuthenticationManager. La configuracion
+		concreta (SecurityFilterChain, UserDetailsService) vive en el modulo seguridad/.
+		La version la gestiona el BOM de Boot.
+		-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		<!--
+		spring-security-crypto ya viene transitivo dentro del starter de arriba; lo dejamos
+		declarado explicito a proposito: documenta que el componente usuarios solo necesita la
+		libreria de hashing (BCryptPasswordEncoder) para guardar la credencial. Ese mismo
+		@Bean PasswordEncoder, declarado dentro de usuarios, es el que PAS-6 reutiliza para
+		verificar el login, sin crear un segundo encoder.
 		-->
 		<dependency>
 			<groupId>org.springframework.security</groupId>
@@ -106,6 +116,12 @@
 		<dependency>
 			<groupId>org.springframework.modulith</groupId>
 			<artifactId>spring-modulith-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- @WithMockUser y utilidades para probar la autorizacion por rol (PAS-6). -->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
