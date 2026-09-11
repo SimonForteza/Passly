@@ -14,8 +14,16 @@ import java.util.List;
  * repositorios viven en {@code internal} y no forman parte de este contrato; los demas
  * componentes inyectan esta interfaz y no pueden nombrar la clase concreta.
  *
- * <p><b>Posicion en el sistema:</b> Eventos es la raiz del grafo de dependencias — no llama a
- * ningun otro componente. {@code EstructuraDeModulosTest} verifica esa afirmacion en cada build.
+ * <p><b>Posicion en el sistema:</b> Eventos depende de Productoras — para saber quien puede
+ * gestionar los eventos de cada una y con que nombre comercial mostrarlos — y de nadie mas. La
+ * dependencia esta declarada en el {@code package-info} del modulo y el build falla si aparece
+ * cualquier otra. No depende de Usuarios: la identidad queda detras de Productoras, que ya resolvio
+ * el cruce de roles al armar su padron.
+ *
+ * <p><b>Sobre el {@code idUsuarioActuante} de las operaciones de gestion:</b> es quien opera, y
+ * viaja como parametro <i>aparte</i> de la solicitud, nunca adentro. Hoy la capa web lo saca de un
+ * header temporal y con Spring Security saldra del principal autenticado — y este contrato no cambia
+ * en esa migracion, justamente por estar separado.
  *
  * <p><b>No es un Facade.</b> Es una interfaz de servicio: no oculta la coordinacion de varios
  * subsistemas porque no hay ninguno que coordinar. El Facade del sistema es
@@ -24,12 +32,16 @@ import java.util.List;
 public interface EventoService {
 
     /**
-     * Da de alta un evento con sus tipos de entrada. Nace en {@link EstadoEvento#BORRADOR}:
-     * no aparece en la cartelera hasta que se lo publique explicitamente.
+     * Da de alta un evento con sus tipos de entrada, a nombre de la productora indicada en la
+     * solicitud. Nace en {@link EstadoEvento#BORRADOR}: no aparece en la cartelera hasta que se lo
+     * publique explicitamente.
      *
      * <p>Cada tipo de entrada arranca con {@code cupoDisponible == cupoTotal}.
+     *
+     * @param idUsuarioActuante quien opera; tiene que poder gestionar los eventos de esa productora
+     * @throws ProductoraNoGestionableException si no puede gestionarla, o si la productora no existe
      */
-    EventoDTO crearEvento(CrearEventoRequest solicitud);
+    EventoDTO crearEvento(CrearEventoRequest solicitud, Long idUsuarioActuante);
 
     /**
      * Devuelve un evento por id, cualquiera sea su estado.
@@ -44,10 +56,12 @@ public interface EventoService {
      * <p>Valida que el evento este en borrador, que su fecha sea futura y que tenga al menos un
      * tipo de entrada con cupo disponible.
      *
-     * @throws EventoNoEncontradoException          si no existe
-     * @throws TransicionDeEstadoInvalidaException  si el estado o los datos no permiten publicarlo
+     * @param idUsuarioActuante quien opera; tiene que poder gestionar la productora dueña del evento
+     * @throws EventoNoEncontradoException         si no existe
+     * @throws ProductoraNoGestionableException    si el evento es de una productora que no gestiona
+     * @throws TransicionDeEstadoInvalidaException si el estado o los datos no permiten publicarlo
      */
-    EventoDTO publicarEvento(Long idEvento);
+    EventoDTO publicarEvento(Long idEvento, Long idUsuarioActuante);
 
     /**
      * Cartelera publica: los eventos en {@link EstadoEvento#PUBLICADO}, del mas proximo al mas
