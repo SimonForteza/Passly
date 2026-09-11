@@ -3,6 +3,12 @@
 
 # Matriz de autorizacion por rol (PAS-6). Usuarios sembrados por el perfil demo, todos con
 # contrasena "passly1234". REST Client arma el Basic con "usuario contrasena" (separados por espacio).
+#
+# Comportamiento por defecto de Spring Security ante una denegacion de @PreAuthorize:
+#   - principal ANONIMO  -> 401 (invoca el AuthenticationEntryPoint: "identificate")
+#   - principal AUTENTICADO sin el rol -> 403 (Forbidden)
+# Por eso en un endpoint permitAll (como POST /api/usuarios) un anonimo que pide un rol
+# privilegiado recibe 401, no 403.
 
 # ============ Op sensible 1: crear evento (solo ORGANIZADOR) ============
 
@@ -37,7 +43,7 @@ Content-Type: application/json
 
 { "email": "nuevo.comprador@x.test", "nombre": "Nuevo", "password": "passly1234", "rol": "COMPRADOR" }
 
-### Anonimo intenta crear ORGANIZADOR -> 403 (rol privilegiado, requiere ADMIN)
+### Anonimo intenta crear ORGANIZADOR -> 401 (rol privilegiado; anon+deny => 401, no 403)
 POST {{baseUrl}}/api/usuarios
 Content-Type: application/json
 

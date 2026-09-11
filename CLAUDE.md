@@ -415,6 +415,12 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
      (`#solicitud.rol == COMPRADOR or hasRole('ADMIN')`). Cierra el pendiente de PAS-5: el
      rol viajaba libre en `CrearUsuarioRequest`.
   3. **Bonus:** `GET /api/usuarios` (listar) solo `ADMIN`.
+- **Códigos de una denegación (comportamiento por defecto de Spring Security):** ante un
+  `@PreAuthorize` que deniega, el status depende de si hay identidad. Principal **anónimo →
+  401** (Spring invoca el `AuthenticationEntryPoint`: "identificate"); principal **autenticado
+  sin el rol → 403**. Por eso, en el endpoint público `POST /api/usuarios`, un anónimo que pide
+  un rol privilegiado recibe **401**, no 403 (el 403 aparece cuando ya está autenticado, p.ej.
+  un `COMPRADOR` intentando crear un evento). Útil para el oral: *anon+deny = 401, auth+deny = 403*.
 - **Fuera de alcance de PAS-6:** las ops sensibles de `VALIDADOR` (marcar ticket usado) y
   `COMPRADOR` (bajar su entrada) viven en componentes que todavía no existen
   (`ServicioDeAccesos` / `ServicioDeVentas`, PAS-8+). Cada uno agregará su `@PreAuthorize`
