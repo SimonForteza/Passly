@@ -1,0 +1,77 @@
+@baseUrl = http://localhost:8080
+
+# El guion central de la demo: una productora no toca las fiestas de otra.
+#
+# Ids del perfil demo con la base recien creada:
+#   usuarios     1 Carla (COMPRADOR)  3 Omar (ORGANIZADOR)  4 Olga (ORGANIZADOR)  5 Vera (VALIDADOR)
+#   productoras  1 Aurora Producciones (Omar DUENIO, Vera VALIDADOR)   2 Nocturna Live (Olga DUENIO)
+#   eventos      1 Jazz (Aurora, PUBLICADO)  2 Tech (Nocturna, PUBLICADO)  3 Recital (Aurora, BORRADOR)
+
+@omar = 3
+@olga = 4
+@vera = 5
+@aurora = 1
+@nocturna = 2
+@recitalDeAurora = 3
+
+### 1. La cartelera muestra fiestas de las dos productoras, cada una atribuida
+GET {{baseUrl}}/api/eventos
+
+### 2. El comprador puede quedarse solo con las de una
+GET {{baseUrl}}/api/eventos?productora={{nocturna}}
+
+### 3. Omar ve los eventos de Aurora INCLUIDO el borrador
+GET {{baseUrl}}/api/productoras/{{aurora}}/eventos
+X-Usuario-Id: {{omar}}
+
+### 4. Olga pide el backoffice de Aurora -> 403
+# Es de Nocturna: los borradores de Aurora no son asunto suyo.
+GET {{baseUrl}}/api/productoras/{{aurora}}/eventos
+X-Usuario-Id: {{olga}}
+
+### 5. Olga intenta publicar el borrador de Aurora -> 403
+# EL caso que justifica todo el trabajo.
+POST {{baseUrl}}/api/eventos/{{recitalDeAurora}}/publicacion
+X-Usuario-Id: {{olga}}
+
+### 6. Vera SI es miembro de Aurora, pero es VALIDADOR -> 403
+# Pertenecer a una productora no es lo mismo que poder publicar sus fiestas.
+POST {{baseUrl}}/api/eventos/{{recitalDeAurora}}/publicacion
+X-Usuario-Id: {{vera}}
+
+### 7. Sin identidad -> 401 (no 400: lo que falta es quien opera)
+POST {{baseUrl}}/api/eventos/{{recitalDeAurora}}/publicacion
+
+### 8. Omar es DUENIO de Aurora -> 200, el borrador se publica
+POST {{baseUrl}}/api/eventos/{{recitalDeAurora}}/publicacion
+X-Usuario-Id: {{omar}}
+
+### 9. Olga intenta crear un evento a nombre de Aurora -> 403
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+X-Usuario-Id: {{olga}}
+
+{
+  "idProductora": {{aurora}},
+  "nombre": "Fiesta infiltrada",
+  "fechaHora": "2027-06-01T23:00:00-03:00",
+  "lugar": "Donde sea",
+  "tiposEntrada": [
+    { "nombre": "General", "precio": 1000, "cupoTotal": 10 }
+  ]
+}
+
+### 10. Olga a nombre de SU productora -> 201
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+X-Usuario-Id: {{olga}}
+
+{
+  "idProductora": {{nocturna}},
+  "nombre": "After de Nocturna",
+  "fechaHora": "2027-06-01T23:00:00-03:00",
+  "lugar": "Club Nocturno",
+  "tiposEntrada": [
+    { "nombre": "General", "precio": 18000, "cupoTotal": 150 }
+  ]
+}

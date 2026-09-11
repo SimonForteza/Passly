@@ -1,0 +1,92 @@
+@baseUrl = http://localhost:8080
+
+# Ids del perfil demo, con la base recien creada.
+# Salen de GET /api/usuarios y GET /api/productoras si no coinciden.
+@carla = 1
+@omar = 3
+@olga = 4
+@vera = 5
+@aurora = 1
+
+### 1. Las productoras del sistema (publico)
+GET {{baseUrl}}/api/productoras
+
+### 2. Ficha de una productora (publico)
+GET {{baseUrl}}/api/productoras/{{aurora}}
+
+### 3. El padron de Aurora, pedido por Omar que es su DUENIO
+# Aparecen Omar (DUENIO) y Vera (VALIDADOR).
+GET {{baseUrl}}/api/productoras/{{aurora}}/miembros
+X-Usuario-Id: {{omar}}
+
+### 4. El mismo padron pedido por Olga, que es de otra productora -> 403
+# Quien trabaja en una productora no es informacion de catalogo.
+GET {{baseUrl}}/api/productoras/{{aurora}}/miembros
+X-Usuario-Id: {{olga}}
+
+### 5. Las productoras de Omar
+GET {{baseUrl}}/api/productoras/mias
+X-Usuario-Id: {{omar}}
+
+### 6. Crear una productora nueva (Omar es ORGANIZADOR, queda DUENIO)
+# @name crearProductora
+POST {{baseUrl}}/api/productoras
+Content-Type: application/json
+X-Usuario-Id: {{omar}}
+
+{
+  "nombreComercial": "Productora de Prueba",
+  "cuit": "30999888777",
+  "descripcion": "Creada desde el guion de demo."
+}
+
+### 7. Carla es COMPRADOR: no puede tener una productora -> 409
+# Es el cruce de los dos ejes: el rol global habilita o no la membresia.
+POST {{baseUrl}}/api/productoras
+Content-Type: application/json
+X-Usuario-Id: {{carla}}
+
+{
+  "nombreComercial": "Trucha SRL"
+}
+
+### 8. Nombre comercial repetido -> 409
+# Si dos productoras pudieran llamarse igual, el comprador no sabria de quien es la fiesta.
+POST {{baseUrl}}/api/productoras
+Content-Type: application/json
+X-Usuario-Id: {{olga}}
+
+{
+  "nombreComercial": "Aurora Producciones"
+}
+
+### 9. Incorporar a Carla como STAFF -> 409
+# STAFF exige ORGANIZADOR global, y Carla es COMPRADOR.
+POST {{baseUrl}}/api/productoras/{{aurora}}/miembros
+Content-Type: application/json
+X-Usuario-Id: {{omar}}
+
+{
+  "idUsuario": {{carla}},
+  "rolEnProductora": "STAFF"
+}
+
+### 10. Vera ya es miembro de Aurora -> 409
+POST {{baseUrl}}/api/productoras/{{aurora}}/miembros
+Content-Type: application/json
+X-Usuario-Id: {{omar}}
+
+{
+  "idUsuario": {{vera}},
+  "rolEnProductora": "VALIDADOR"
+}
+
+### 11. Vera es miembro pero no DUENIO: no puede incorporar gente -> 403
+POST {{baseUrl}}/api/productoras/{{aurora}}/miembros
+Content-Type: application/json
+X-Usuario-Id: {{vera}}
+
+{
+  "idUsuario": {{olga}},
+  "rolEnProductora": "STAFF"
+}

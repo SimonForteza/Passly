@@ -1,10 +1,56 @@
 @baseUrl = http://localhost:8080
 
+@omar = 3
+@aurora = 1
+
 ### Evento inexistente -> 404 ProblemDetail
 GET {{baseUrl}}/api/eventos/999999
+
+### Productora inexistente -> 404
+GET {{baseUrl}}/api/productoras/999999
 
 ### Crear evento invalido -> 400 con el detalle por campo
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
+X-Usuario-Id: {{omar}}
 
 { "nombre": "" }
+
+### Crear evento sin el header de identidad -> 401, no 400
+# Lo que falta no es un campo del formulario sino quien opera.
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+
+{
+  "idProductora": {{aurora}},
+  "nombre": "Show",
+  "fechaHora": "2027-03-15T21:00:00-03:00",
+  "lugar": "Teatro",
+  "tiposEntrada": [{ "nombre": "General", "precio": 1000, "cupoTotal": 10 }]
+}
+
+### Crear evento a nombre de una productora inexistente -> 403
+# Preguntar si alguien puede gestionar una productora que no existe da false, y responder
+# 403 en vez de 404 evita filtrar que ids existen.
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+X-Usuario-Id: {{omar}}
+
+{
+  "idProductora": 999999,
+  "nombre": "Show",
+  "fechaHora": "2027-03-15T21:00:00-03:00",
+  "lugar": "Teatro",
+  "tiposEntrada": [{ "nombre": "General", "precio": 1000, "cupoTotal": 10 }]
+}
+
+### CUIT con guiones -> 400
+# El patron acepta solo los 11 digitos, para no guardar el mismo CUIT en dos formatos.
+POST {{baseUrl}}/api/productoras
+Content-Type: application/json
+X-Usuario-Id: {{omar}}
+
+{
+  "nombreComercial": "Con Guiones SRL",
+  "cuit": "30-71234567-8"
+}

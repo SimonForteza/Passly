@@ -1,11 +1,20 @@
 @baseUrl = http://localhost:8080
 
-### 1. Crear evento (nace en BORRADOR)
+# Ids del perfil demo, con la base recien creada (docker compose down -v && up -d).
+# Si no coinciden, salen de GET /api/usuarios y GET /api/productoras.
+@omar = 3
+@aurora = 1
+
+### 1. Crear evento a nombre de Aurora (nace en BORRADOR)
+# El header X-Usuario-Id es quien opera. El idProductora es a nombre de quien se publica:
+# son dos cosas distintas, por eso una va en el header y la otra en el body.
 # @name crearEvento
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
+X-Usuario-Id: {{omar}}
 
 {
+  "idProductora": {{aurora}},
   "nombre": "Show de prueba",
   "descripcion": "Demo en vivo",
   "fechaHora": "2027-03-15T21:00:00-03:00",
@@ -15,17 +24,22 @@ Content-Type: application/json
   ]
 }
 
-### 2. Consultar el evento recien creado (deberia seguir en BORRADOR)
+### 2. Consultar el evento recien creado (BORRADOR, con su organizador)
 GET {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}
 
 ### 3. Publicar el evento
 POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
+X-Usuario-Id: {{omar}}
 
-### 4. Cartelera: ahora deberia aparecer
+### 4. Cartelera: ahora aparece, y cada evento dice de que productora es
 GET {{baseUrl}}/api/eventos
 
 ### 5. Republicar -> 409 Conflict (la regla de negocio real)
 POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
+X-Usuario-Id: {{omar}}
 
 ### 6. Disponibilidad del tipo de entrada creado
 GET {{baseUrl}}/api/tipos-entrada/{{crearEvento.response.body.$.tiposEntrada[0].id}}/disponibilidad
+
+### 7. Sin el header no hay identidad -> 401
+POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
