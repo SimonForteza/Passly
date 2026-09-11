@@ -123,10 +123,15 @@ class ProductoraServiceImpl implements ProductoraService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<MiembroDTO> listarMiembros(Long idProductora) {
+    public List<MiembroDTO> listarMiembros(Long idProductora, Long idUsuarioSolicitante) {
+        Productora productora = buscarProductora(idProductora);
+        if (!productora.tieneMiembro(idUsuarioSolicitante)) {
+            throw new NoEsMiembroDeLaProductoraException(idProductora, idUsuarioSolicitante);
+        }
+
         // Una consulta por miembro. Un padron tiene unidades de personas, asi que N es chico y
         // acotado; traer todos los usuarios del sistema para armar un mapa escalaria peor.
-        return buscarProductora(idProductora).getMiembros().stream()
+        return productora.getMiembros().stream()
                 .map(miembro -> mapper.aDTO(
                         miembro,
                         usuarioService.consultarUsuario(miembro.getUsuarioId())))

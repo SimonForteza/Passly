@@ -79,9 +79,15 @@ public interface ProductoraService {
      * El padron de la productora, con el email y el nombre de cada miembro resueltos contra
      * Usuarios.
      *
-     * @throws ProductoraNoEncontradaException si no existe
+     * <p><b>Recibe quien pregunta y exige que sea miembro.</b> Quien trabaja en una productora no es
+     * informacion de catalogo: un comprador que mira la cartelera no tiene por que recibir la lista
+     * de personas de una productora ajena. El guard vive aca y no en el controlador porque decidir
+     * quien puede ver que es una regla de negocio, no una traduccion de HTTP.
+     *
+     * @throws ProductoraNoEncontradaException    si no existe
+     * @throws NoEsMiembroDeLaProductoraException si quien pregunta no pertenece al padron
      */
-    List<MiembroDTO> listarMiembros(Long idProductora);
+    List<MiembroDTO> listarMiembros(Long idProductora, Long idUsuarioSolicitante);
 
     /**
      * Si el usuario pertenece al padron de la productora, con cualquier rol interno.
