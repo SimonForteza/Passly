@@ -3,6 +3,7 @@ package com.passly.usuarios.internal.datos;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Patron DAO / Repository sobre {@link Usuario}.
@@ -15,6 +16,9 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
     /** Guard de unicidad del alta: no puede haber dos cuentas con el mismo email. */
     boolean existsByEmail(String email);
+
+    /** Busca por email (identidad de login): lo usa la autenticacion de PAS-6. */
+    Optional<Usuario> findByEmail(String email);
 
     /** Listado estable para la demo y la consulta: por email ascendente. */
     List<Usuario> findAllByOrderByEmailAsc();

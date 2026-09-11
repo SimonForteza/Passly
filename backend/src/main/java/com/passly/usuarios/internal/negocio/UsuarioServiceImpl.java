@@ -3,6 +3,7 @@ package com.passly.usuarios.internal.negocio;
 import com.passly.usuarios.EmailYaRegistradoException;
 import com.passly.usuarios.UsuarioNoEncontradoException;
 import com.passly.usuarios.UsuarioService;
+import com.passly.usuarios.autenticacion.CredencialDTO;
 import com.passly.usuarios.dto.CrearUsuarioRequest;
 import com.passly.usuarios.dto.UsuarioDTO;
 import com.passly.usuarios.internal.datos.Usuario;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Implementacion de {@link UsuarioService}: las reglas del dominio y el limite transaccional.
@@ -72,5 +74,14 @@ class UsuarioServiceImpl implements UsuarioService {
         return usuarioRepository.findAllByOrderByEmailAsc().stream()
                 .map(mapper::aDTO)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<CredencialDTO> buscarCredencialPorEmail(String email) {
+        // Unico lugar donde el hash sale del componente: se arma el CredencialDTO a mano y no con
+        // UsuarioMapper (que a proposito nunca lee el hash). El texto plano no interviene aca.
+        return usuarioRepository.findByEmail(email)
+                .map(u -> new CredencialDTO(u.getEmail(), u.getPasswordHash(), u.getRol()));
     }
 }
