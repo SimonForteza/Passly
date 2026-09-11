@@ -5,6 +5,7 @@ import com.passly.usuarios.dto.CrearUsuarioRequest;
 import com.passly.usuarios.dto.UsuarioDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,7 +31,12 @@ class UsuarioController {
         this.usuarioService = usuarioService;
     }
 
+    // El alta es publica solo para COMPRADOR; los demas roles los da de alta un ADMIN autenticado.
+    // El "rol != null" es defensa en profundidad: un rol nulo ya cae en 400 por @NotNull (la
+    // validacion de @RequestBody corre antes que este chequeo), pero evita un NPE en el SpEL si
+    // alguna vez la validacion no se aplicara.
     @PostMapping("/api/usuarios")
+    @PreAuthorize("#solicitud.rol != null and (#solicitud.rol.name() == 'COMPRADOR' or hasRole('ADMIN'))")
     ResponseEntity<UsuarioDTO> registrarUsuario(@Valid @RequestBody CrearUsuarioRequest solicitud) {
         UsuarioDTO creado = usuarioService.registrarUsuario(solicitud);
         return ResponseEntity.created(URI.create("/api/usuarios/" + creado.id())).body(creado);
@@ -42,6 +48,7 @@ class UsuarioController {
     }
 
     @GetMapping("/api/usuarios")
+    @PreAuthorize("hasRole('ADMIN')")
     List<UsuarioDTO> listarUsuarios() {
         return usuarioService.listarUsuarios();
     }
