@@ -6,6 +6,7 @@ import com.passly.eventos.dto.DisponibilidadDTO;
 import com.passly.eventos.dto.EventoDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,6 +33,7 @@ class EventoController {
     }
 
     @PostMapping("/api/eventos")
+    @PreAuthorize("hasRole('ORGANIZADOR')")
     ResponseEntity<EventoDTO> crearEvento(@Valid @RequestBody CrearEventoRequest solicitud) {
         EventoDTO creado = eventoService.crearEvento(solicitud);
         return ResponseEntity.created(URI.create("/api/eventos/" + creado.id())).body(creado);
@@ -49,6 +51,7 @@ class EventoController {
      * comunica peor que se esta pidiendo una transicion, no un update.
      */
     @PostMapping("/api/eventos/{id}/publicacion")
+    @PreAuthorize("hasRole('ORGANIZADOR')")
     EventoDTO publicarEvento(@PathVariable("id") Long id) {
         return eventoService.publicarEvento(id);
     }
