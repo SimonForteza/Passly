@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
@@ -69,9 +70,39 @@ class EventoController {
         return eventoService.publicarEvento(id, idUsuarioActuante);
     }
 
+    /**
+     * Cartelera publica, opcionalmente filtrada por productora.
+     *
+     * <p>El filtro es un {@code @RequestParam} opcional sobre la misma coleccion y no un endpoint
+     * aparte: {@code /api/eventos?productora=1} sigue siendo "los eventos publicados", con un
+     * criterio de seleccion encima. Un path distinto sugeriria que es otro recurso.
+     */
     @GetMapping("/api/eventos")
-    List<EventoDTO> listarEventosPublicados() {
-        return eventoService.listarEventosPublicados();
+    List<EventoDTO> listarEventosPublicados(
+            @RequestParam(name = "productora", required = false) Long idProductora
+    ) {
+        return idProductora == null
+                ? eventoService.listarEventosPublicados()
+                : eventoService.listarEventosPublicadosDeProductora(idProductora);
+    }
+
+    /**
+     * Backoffice de la productora: sus eventos, <b>incluidos los borradores</b>.
+     *
+     * <p>Es un sub-recurso de la productora porque lo que se pide es "los eventos de esta
+     * productora", no "los eventos filtrados". La diferencia con el filtro de arriba no es de forma
+     * sino de contenido y de permisos: aca hay borradores y hace falta gestionar la productora.
+     *
+     * <p>Que el path empiece con {@code /api/productoras} y lo sirva el controlador de Eventos no es
+     * una inconsistencia: la URL describe la jerarquia del recurso, no que componente lo resuelve.
+     * Los eventos son de Eventos aunque cuelguen de una productora.
+     */
+    @GetMapping("/api/productoras/{idProductora}/eventos")
+    List<EventoDTO> listarEventosDeProductora(
+            @PathVariable("idProductora") Long idProductora,
+            @RequestHeader("X-Usuario-Id") Long idUsuarioActuante
+    ) {
+        return eventoService.listarEventosDeProductora(idProductora, idUsuarioActuante);
     }
 
     @GetMapping("/api/tipos-entrada/{id}/disponibilidad")

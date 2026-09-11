@@ -62,7 +62,7 @@ class EventoServiceImpl implements EventoService {
         // Un id de productora inexistente tambien cae aca: puedeGestionarEventos da false. No hay
         // forma de crear un evento colgado de una productora que no existe.
         if (!productoraService.puedeGestionarEventos(solicitud.idProductora(), idUsuarioActuante)) {
-            throw ProductoraNoGestionableException.alCrear(
+            throw ProductoraNoGestionableException.alGestionar(
                     solicitud.idProductora(), idUsuarioActuante);
         }
 
@@ -105,6 +105,25 @@ class EventoServiceImpl implements EventoService {
     public List<EventoDTO> listarEventosPublicados() {
         return conOrganizadores(
                 eventoRepository.findByEstadoOrderByFechaHoraAsc(EstadoEvento.PUBLICADO));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventoDTO> listarEventosPublicadosDeProductora(Long idProductora) {
+        return conOrganizadores(eventoRepository.findByEstadoAndProductoraIdOrderByFechaHoraAsc(
+                EstadoEvento.PUBLICADO, idProductora));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventoDTO> listarEventosDeProductora(Long idProductora, Long idUsuarioActuante) {
+        // Devuelve borradores, asi que exige gestion sobre la productora. Un id inexistente cae
+        // aca tambien: puedeGestionarEventos da false.
+        if (!productoraService.puedeGestionarEventos(idProductora, idUsuarioActuante)) {
+            throw ProductoraNoGestionableException.alGestionar(idProductora, idUsuarioActuante);
+        }
+        return conOrganizadores(
+                eventoRepository.findByProductoraIdOrderByFechaHoraAsc(idProductora));
     }
 
     @Override

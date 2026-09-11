@@ -26,10 +26,17 @@ public class ProductoraNoGestionableException extends RuntimeException {
         this.idUsuario = idUsuario;
     }
 
-    /** Intento de crear un evento a nombre de una productora que el usuario no gestiona. */
-    public static ProductoraNoGestionableException alCrear(Long idProductora, Long idUsuario) {
+    /**
+     * Intento de operar sobre los eventos de una productora que el usuario no gestiona: crear uno a
+     * su nombre, o listar sus borradores.
+     *
+     * <p>Tambien es el camino cuando la productora <b>no existe</b>: preguntar si alguien puede
+     * gestionar una productora inexistente da {@code false}, y responder 403 en vez de 404 no
+     * filtra si ese id existe o no.
+     */
+    public static ProductoraNoGestionableException alGestionar(Long idProductora, Long idUsuario) {
         return new ProductoraNoGestionableException(
-                "El usuario " + idUsuario + " no puede crear eventos de la productora "
+                "El usuario " + idUsuario + " no puede gestionar los eventos de la productora "
                         + idProductora,
                 idProductora, idUsuario);
     }

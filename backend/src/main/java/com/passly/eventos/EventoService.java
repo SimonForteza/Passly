@@ -70,6 +70,25 @@ public interface EventoService {
     List<EventoDTO> listarEventosPublicados();
 
     /**
+     * La cartelera publica de una sola productora: lo que ve el comprador cuando elige un
+     * organizador. Solo eventos publicados, asi que no necesita identidad.
+     */
+    List<EventoDTO> listarEventosPublicadosDeProductora(Long idProductora);
+
+    /**
+     * Backoffice de la productora: <b>todos</b> sus eventos, incluidos los que estan en
+     * {@link EstadoEvento#BORRADOR}.
+     *
+     * <p>Es la unica operacion de lectura que exige autorizacion, y por eso recibe quien pregunta:
+     * el borrador de una fiesta todavia no anunciada es informacion comercial sensible. La cartelera
+     * publica, en cambio, es de acceso libre.
+     *
+     * @param idUsuarioActuante quien opera; tiene que poder gestionar los eventos de esa productora
+     * @throws ProductoraNoGestionableException si no puede gestionarla, o si la productora no existe
+     */
+    List<EventoDTO> listarEventosDeProductora(Long idProductora, Long idUsuarioActuante);
+
+    /**
      * Precio y cupo disponible de un tipo de entrada.
      *
      * <p>Es la operacion que va a consumir {@code ServicioDeVentas} antes de retener entradas.
