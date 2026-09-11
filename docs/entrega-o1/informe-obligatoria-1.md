@@ -173,11 +173,26 @@ El codigo integrado compila. El test general `contextLoads` requiere una instanc
 
 ## 6.1 Declaracion de uso de IA
 
-El equipo utilizo asistentes de inteligencia artificial como apoyo para analizar la consigna, estructurar el roadmap, contrastar alternativas de arquitectura, revisar documentacion tecnica, proponer pruebas y mejorar la redaccion.
+El equipo declara que utilizo herramientas de inteligencia artificial durante el desarrollo de Passly. Su uso se informa con fines de transparencia academica y no sustituye el trabajo, la revision ni la responsabilidad de los integrantes.
 
-Los asistentes no reemplazaron las decisiones del equipo. Cada sugerencia fue contrastada con la consigna, la documentacion oficial de las tecnologias y el comportamiento observado del sistema. El equipo reviso el codigo y la documentacion incorporados al repositorio y conserva la responsabilidad sobre su funcionamiento y contenido.
+### Herramientas utilizadas
 
-Antes de entregar, esta seccion debe completarse con los nombres reales de las herramientas y el uso concreto declarado por cada integrante. No deben incluirse usos que el equipo no pueda explicar o verificar.
+- **Claude (Anthropic):** asistencia para analizar la consigna, estructurar el roadmap, dividir el trabajo en issues y apoyar la implementacion y documentacion tecnica.
+- **Codex (OpenAI):** inspeccion del repositorio y su historial, contraste del estado de implementacion, redaccion de los ADR y del informe, generacion reproducible del PDF y controles de consistencia y presentacion.
+
+### Alcance del uso
+
+Las herramientas intervinieron en las etapas de interpretacion de requisitos, evaluacion de alternativas de arquitectura, planificacion, apoyo a la escritura y revision de codigo, preparacion de pruebas y elaboracion de documentacion. Las decisiones finales de arquitectura, el codigo aceptado y la seleccion del contenido presentado fueron tomadas por el equipo.
+
+### Procesos de validacion
+
+Los resultados generados o sugeridos fueron revisados por integrantes del equipo, contrastados con la consigna y con documentacion oficial, y corregidos cuando no coincidian con el estado real del proyecto. El codigo se valida mediante compilacion, pruebas de fronteras con Spring Modulith, pruebas de API y demostraciones contra PostgreSQL. La documentacion se compara con el codigo integrado en `main` y se revisa mediante pull requests. Ningun resultado se considera valido solo por haber sido producido por una IA.
+
+### Responsabilidad sobre el contenido
+
+Los integrantes asumen plena responsabilidad academica por el codigo, las decisiones y la documentacion presentados. Cada miembro debe comprenderlos, poder explicar sus fundamentos y defender cualquier parte durante la evaluacion oral, aunque haya recibido asistencia de IA.
+
+La declaracion no implica por si misma una penalizacion. La omision del uso de estas herramientas o la presentacion de informacion falsa o engañosa puede considerarse una falta a la integridad academica. Antes de entregar, cada integrante debe confirmar que esta lista incluye todas las herramientas que realmente utilizo y que el alcance informado es correcto.
 
 ## 6.2 Conclusiones
 
