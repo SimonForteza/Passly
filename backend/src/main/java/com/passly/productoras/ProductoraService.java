@@ -67,6 +67,7 @@ public interface ProductoraService {
      * @param idUsuarioSolicitante identidad de quien opera; tiene que ser DUENIO
      * @throws ProductoraNoEncontradaException        si la productora no existe
      * @throws NoEsMiembroDeLaProductoraException     si el solicitante no es DUENIO
+     * @throws YaEsMiembroDeLaProductoraException     si el invitado ya esta en el padron
      * @throws RolIncompatibleConLaMembresiaException si el rol global del invitado no corresponde
      */
     MiembroDTO agregarMiembro(
