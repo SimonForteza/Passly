@@ -5,10 +5,31 @@ independiente: se abre, aparece un link `Send Request` arriba de cada `###`, y s
 
 | Archivo | Que prueba |
 |---|---|
-| [01-salud.http](01-salud.http) | `/actuator/health` y `/actuator/modulith` |
+| [01-salud.http](01-salud.http) | `/actuator/health` (publico) y `/actuator/modulith` (autenticado) |
 | [02-cartelera.http](02-cartelera.http) | `GET /api/eventos` (cartelera publica) |
 | [03-flujo-feliz.http](03-flujo-feliz.http) | crear -> consultar -> publicar -> cartelera -> **republicar (409)** -> disponibilidad |
 | [04-errores.http](04-errores.http) | evento inexistente (404), evento invalido (400) |
+| [05-seguridad.http](05-seguridad.http) | matriz de autorizacion por rol (PAS-6): 401 / 403 / 201-200 |
+
+## Autenticacion (PAS-6)
+
+La API usa **HTTP Basic**. Los endpoints publicos no piden credenciales: `GET /actuator/health`,
+la cartelera (`GET /api/eventos`, `GET /api/eventos/{id}`) y el alta publica (`POST /api/usuarios`,
+que solo puede crear `COMPRADOR`). Todo lo demas exige estar autenticado, y las operaciones
+sensibles exigen ademas un rol (`@PreAuthorize`): crear/publicar eventos -> `ORGANIZADOR`; crear
+usuarios privilegiados y listar usuarios -> `ADMIN`.
+
+El perfil `demo` siembra un usuario por rol, todos con contrasena `passly1234`:
+
+| Rol | Usuario |
+|---|---|
+| COMPRADOR | `comprador@passly.test` |
+| ORGANIZADOR | `organizador@passly.test` |
+| VALIDADOR | `validador@passly.test` |
+| ADMIN | `admin@passly.test` |
+
+En los `.http`, REST Client arma el header a partir de `Authorization: Basic usuario contrasena`
+(separados por un espacio). Con `curl`, el equivalente es `-u usuario:contrasena`.
 
 ## Antes de correrlas
 

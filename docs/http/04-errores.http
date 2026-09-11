@@ -1,10 +1,15 @@
 @baseUrl = http://localhost:8080
+@organizador = organizador@passly.test
+@clave = passly1234
 
-### Evento inexistente -> 404 ProblemDetail
+### Evento inexistente -> 404 ProblemDetail (GET publico, sin credenciales)
 GET {{baseUrl}}/api/eventos/999999
 
 ### Crear evento invalido -> 400 con el detalle por campo
+# Va con credenciales ORGANIZADOR a proposito: el 401/403 se chequea antes de llegar aca, asi
+# que para ver el 400 de validacion hay que estar autenticado y autorizado primero.
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
+Authorization: Basic {{organizador}} {{clave}}
 
 { "nombre": "" }

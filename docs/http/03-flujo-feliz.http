@@ -1,9 +1,15 @@
 @baseUrl = http://localhost:8080
 
-### 1. Crear evento (nace en BORRADOR)
+# Credenciales de demo (perfil demo). REST Client arma el header Basic a partir de
+# "usuario contrasena" separados por un espacio. Crear y publicar exigen rol ORGANIZADOR (PAS-6).
+@organizador = organizador@passly.test
+@clave = passly1234
+
+### 1. Crear evento (nace en BORRADOR) -- exige ORGANIZADOR
 # @name crearEvento
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
+Authorization: Basic {{organizador}} {{clave}}
 
 {
   "nombre": "Show de prueba",
@@ -15,17 +21,20 @@ Content-Type: application/json
   ]
 }
 
-### 2. Consultar el evento recien creado (deberia seguir en BORRADOR)
+### 2. Consultar el evento recien creado (publico, sin credenciales) -- deberia seguir en BORRADOR
 GET {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}
 
-### 3. Publicar el evento
+### 3. Publicar el evento -- exige ORGANIZADOR
 POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
+Authorization: Basic {{organizador}} {{clave}}
 
-### 4. Cartelera: ahora deberia aparecer
+### 4. Cartelera (publica, sin credenciales): ahora deberia aparecer
 GET {{baseUrl}}/api/eventos
 
-### 5. Republicar -> 409 Conflict (la regla de negocio real)
+### 5. Republicar -> 409 Conflict (la regla de negocio real) -- exige ORGANIZADOR
 POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
+Authorization: Basic {{organizador}} {{clave}}
 
-### 6. Disponibilidad del tipo de entrada creado
+### 6. Disponibilidad del tipo de entrada creado -- exige estar autenticado (PAS-6)
 GET {{baseUrl}}/api/tipos-entrada/{{crearEvento.response.body.$.tiposEntrada[0].id}}/disponibilidad
+Authorization: Basic {{organizador}} {{clave}}

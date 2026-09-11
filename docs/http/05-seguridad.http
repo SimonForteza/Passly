@@ -1,0 +1,64 @@
+@baseUrl = http://localhost:8080
+@clave = passly1234
+
+# Matriz de autorizacion por rol (PAS-6). Usuarios sembrados por el perfil demo, todos con
+# contrasena "passly1234". REST Client arma el Basic con "usuario contrasena" (separados por espacio).
+
+# ============ Op sensible 1: crear evento (solo ORGANIZADOR) ============
+
+### Anonimo -> 401 (el filter chain exige estar autenticado)
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+
+{ "nombre": "X", "fechaHora": "2030-01-01T20:00:00Z", "lugar": "CABA",
+  "tiposEntrada": [ { "nombre": "General", "precio": 1000, "cupoTotal": 10 } ] }
+
+### COMPRADOR autenticado -> 403 (autenticado pero rol equivocado)
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+Authorization: Basic comprador@passly.test {{clave}}
+
+{ "nombre": "X", "fechaHora": "2030-01-01T20:00:00Z", "lugar": "CABA",
+  "tiposEntrada": [ { "nombre": "General", "precio": 1000, "cupoTotal": 10 } ] }
+
+### ORGANIZADOR -> 201 Created
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+Authorization: Basic organizador@passly.test {{clave}}
+
+{ "nombre": "Evento del organizador", "fechaHora": "2030-01-01T20:00:00Z", "lugar": "CABA",
+  "tiposEntrada": [ { "nombre": "General", "precio": 1000, "cupoTotal": 10 } ] }
+
+# ============ Op sensible 2: alta de usuarios (publica solo para COMPRADOR) ============
+
+### Anonimo crea COMPRADOR -> 201 (alta publica permitida)
+POST {{baseUrl}}/api/usuarios
+Content-Type: application/json
+
+{ "email": "nuevo.comprador@x.test", "nombre": "Nuevo", "password": "passly1234", "rol": "COMPRADOR" }
+
+### Anonimo intenta crear ORGANIZADOR -> 403 (rol privilegiado, requiere ADMIN)
+POST {{baseUrl}}/api/usuarios
+Content-Type: application/json
+
+{ "email": "org.trucho@x.test", "nombre": "Trucho", "password": "passly1234", "rol": "ORGANIZADOR" }
+
+### ADMIN crea ORGANIZADOR -> 201
+POST {{baseUrl}}/api/usuarios
+Content-Type: application/json
+Authorization: Basic admin@passly.test {{clave}}
+
+{ "email": "org.real@x.test", "nombre": "Organizador Real", "password": "passly1234", "rol": "ORGANIZADOR" }
+
+# ============ Bonus: listar usuarios (solo ADMIN) ============
+
+### Anonimo -> 401
+GET {{baseUrl}}/api/usuarios
+
+### COMPRADOR -> 403
+GET {{baseUrl}}/api/usuarios
+Authorization: Basic comprador@passly.test {{clave}}
+
+### ADMIN -> 200
+GET {{baseUrl}}/api/usuarios
+Authorization: Basic admin@passly.test {{clave}}

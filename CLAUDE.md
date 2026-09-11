@@ -397,9 +397,28 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
 ### 4.11 Seguridad y transacciones
 
 - **Roles:** `COMPRADOR`, `ORGANIZADOR`, `VALIDADOR`, `ADMIN`.
-- **Operaciones sensibles (≥2):** solo el ORGANIZADOR crea/edita su evento; solo
-  el VALIDADOR marca tickets como usados; solo el COMPRADOR dueño descarga su
-  entrada. Con `@PreAuthorize`.
+- **Autenticación (PAS-6):** **HTTP Basic**, sesión **STATELESS**, CSRF off (API REST).
+  Vive en el módulo `seguridad/`, que autentica contra `usuarios` por el contrato
+  `usuarios :: autenticacion` (`CredencialDTO`, que lleva el hash) y **reutiliza el mismo
+  `@Bean PasswordEncoder` de `usuarios`** (inyectado por tipo, sin declarar un segundo bean).
+  Se eligió Basic y no JWT: para la Obligatoria 1, JWT sería complejidad sin beneficio.
+- **Autorización por rol declarativa con `@PreAuthorize`, en los controllers.** Grano grueso
+  (anónimo vs autenticado) en el `SecurityFilterChain`; el rol, en `@PreAuthorize` sobre cada
+  operación sensible. Se puso en el controller y no en el servicio para no acoplar
+  `eventos`/`usuarios` a Spring Security y para no romper los seeders de demo, que llaman al
+  servicio directo al arrancar (un `@PreAuthorize` sobre el servicio los haría fallar con
+  AccessDenied en el boot). **Implementado (2 ops + bonus):**
+  1. **Eventos:** solo `ORGANIZADOR` crea (`POST /api/eventos`) y publica
+     (`POST /api/eventos/{id}/publicacion`).
+  2. **Usuarios:** el alta pública (`POST /api/usuarios`) solo crea `COMPRADOR`;
+     `ORGANIZADOR`/`VALIDADOR`/`ADMIN` los da de alta un `ADMIN` autenticado
+     (`#solicitud.rol == COMPRADOR or hasRole('ADMIN')`). Cierra el pendiente de PAS-5: el
+     rol viajaba libre en `CrearUsuarioRequest`.
+  3. **Bonus:** `GET /api/usuarios` (listar) solo `ADMIN`.
+- **Fuera de alcance de PAS-6:** las ops sensibles de `VALIDADOR` (marcar ticket usado) y
+  `COMPRADOR` (bajar su entrada) viven en componentes que todavía no existen
+  (`ServicioDeAccesos` / `ServicioDeVentas`, PAS-8+). Cada uno agregará su `@PreAuthorize`
+  sobre la infra de autenticación que dejó PAS-6.
 - **Transacción declarativa:** `@Transactional` sobre confirmar compra —
   descuento de cupo → registro de pago → emisión de tickets. Si falla un paso, se
   revierte todo y se libera el hold. **La facturación queda afuera** (ver §2).
@@ -520,14 +539,23 @@ filter chain ni `@PreAuthorize`): **PAS-6 reutiliza ese mismo encoder para verif
 y el hash nunca sale del componente (el `UsuarioDTO` no lo incluye). El test de fronteras de
 Modulith sigue en verde con el segundo módulo.
 
-**Próximo paso inmediato:** **PAS-6 — seguridad por rol** (Spring Security + `@PreAuthorize`)
-sobre Eventos y Usuarios, reutilizando el `PasswordEncoder` del componente Usuarios para el
-login. Después, `ServicioDeVentas` (el stateful, con callbacks de ciclo de vida).
+**Seguridad implementada** (PAS-6): módulo **`seguridad/`** con Spring Security — **HTTP Basic**,
+sesión **STATELESS**, autorización por rol declarativa con `@PreAuthorize` **en los controllers**
+sobre 2 operaciones sensibles (Eventos: solo `ORGANIZADOR` crea/publica; Usuarios: el alta
+pública solo crea `COMPRADOR`, el resto lo da de alta un `ADMIN`) más el bonus (listar usuarios
+solo `ADMIN`). Autentica contra `usuarios` por el contrato `usuarios :: autenticacion`
+(`CredencialDTO`) y **reutiliza el `PasswordEncoder`** del componente, sin crear un segundo bean.
+Un test de integración (`AutorizacionPorRolTest`) fija que un `COMPRADOR` autenticado no puede
+crear eventos. El test de fronteras de Modulith sigue verde con el tercer módulo. Detalle en §4.11.
+
+**Próximo paso inmediato:** **`ServicioDeVentas`** (el stateful, con callbacks de ciclo de vida),
+que consumirá Eventos y Usuarios y sumará sus propios `@PreAuthorize` sobre la infra de PAS-6.
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 
 1. ~~`ServicioDeEventos` — raíz, sin dependencias~~ ✅ hecho
 2. ~~`ServicioDeUsuarios` — roles y credenciales, base de la seguridad por rol~~ ✅ hecho
+   - ~~**Seguridad (PAS-6)** — HTTP Basic + `@PreAuthorize` por rol; módulo `seguridad/`~~ ✅ hecho
 3. `ServicioDeVentas` — el stateful, con callbacks de ciclo de vida
 4. `ServicioDeTickets` — firma criptográfica del QR
 5. El resto, según lo que pida cada entrega
