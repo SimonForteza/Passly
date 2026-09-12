@@ -1,6 +1,7 @@
 package com.passly.eventos;
 
 import com.passly.eventos.dto.CrearEventoRequest;
+import com.passly.eventos.dto.DescontarCupoRequest;
 import com.passly.eventos.dto.DisponibilidadDTO;
 import com.passly.eventos.dto.EventoDTO;
 
@@ -98,4 +99,23 @@ public interface EventoService {
      * @throws TipoEntradaNoEncontradoException si no existe
      */
     DisponibilidadDTO consultarDisponibilidad(Long idTipoEntrada);
+
+    /**
+     * Descuenta cupo de una o mas lineas, cada una identificada por su tipo de entrada. Pensada
+     * para {@code ServicioDeVentas.confirmarCompra}: un solo cruce de frontera por toda la
+     * compra, no uno por linea.
+     *
+     * <p>Se aplican <b>ordenadas por {@code idTipoEntrada}</b>, para que dos confirmaciones
+     * concurrentes que comparten lineas las toquen siempre en el mismo orden y no se
+     * deadlockeen entre si esperandose en orden inverso.
+     *
+     * <p>Si una linea falla, las anteriores <b>ya quedaron escritas</b> (no hay pre-validacion
+     * de todo el lote): es la transaccion que envuelve a quien llama la que decide si eso se
+     * revierte. Descontar sin pre-validar es deliberado — es la ultima linea de defensa contra
+     * la carrera entre compras concurrentes, y pre-validar todo el lote la volveria inutil.
+     *
+     * @throws TipoEntradaNoEncontradoException si alguna linea no corresponde a un tipo de entrada real
+     * @throws CupoInsuficienteException        si alguna linea pide mas de lo disponible
+     */
+    void descontarCupo(List<DescontarCupoRequest> lineas);
 }

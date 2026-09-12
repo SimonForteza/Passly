@@ -1,6 +1,7 @@
 package com.passly.eventos.internal.datos;
 
 import com.passly.eventos.EstadoEvento;
+import com.passly.eventos.TipoEntradaNoEncontradoException;
 import com.passly.eventos.TransicionDeEstadoInvalidaException;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -131,6 +132,25 @@ public class Evento {
                             + " porque no tiene ningun tipo de entrada con cupo disponible");
         }
         this.estado = EstadoEvento.PUBLICADO;
+    }
+
+    /**
+     * Descuenta cupo de uno de los tipos de entrada de este evento.
+     *
+     * <p>Espejo de {@link #publicar()}: el descuento entra por la raiz del agregado, que busca el
+     * hijo y delega en el la invariante ({@link TipoEntrada#descontar}). No es
+     * {@code tipoEntradaRepository.findById(...).descontar(...)} porque eso saltearia la raiz —
+     * exactamente lo que el Javadoc de {@code TipoEntradaRepository} pide evitar.
+     *
+     * @throws TipoEntradaNoEncontradoException si el tipo de entrada no es de este evento
+     * @throws com.passly.eventos.CupoInsuficienteException si no queda cupo para {@code cantidad}
+     */
+    public void descontarCupo(Long idTipoEntrada, int cantidad) {
+        TipoEntrada tipoEntrada = tiposEntrada.stream()
+                .filter(t -> t.getId().equals(idTipoEntrada))
+                .findFirst()
+                .orElseThrow(() -> new TipoEntradaNoEncontradoException(idTipoEntrada));
+        tipoEntrada.descontar(cantidad);
     }
 
     /**
