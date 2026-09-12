@@ -9,6 +9,7 @@ import java.math.BigDecimal;
  */
 public record ItemDeOrdenDTO(
         Long idTipoEntrada,
+        Long idEvento,
         String nombreTipoEntrada,
         BigDecimal precioUnitario,
         Integer cantidad
