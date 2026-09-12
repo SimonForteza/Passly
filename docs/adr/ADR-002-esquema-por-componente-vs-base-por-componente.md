@@ -2,12 +2,13 @@
 
 - Estado: Aceptado
 - Fecha: 2026-09-11
+- Ultima revision: 2026-09-12
 - Responsables: Equipo Passly
 - Alcance: Persistencia del backend
 
 ## Contexto
 
-Los componentes de Passly son responsables de su propio modelo de dominio. Eventos administra eventos, tipos de entrada, precios y cupos; Usuarios administra identidades, roles y credenciales. Los componentes futuros tendran modelos propios para ventas, pagos, tickets, accesos, notificaciones y facturacion.
+Los componentes de Passly son responsables de su propio modelo de dominio. Eventos administra eventos, tipos de entrada, precios y cupos; Productoras administra organizadores, miembros y roles internos; Usuarios administra identidades, roles globales y credenciales. Los componentes futuros tendran modelos propios para ventas, pagos, tickets, accesos, notificaciones y facturacion.
 
 La persistencia debe reflejar esos limites sin agregar una carga operativa desproporcionada para un monolito modular y un equipo pequeno. Tambien debe evitar que un componente dependa directamente de tablas o entidades pertenecientes a otro.
 
@@ -38,9 +39,9 @@ Una unica instancia PostgreSQL contiene un esquema separado por componente. Cada
 
 Utilizar **una instancia PostgreSQL con un esquema por componente**.
 
-Los esquemas se declaran inicialmente en `db/init/01-esquemas.sql`. Las entidades JPA indican el esquema al que pertenecen. Quedan prohibidos los joins, repositorios y claves foraneas que atraviesen esquemas de componentes distintos.
+Los esquemas se declaran inicialmente en `db/init/01-esquemas.sql`. Las entidades JPA indican el esquema al que pertenecen. Quedan prohibidos los joins, repositorios y claves foraneas que atraviesen esquemas de componentes distintos. Las referencias entre componentes se guardan como identificadores simples y se validan mediante el contrato publico del componente propietario.
 
-Si Ventas necesita consultar disponibilidad o precio, debe invocar `EventoService`; no puede consultar las tablas de Eventos. La misma regla aplica a Usuarios y a los componentes futuros.
+Eventos guarda `productora_id`, pero consulta y autoriza a traves de `ProductoraService`; Productoras guarda `usuario_id`, pero valida la identidad mediante `UsuarioService`. Si Ventas necesita consultar disponibilidad o precio, debe invocar `EventoService`; no puede consultar las tablas de Eventos.
 
 ## Consecuencias positivas
 
@@ -61,8 +62,9 @@ Si Ventas necesita consultar disponibilidad o precio, debe invocar `EventoServic
 
 ## Evidencia en el repositorio
 
-- `db/init/01-esquemas.sql` crea los esquemas `eventos` y `usuarios`.
-- Las entidades JPA de Eventos y Usuarios especifican su esquema propietario.
+- `db/init/01-esquemas.sql` crea los esquemas `eventos`, `productoras` y `usuarios`.
+- Las entidades JPA de Eventos, Productoras y Usuarios especifican su esquema propietario.
+- `eventos.evento.productora_id` y `productoras.miembro.usuario_id` son referencias logicas sin claves foraneas entre esquemas.
 - Los servicios publicos intercambian DTO y no entidades.
 - `docker-compose.yml` levanta una unica instancia PostgreSQL para desarrollo.
 - La conexion puede cambiarse a Supabase mediante variables de entorno, sin modificar codigo de dominio.
