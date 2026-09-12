@@ -7,6 +7,7 @@ import com.passly.eventos.ProductoraNoGestionableException;
 import com.passly.eventos.TipoEntradaNoEncontradoException;
 import com.passly.eventos.dto.CrearEventoRequest;
 import com.passly.eventos.dto.CrearTipoEntradaRequest;
+import com.passly.eventos.dto.DescontarCupoRequest;
 import com.passly.eventos.dto.DisponibilidadDTO;
 import com.passly.eventos.dto.EventoDTO;
 import com.passly.eventos.dto.OrganizadorDeEventoDTO;
@@ -19,6 +20,7 @@ import com.passly.productoras.dto.ProductoraDTO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -140,6 +142,24 @@ class EventoServiceImpl implements EventoService {
                 tipoEntrada.getCupoDisponible(),
                 tipoEntrada.tieneCupo()
         );
+    }
+
+    @Override
+    public void descontarCupo(List<DescontarCupoRequest> lineas) {
+        List<DescontarCupoRequest> ordenadas = lineas.stream()
+                .sorted(Comparator.comparing(DescontarCupoRequest::idTipoEntrada))
+                .toList();
+
+        for (DescontarCupoRequest linea : ordenadas) {
+            Evento evento = eventoRepository.findByTipoEntradaId(linea.idTipoEntrada())
+                    .orElseThrow(() -> new TipoEntradaNoEncontradoException(linea.idTipoEntrada()));
+            evento.descontarCupo(linea.idTipoEntrada(), linea.cantidad());
+            // Flush por linea, no al final: si una linea posterior revienta, esta ya tiene que
+            // haber llegado a la base para que el rollback de quien nos llama devuelva algo real.
+            // Sin esto, la excepcion descarta el persistence context antes de que Hibernate haya
+            // emitido el UPDATE, y "el rollback devolvio el cupo" seria una demo vacia.
+            eventoRepository.flush();
+        }
     }
 
     private Evento buscarEvento(Long idEvento) {

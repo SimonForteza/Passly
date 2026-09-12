@@ -23,6 +23,17 @@ import org.springframework.security.web.SecurityFilterChain;
  * <p><b>Reparto de responsabilidades:</b> este filter chain decide solo entre <i>anonimo</i> y
  * <i>autenticado</i> (grano grueso). <b>Que rol</b> puede cada operacion sensible se declara con
  * {@code @PreAuthorize} en los controllers (grano fino), que es lo que pide el requerimiento.
+ *
+ * <p><b>STATELESS y el carrito de ServicioDeVentas (PAS-8), la tension que hay que saber
+ * explicar.</b> Esta politica solo le dice a <i>Spring Security</i> que no cree ni lea
+ * {@code HttpSession} para guardar el {@code SecurityContext}: cada request se re-autentica con
+ * su propio header Basic. No le dice nada al <i>servlet container</i>, que sigue creando una
+ * sesion en cuanto algo la pide -- y eso es exactamente lo que hace el proxy de un bean
+ * {@code @SessionScope} como {@code CarritoDeCompra}. La autenticacion sigue siendo stateless; el
+ * carrito, no. Consecuencia real, no cosmetica: con nada que asocie el {@code JSESSIONID} al
+ * principal, alguien que reutilizara la cookie de otro junto con sus propias credenciales veria
+ * su carrito. Por eso el carrito valida al dueño en cada operacion
+ * ({@code CarritoDeOtroCompradorException}) en vez de confiar en la sesion a secas.
  */
 @Configuration
 @EnableMethodSecurity
@@ -31,9 +42,15 @@ class ConfiguracionDeSeguridad {
     @Bean
     SecurityFilterChain filtros(HttpSecurity http) throws Exception {
         http
-                // API REST sin cookies de sesion: CSRF no aplica (no hay sesion que falsificar).
+                // Desde PAS-8 SI hay una cookie de sesion (el carrito de Ventas es @SessionScope),
+                // pero CSRF sigue apagado con sentido: la identidad la sigue dando el header
+                // Authorization, que un formulario cross-site no puede setear. La cookie habilita
+                // "session riding" sobre el carrito, no falsificar quien opera -- por eso el
+                // carrito valida a su dueño en cada operacion (ver Javadoc de la clase).
                 .csrf(csrf -> csrf.disable())
-                // Sin estado de sesion en el servidor: cada request se autentica con sus credenciales.
+                // Spring Security no crea ni lee HttpSession para el SecurityContext: cada
+                // request se autentica de nuevo con su Basic. No impide que la app pida sesion
+                // por otro motivo (ver Javadoc de la clase).
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Cartelera publica: cualquiera ve los eventos publicados y un evento por id.

@@ -57,10 +57,10 @@ Este único flujo toca casi todo el checklist y es el que se demuestra en vivo:
 
 ```
 App web → REST → ServicioDeVentas
-  ├─ hold temporal de entradas (componente stateful)
+  ├─ carrito temporal de entradas (componente stateful)
   ├─ cobro vía pasarela de pago (REST saliente)
   └─ [TRANSACCIÓN DECLARATIVA]
-       descuento de cupo → registro de pago → emisión de tickets
+       descuento de cupo → registro de la orden → emisión de tickets
             │
             ├─ publica en COLA P2P  → ServicioDeFacturacion → AFIP (SOAP)
             └─ publica en TÓPICO    → ServicioDeNotificaciones (mail)
@@ -205,6 +205,41 @@ com.passly/
 hasheada; ver §9. Y `productoras/` (PAS-7) — ídem, con `RolEnProductora` en la raíz como
 parte del contrato.
 
+**`ventas/` (PAS-8) — el componente stateful, con una variación real sobre la plantilla.**
+Mismas capas, pero `internal/negocio/` suma dos colaboradores que `eventos` no necesita:
+
+```
+ventas/
+├── VentaService.java                        ← interfaz, public (el Facade)
+├── CarritoVencidoException.java             ┐
+├── CarritoVacioException.java               │ excepciones públicas
+├── CarritoDeOtroCompradorException.java     │ del contrato
+├── PagoRechazadoException.java              │
+├── OrdenNoEncontradaException.java          ┘
+├── dto/                                     ← @NamedInterface("dto")
+│   ├── CarritoDTO.java, ItemDeCarritoDTO.java, AgregarItemRequest.java
+│   └── OrdenDTO.java, ItemDeOrdenDTO.java, CompradorDeOrdenDTO.java
+└── internal/
+    ├── negocio/
+    │   ├── CarritoDeCompra.java     @Component @SessionScope — EL STATEFUL (§4.7)
+    │   ├── VentaServiceImpl.java    package-private, SIN @Transactional de clase (§4.11)
+    │   ├── ConfirmacionDeCompra.java  package-private, @Transactional acá (§4.11)
+    │   ├── PasarelaDePago.java        interfaz package-private — el Port (§4.9)
+    │   ├── PasarelaDePagoSimulada.java  el Adapter de hoy, hasta que exista PAS-7
+    │   ├── ComprobanteDeCobroDTO.java  package-private, no cruza la frontera del módulo
+    │   └── VentaMapper.java
+    ├── web/
+    │   ├── VentaController.java
+    │   └── ManejadorDeErroresDeVentas.java
+    └── datos/
+        ├── Orden.java, ItemOrden.java     entidades JPA, public
+        └── OrdenRepository.java
+```
+
+No depende de `productoras`: el nombre comercial del organizador ya viaja dentro de
+`EventoDTO.organizador`, así que declarar esa arista sería sumar una dependencia sin uso. Su
+`package-info` declara `{"eventos", "eventos :: dto", "usuarios", "usuarios :: dto"}`.
+
 **Cada módulo suma un `package-info.java` en su raíz** con
 `@ApplicationModule(allowedDependencies = ...)`, que declara de qué otros componentes puede
 depender. No es decorativo: el build falla si aparece una dependencia no declarada (§4.4).
@@ -218,8 +253,7 @@ públicos; que alcancen para operar todo el sistema prueba que esos contratos es
 completos.
 
 **Aspiracional — todavía no existen** (se crean rebanada por rebanada, §4.1):
-`ventas/` (STATEFUL, hold), `pagos/`, `tickets/`, `accesos/`,
-`notificaciones/`, `facturacion/`.
+`pagos/`, `tickets/`, `accesos/`, `notificaciones/`, `facturacion/`.
 
 **Reglas duras:**
 
@@ -267,28 +301,39 @@ convención del equipo, está verificada en el build."*
 `Documenter` genera además el diagrama de dependencias desde el código, lo que
 mantiene la documentación sincronizada con la implementación real.
 
-> **Estado: el andamiaje ya rinde.** El test vive en
+> **Estado: el andamiaje ya rinde, con cinco módulos.** El test vive en
 > `backend/src/test/java/com/passly/EstructuraDeModulosTest.java` y corre verde
 > (4 tests): `noHayViolacionesDeFrontera()`, `usuariosEsLaRaizDelGrafoDeDependencias()`,
-> `elGrafoDeNegocioEsUnaCadena()` y `generarDocumentacion()`, que emite los
+> `ventasEsLaCimaDelGrafoYUsuariosLaRaiz()` y `generarDocumentacion()`, que emite los
 > diagramas PlantUML/AsciiDoc (`target/spring-modulith-docs/`) con el `Documenter`.
 >
 > **Dependencias declaradas, no solo verificadas.** Cada módulo tiene un
 > `package-info.java` con `@ApplicationModule(allowedDependencies = ...)`. Eventos
 > declara `{"productoras", "productoras :: dto"}`, Productoras declara
-> `{"usuarios", "usuarios :: dto"}`, y **Usuarios declara `{}`** — que en Modulith
-> significa *ninguna dependencia permitida*, no "sin restricciones" (verificado
-> empíricamente; la documentación oficial no cubre ese caso). Así "Usuarios es la
-> raíz" pasó de ser una afirmación del informe a una condición de compilación.
+> `{"usuarios", "usuarios :: dto"}`, Ventas declara
+> `{"eventos", "eventos :: dto", "usuarios", "usuarios :: dto"}`, y **Usuarios declara
+> `{}`** — que en Modulith significa *ninguna dependencia permitida*, no "sin
+> restricciones" (verificado empíricamente; la documentación oficial no cubre ese
+> caso). Así "Usuarios es la raíz" pasó de ser una afirmación del informe a una
+> condición de compilación.
 >
-> **El episodio a contar en el oral.** Al implementar múltiples productoras, Eventos
-> pasó a necesitar Productoras. El build falló con
+> **El episodio a contar en el oral — y la vez que fue distinta.** Al implementar
+> múltiples productoras, Eventos pasó a necesitar Productoras. El build falló con
 > `Module 'eventos' depends on ... Allowed targets: none` y siguió rojo hasta que la
 > dependencia quedó declarada por escrito. Después falló
 > `eventosEsLaRaizDelGrafoDeDependencias()`, que afirmaba algo que había dejado de
 > ser cierto. Ninguna de las dos cosas dependió de que alguien las notara en una
 > revisión de código. Es reproducible en vivo: comentar cualquiera de esas
 > anotaciones y correr `./mvnw test`.
+>
+> Al agregar Ventas, en cambio, **el build no falló**: sus dependencias hacia Eventos
+> y Usuarios ya estaban declaradas desde el primer commit del módulo. Lo que se rompió
+> fue la *narrativa* — `elGrafoDeNegocioEsUnaCadena()` seguía afirmando una cadena de
+> tres eslabones cuando el grafo ya era acíclico, con Ventas en la cima y dos caminos
+> hacia Usuarios. Lo detectó una revisión del archivo, no un test rojo. Es la
+> diferencia entre lo que Modulith impone (las aristas permitidas) y lo que sigue
+> dependiendo del criterio del equipo (que la documentación describa el grafo real) —
+> y vale contar las dos caras en la defensa, no solo la primera.
 
 ### 4.5 Capas dentro de cada componente
 
@@ -309,7 +354,7 @@ presentación (Controller + DTO) → negocio (Service) → datos (Repository + E
 | `ServicioDeUsuarios` / `UsuarioService` | Registro y autenticación de compradores, organizadores y validadores. Roles y credenciales | stateless |
 | `ServicioDeProductoras` / `ProductoraService` | Identidad comercial de quien publica fiestas y el padrón de quiénes operan en su nombre | stateless |
 | `ServicioDeEventos` / `EventoService` | Alta, edición y publicación de eventos. Tipos de entrada, precios y cupos | stateless |
-| **`ServicioDeVentas` / `VentaService`** | Orquesta la compra. Mantiene el **hold temporal (~5 min)** mientras el comprador paga. Es el **Facade** | **stateful** |
+| **`ServicioDeVentas` / `VentaService`** | Orquesta la compra. Mantiene el **carrito (~5 min)** mientras el comprador paga. Es el **Facade** — **implementado (PAS-8)** | **stateful** |
 | `ServicioDePagos` / `PagoService` | Adapter REST hacia la pasarela de pago | stateless |
 | `ServicioDeTickets` / `TicketService` | Emite tickets con QR firmado. Custodia el estado de uso | stateless |
 | `ServicioDeAccesos` / `AccesoService` | Valida el QR en puerta y garantiza el uso único | stateless |
@@ -320,9 +365,9 @@ presentación (Controller + DTO) → negocio (Service) → datos (Repository + E
 
 | Origen | Destino | Naturaleza |
 |---|---|---|
-| Ventas | Eventos | Síncrona — disponibilidad y precio |
-| Ventas | Usuarios | Síncrona — identidad y rol |
-| Ventas | Pagos | Síncrona — cobro |
+| **Ventas** | **Eventos** | **Síncrona, implementada** — disponibilidad, descuento de cupo |
+| **Ventas** | **Usuarios** | **Síncrona, implementada** — datos del comprador en la orden |
+| Ventas | Pagos | Síncrona — cobro. Hoy resuelto **adentro** de Ventas con un Port/Adapter propio (`PasarelaDePago` / `PasarelaDePagoSimulada`, §4.9); si PAS-7 llega a existir como módulo aparte, esta fila pasa de "adapter interno" a "dependencia entre componentes" sin tocar `VentaServiceImpl` |
 | Ventas | Tickets | Síncrona — emisión dentro de la transacción |
 | Ventas | Facturación | **Asincrónica** — cola P2P `orden.pagada` |
 | Tickets | Notificaciones, Accesos | **Asincrónica** — tópico `ticket.emitido` |
@@ -331,9 +376,10 @@ presentación (Controller + DTO) → negocio (Service) → datos (Repository + E
 | **Productoras** | **Usuarios** | Síncrona — identidad y rol global al incorporar un miembro |
 | **Usuarios** | — | **Sin dependencias salientes** |
 
-**`ServicioDeUsuarios` es la raíz del grafo.** El grafo de negocio implementado es
-la cadena `eventos → productoras → usuarios`, declarada en los `package-info` y
-verificada en cada build (§4.4).
+**`ServicioDeUsuarios` es la raíz del grafo.** El grafo de negocio implementado ya **no es
+una cadena**: es un grafo acíclico con `ventas` en la cima, que llega a `usuarios` por dos
+caminos — directo, y vía `eventos → productoras → usuarios` —, declarado en los
+`package-info` y verificado en cada build (§4.4).
 
 > **Corrección (post-14/09):** el informe del 31/08 decía que *Eventos* era la raíz
 > y no tenía dependencias salientes. Era cierto mientras los eventos no tenían
@@ -364,12 +410,14 @@ precargar la información de validación, lo que no tendría sentido si fueran u
 
 ### 4.7 Estado: stateful vs stateless
 
-**`ServicioDeVentas` es el stateful.** Durante la compra, la selección parcial de
-entradas vive en memoria mientras dura un hold de ~5 minutos, crece llamada a
-llamada y expira si el comprador abandona. Se implementa con `@SessionScope` (o
-un scope de conversación) y **callbacks de ciclo de vida** (`@PostConstruct`,
-`@PreDestroy`) con logs visibles, que son la evidencia de que el contenedor lo
-administra.
+**`ServicioDeVentas` es el stateful — implementado (PAS-8).** Durante la compra, el
+carrito (`CarritoDeCompra`, `internal/negocio/`) vive en memoria mientras dura la
+selección: crece llamada a llamada (agregar la misma línea dos veces suma cantidad,
+no duplica), y expira a los 5 minutos desde que se creó. Es un
+`@Component @SessionScope` — una instancia por sesión HTTP, administrada por el
+contenedor — con **callbacks de ciclo de vida** (`@PostConstruct`, `@PreDestroy`)
+logueados, que son la evidencia en vivo de que Spring decide cuándo nace y cuándo
+muere, no el código de negocio.
 
 **Todo lo demás es stateless.** Singletons de Spring, sin memoria del cliente
 entre llamadas.
@@ -379,11 +427,46 @@ componente*. El estado relevante es el **conversacional en memoria**, no el del
 negocio en disco. `ServicioDeFacturacion` puede guardar mil facturas y sigue
 siendo stateless.
 
-**Trade-off a declarar por escrito:** el hold podría persistirse en base o en
+**Trade-off declarado por escrito:** el carrito podría persistirse en base o en
 caché y volver el componente stateless — de hecho es lo que se hace en producción
 para escalar. Se eligió la variante stateful deliberadamente para demostrar la
 gestión de ciclo de vida por contenedor, contenido central de la Unidad II.
 Reconocer el trade-off suma más que esconderlo.
+
+**Dos relojes distintos, no uno redundante.** `expiraEn` es la regla de *negocio*:
+absoluta desde que se creó el carrito, la valida el propio carrito en cada
+operación de confirmar. El `server.servlet.session.timeout` de `application.yml`
+(fijado en 5 min) es la limpieza del *contenedor*: decide cuándo Tomcat destruye la
+sesión — y con ella, esta instancia —, no cuándo el negocio considera vencida la
+oferta. Por eso el log de `@PreDestroy` por vencimiento puede aparecer bastante
+después de que `expiraEn` ya pasó: el reaper de sesiones de Tomcat no corre al
+segundo. `DELETE /api/ventas/carrito` invalida la sesión explícitamente para poder
+mostrar el `@PreDestroy` en el acto durante la demo.
+
+**La tensión con `SessionCreationPolicy.STATELESS` (PAS-6), y por qué no es una
+contradicción.** Esa política solo le dice a *Spring Security* que no cree ni lea
+`HttpSession` para guardar el `SecurityContext`: cada request se re-autentica con su
+propio header Basic. No le dice nada al *servlet container*, que sigue creando una
+sesión en cuanto algo la pide — y eso es exactamente lo que hace el proxy de un bean
+`@SessionScope`. La autenticación sigue siendo stateless; el carrito, no.
+
+**Consecuencia real, no cosmética, y la mitigación.** Con nada que asocie el
+`JSESSIONID` al principal autenticado, alguien que reutilizara la cookie de sesión
+de otro junto con sus propias credenciales Basic vería el carrito ajeno. El carrito
+guarda el id del comprador en su primera operación y lo valida en cada llamada
+siguiente (`CarritoDeOtroCompradorException` → 409) en vez de confiar en la sesión
+a secas — barato, y convierte un riesgo real en una decisión explicada.
+
+**Detalle no obvio para el oral, descubierto probando el flujo en vivo:** Spring
+Security cambia el `JSESSIONID` en **cada** request autenticado
+(`ChangeSessionIdAuthenticationStrategy`, protección contra *session fixation* —
+corre incluso bajo `STATELESS`, porque solo mira si ya existe una sesión, no la
+política de creación). El dato del carrito persiste porque el contenedor migra los
+atributos de la sesión al nuevo id, pero la cookie de la respuesta anterior deja de
+servir de inmediato. Un navegador real no lo nota (reenvía siempre la cookie más
+reciente); probar el flujo a mano con `curl` sin encadenar `-b`/`-c` en *cada*
+llamada lo hace ver como si el carrito se vaciara solo — no es un bug, es esta
+rotación (ver `docs/http/README.md`).
 
 ### 4.8 Persistencia
 
@@ -516,17 +599,45 @@ cambio de contrato de `UsuarioDTO` en esta entrega.
   sin el rol → 403**. Por eso, en el endpoint público `POST /api/usuarios`, un anónimo que pide
   un rol privilegiado recibe **401**, no 403 (el 403 aparece cuando ya está autenticado, p.ej.
   un `COMPRADOR` intentando crear un evento). Útil para el oral: *anon+deny = 401, auth+deny = 403*.
-- **Fuera de alcance de PAS-6:** las ops sensibles de `VALIDADOR` (marcar ticket usado) y
-  `COMPRADOR` (bajar su entrada) viven en componentes que todavía no existen
-  (`ServicioDeAccesos` / `ServicioDeVentas`, PAS-8+). Cada uno agregará su `@PreAuthorize`
-  sobre la infra de autenticación que dejó PAS-6.
+- **Autorización por dueño, no por rol — implementado (PAS-8), el tercer patrón de
+  `@PreAuthorize` del sistema.** `COMPRADOR` es implícito (más arriba): cualquier
+  autenticado compra, así que ningún endpoint de `ventas` necesita filtrar por rol en
+  el `POST` de confirmar o de agregar al carrito — eso ya lo cubre
+  `anyRequest().authenticated()`. Lo que sí exige autorización explícita es que un
+  comprador solo vea *sus propias* órdenes:
+  - `GET /api/ventas/ordenes/{id}` filtra por dueño **en el servicio**
+    (`OrdenRepository.findByIdAndCompradorId`) y devuelve **404, no 403**, si la orden
+    no es de quien pregunta. Contraste con `ProductoraNoGestionableException` (403):
+    una productora es pública, en una cartelera; una orden ajena no debería siquiera
+    confirmar que existe.
+  - `GET /api/ventas/compradores/{idComprador}/ordenes` sí lleva `@PreAuthorize`, pero
+    distinto de los dos que ya existían (puro rol en Eventos/Usuarios, rol + membresía
+    en Eventos vs. Productoras): acá es **rol *o* identidad propia** —
+    `hasRole('ADMIN') or #idComprador.equals(...authentication.name...)` — sin que el
+    servicio conozca Spring Security.
+- **Fuera de alcance de PAS-8:** las ops sensibles de `VALIDADOR` (marcar ticket usado)
+  viven en un componente que todavía no existe (`ServicioDeAccesos`). Agregará su
+  `@PreAuthorize` sobre la misma infra de autenticación.
 
-> **Estado (post-PAS-8-prep):** Eventos y Productoras ya migraron del header temporal
-> `X-Usuario-Id` a la identidad de Spring Security (`Authentication#getName()`, ver arriba).
-> Ningún endpoint del backend depende hoy de un header falsificable para resolver quién opera.
-- **Transacción declarativa:** `@Transactional` sobre confirmar compra —
-  descuento de cupo → registro de pago → emisión de tickets. Si falla un paso, se
-  revierte todo y se libera el hold. **La facturación queda afuera** (ver §2).
+> **Estado:** Eventos, Productoras y Ventas resuelven "quién opera" con la identidad de
+> Spring Security (`Authentication#getName()`, ver arriba). Ningún endpoint del backend
+> depende de un header falsificable.
+- **Transacción declarativa — implementada (PAS-8).** `ConfirmacionDeCompra.confirmar`
+  (`internal/negocio/` de `ventas`) es el límite transaccional real de confirmar
+  compra: descuento de cupo (`EventoService.descontarCupo`, que se **une** a esta
+  misma transacción por propagación `REQUIRED` — un solo commit para el `UPDATE` de
+  `eventos.tipo_entrada` y los `INSERT` de `ventas.orden`/`ventas.item_orden`, en dos
+  esquemas de la misma base física) → registro de la orden. Si un paso falla, se
+  revierte todo. **El cobro queda afuera** de esa transacción (igual que la
+  facturación en §2: un externo lento no puede mantener una fila bloqueada, y no es
+  rollbackeable) — y por eso vive en `VentaServiceImpl`, que **no lleva
+  `@Transactional` de clase**: si lo llevara, Spring abriría la transacción antes de
+  que el código llegue a cobrar. El límite transaccional tiene que ser un salto entre
+  beans (llamar a `this.metodo()` desde el mismo objeto no pasa por el proxy de
+  Spring, y `@Transactional` no se aplicaría) — el motivo exacto está en el Javadoc de
+  `ConfirmacionDeCompra`. Si la confirmación falla después de cobrar, se compensa
+  (`PasarelaDePago.revertir`) y se relanza; el carrito no se vacía, para poder
+  reintentar sin perder la selección.
 
 ---
 
@@ -693,9 +804,46 @@ componente nuevo que depende de identidad no debería construirse sobre un heade
 que está a un commit de desaparecer. El handler de `MissingRequestHeaderException` en
 `ManejadorDeErroresDeProductoras` quedó sin uso y se eliminó.
 
-**Próximo paso inmediato:** **`ServicioDeVentas`** (PAS-8, el stateful, con callbacks de ciclo
-de vida y la transacción declarativa de confirmar compra), que consumirá `EventoService` y
-`UsuarioService` y sumará sus propios `@PreAuthorize` sobre la infra de PAS-6.
+**`ServicioDeVentas` implementado — el stateful y la transacción declarativa que cerraban
+el checklist §6** (PAS-8): el componente con más dependencias salientes del sistema, y el
+más complejo hasta ahora. Tres piezas nuevas de diseño, ninguna copiada mecánicamente de la
+plantilla de `eventos`:
+
+- **El carrito** (`CarritoDeCompra`, `@Component @SessionScope`) es el stateful. No reserva
+  cupo — trade-off declarado, sobreventa optimista posible entre carritos simultáneos — y
+  guarda quién es su dueño para blindarse del riesgo de sesión que trae `STATELESS`. Detalle
+  completo, incluida la rotación de `JSESSIONID` en cada request que hay que saber explicar
+  en el oral, en §4.7.
+- **La transacción declarativa** vive en `ConfirmacionDeCompra`, un bean *aparte* de
+  `VentaServiceImpl` — no por estilo, sino porque el cobro tiene que quedar afuera de la
+  transacción (§2) y la auto-invocación rompe el proxy de `@Transactional` si ambas cosas
+  compartieran clase. `EventoService.descontarCupo` se une a esa misma transacción por
+  propagación `REQUIRED`: un solo commit para dos esquemas, el payoff concreto del ADR
+  "monolito modular" (§4.2). Detalle en §4.11.
+- **`PasarelaDePago` / `PasarelaDePagoSimulada`** es el tercer patrón de diseño del checklist
+  (Port/Adapter, además de Facade y DAO), y resuelve sin bloquear el hecho de que
+  `ServicioDePagos` (PAS-7) todavía no existe: el día que exista, se escribe un segundo
+  adapter y `VentaServiceImpl` no se toca.
+
+Se agregó también el contrato `EventoService.descontarCupo` (en lote, ordenado por id para
+reducir la ventana de deadlock entre compras concurrentes) — el primer método de *escritura*
+que `eventos` expone a otro componente, y el que pone a trabajar el `@Version` de
+`TipoEntrada` que se había dejado preparado desde antes de que `ventas` existiera.
+
+**Un bug real, encontrado probando en vivo y no en un test:** `consultarOrden` y
+`listarOrdenesDeComprador` daban 500 (`LazyInitializationException` sobre `Orden.items`)
+hasta agregarles `@Transactional(readOnly = true)` a nivel de método — sin contradecir el
+"`VentaServiceImpl` sin `@Transactional` de clase", porque esa anotación puntual no envuelve
+ningún cobro, solo una lectura. Quedó cubierto por `ConfirmarCompraTest` para que no vuelva.
+
+Verificado end-to-end contra la app real (perfil demo): el carrito crece y funde cantidades
+del mismo tipo de entrada, confirmar descuenta cupo real y cobra, y el rollback central — un
+carrito de dos líneas donde la segunda excede el cupo — revierte también la primera línea
+(que ya había hecho `flush`) y compensa el cobro, dejando el carrito intacto para reintentar.
+
+**Próximo paso inmediato:** **`ServicioDeTickets`** — firma criptográfica del QR. Es el seam
+que `ConfirmacionDeCompra` ya dejó preparado (hoy no emite ningún ticket; la emisión está
+fuera del alcance de PAS-8) y lo que necesita `ServicioDeAccesos` para validar en la puerta.
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 
@@ -703,7 +851,7 @@ de vida y la transacción declarativa de confirmar compra), que consumirá `Even
 2. ~~`ServicioDeUsuarios` — roles y credenciales, raíz del grafo~~ ✅ hecho
 3. ~~`ServicioDeProductoras` — múltiples organizadores, eventos con dueño~~ ✅ hecho
 4. ~~**Seguridad (PAS-6)** — HTTP Basic + `@PreAuthorize` por rol; módulo `seguridad/`~~ ✅ hecho
-5. `ServicioDeVentas` — el stateful, con callbacks de ciclo de vida
+5. ~~`ServicioDeVentas` — el stateful, con callbacks de ciclo de vida~~ ✅ hecho
 6. `ServicioDeTickets` — firma criptográfica del QR
 7. El resto, según lo que pida cada entrega
 
@@ -717,13 +865,14 @@ de vida y la transacción declarativa de confirmar compra), que consumirá `Even
   misma entrega dice **30/11**. Confirmar con la cátedra por Teams.
 - **Nota mínima de la final:** la tabla dice **mín. 4**; el detalle dice
   **mín. 8 → aprobación directa**. Confirmar.
-- **¿Separar `ServicioDeInventario` de `ServicioDeVentas`?** Hoy Ventas es a la
-  vez Facade y titular del hold, lo que le da dos responsabilidades. Extraer el
-  stock y el hold a un componente propio dejaría a Ventas como Facade puro y
-  stateless, y movería el estado a Inventario. Sería un diseño más limpio.
-  **El argumento de "suma un componente más" ya no aplica:** Productoras llevó el
-  total a 9, muy por encima del mínimo de 6. Así que la decisión ahora se juega
-  solo en si vale la pena el diseño más limpio, no en llegar al número.
+- **¿Separar `ServicioDeInventario` de `ServicioDeVentas`?** Sigue sin resolverse, y
+  PAS-8 se implementó sin esa separación: Ventas es a la vez Facade y titular del
+  carrito, dos responsabilidades en un componente. El cupo en sí no está duplicado —
+  vive solo en `eventos.tipo_entrada`, con `EventoService.descontarCupo` como única
+  puerta de escritura —, así que lo que quedaría por extraer es específicamente el
+  carrito stateful, no el stock. **El argumento de "suma un componente más" ya no
+  aplica:** Productoras llevó el total a 9, muy por encima del mínimo de 6. La
+  decisión se juega solo en si vale la pena el diseño más limpio.
 - Confirmar que la comisión maneja las mismas fechas de checkpoints.
 
 ### Deuda técnica declarada
@@ -735,3 +884,13 @@ de vida y la transacción declarativa de confirmar compra), que consumirá `Even
   `backend/src/main/resources/application.yml` y `docs/ddl-eventos.sql`— es pasar a
   Flyway, o exportar el DDL y usar `ddl-auto: validate`, antes de la Obligatoria 2.
   `docs/ddl-eventos.sql` es el punto de partida para esa migración.
+- **Compensación del cobro, best-effort (PAS-8).** Si `ConfirmacionDeCompra.confirmar`
+  falla después de que la pasarela aprobó el cobro, `VentaServiceImpl` llama a
+  `PasarelaDePago.revertir` y relanza. Si *esa* llamada también fallara, el cobro
+  queda huérfano y hoy solo hay un log en `ERROR` — no hay outbox ni reintento. Es
+  el mismo problema de doble escritura que la cola `orden.pagada` de la Obligatoria
+  2 va a resolver correctamente; acá queda declarado como deuda, no escondido.
+- **Sin tabla `ventas.pago`, a propósito.** `ventas.orden` guarda una *referencia*
+  al cobro (`comprobante_cobro`, `cobrada_en`), no su registro. Crear una tabla de
+  pagos hoy, antes de que `ServicioDePagos` (PAS-7) exista como módulo propio, sería
+  crear algo que después habría que borrar o duplicar en el esquema de ese módulo.

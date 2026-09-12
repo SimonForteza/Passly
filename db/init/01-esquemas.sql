@@ -5,7 +5,7 @@
 -- se crea aca, en la inicializacion del contenedor.
 --
 -- A medida que se implemente cada componente se agrega su esquema a este archivo:
--- ventas, tickets, accesos, notificaciones, facturacion.
+-- tickets, accesos, notificaciones, facturacion.
 --
 -- OJO: este script corre SOLO en la primera inicializacion del volumen. Si se agrega un
 -- esquema con el volumen ya creado, hay que recrearlo (docker compose down -v) o crear
@@ -14,3 +14,4 @@
 create schema if not exists eventos;
 create schema if not exists usuarios;
 create schema if not exists productoras;
+create schema if not exists ventas;
