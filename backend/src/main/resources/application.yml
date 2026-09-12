@@ -35,6 +35,22 @@ spring:
 
 server:
   port: 8080
+  servlet:
+    session:
+      # El carrito de ServicioDeVentas (PAS-8) vive en un bean @SessionScope: es estado
+      # conversacional en memoria, administrado por el contenedor, no por el codigo de
+      # negocio (CLAUDE.md 4.7). Este timeout es la limpieza del contenedor -- no confundir
+      # con expiraEn del carrito, que es la regla de negocio (absoluta desde que se creo,
+      # validada en cada operacion). El @PreDestroy por este timeout lo dispara el reaper de
+      # Tomcat cada ~60s, asi que el log puede tardar; para verlo en el acto en la demo esta
+      # DELETE /api/ventas/carrito, que invalida la sesion explicitamente.
+      timeout: 5m
+      cookie:
+        # Autenticacion STATELESS (Basic) + carrito con sesion: la cookie ya no es una no-op
+        # como decia el comentario viejo de ConfiguracionDeSeguridad. http-only y same-site
+        # son gratis y cierran la superficie obvia (lectura por JS, envio cross-site).
+        http-only: true
+        same-site: lax
 
 management:
   endpoints:
