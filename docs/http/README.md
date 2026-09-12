@@ -12,6 +12,7 @@ independiente: se abre, aparece un link `Send Request` arriba de cada `###`, y s
 | [05-productoras.http](05-productoras.http) | alta de productoras, padron de miembros y el cruce de los dos ejes de rol |
 | [06-aislamiento.http](06-aislamiento.http) | **el guion central: una productora no toca las fiestas de otra** |
 | [07-seguridad.http](07-seguridad.http) | matriz de autorizacion por rol (PAS-6): 401 / 403 / 201-200 |
+| [08-ventas.http](08-ventas.http) | carrito stateful que crece y funde cantidades, confirmar compra, y **el rollback: dos lineas, la segunda sin cupo -> 409, la primera vuelve a su cupo original** |
 
 ## Autenticacion (PAS-6)
 
@@ -62,6 +63,20 @@ nunca dentro del request.
 
 La lectura publica (cartelera, ficha de productora) no pide identidad, que es justamente el
 punto de un marketplace.
+
+## El carrito de Ventas necesita cookies (08-ventas.http)
+
+A diferencia de todo lo demas en este directorio, el carrito de `ServicioDeVentas` (PAS-8) es
+**estado conversacional en memoria**, atado a la sesion HTTP (`@SessionScope`), no solo a las
+credenciales Basic. REST Client mantiene el `JSESSIONID` entre requests del mismo archivo por
+defecto (`rest-client.rememberCookiesForSubsequentRequests`).
+
+Con `curl` a mano hace falta `-b`/`-c` con el mismo archivo de cookies en **todas** las
+llamadas del flujo del carrito, y ademas empezar de una cookie vacia: Spring Security cambia
+el `JSESSIONID` en **cada** request autenticado (proteccion contra session fixation), asi que
+la cookie de la respuesta anterior es la unica valida para la siguiente -- una de dos
+respuestas atras ya no sirve, aunque la sesion siga viva del lado del servidor. Es un detalle
+no obvio que vale la pena poder explicar en el oral.
 
 ## Ids del perfil demo
 
