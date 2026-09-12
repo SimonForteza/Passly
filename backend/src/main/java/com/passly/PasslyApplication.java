@@ -1,5 +1,7 @@
 package com.passly;
 
+import java.util.TimeZone;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -15,6 +17,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class PasslyApplication {
 
     public static void main(String[] args) {
+        // El driver de Postgres manda el timezone por defecto de la JVM en el startup packet.
+        // En Windows, TimeZone.getDefault() puede resolver al alias legado "America/Buenos_Aires",
+        // que el Postgres del contenedor rechaza (FATAL: invalid value for parameter "TimeZone").
+        // Se fuerza el nombre IANA canonico para que la conexion no dependa del SO de cada dev.
+        TimeZone.setDefault(TimeZone.getTimeZone("America/Argentina/Buenos_Aires"));
         SpringApplication.run(PasslyApplication.class, args);
     }
 
