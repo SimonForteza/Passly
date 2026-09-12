@@ -20,6 +20,16 @@ import org.springframework.stereotype.Service;
  *
  * <p>Package-private y en {@code internal}: nadie fuera del modulo lo nombra; Spring lo registra
  * igual como bean.
+ *
+ * <p><b>Por que el {@code UserDetails} lleva el id y no el email como username.</b> El login sigue
+ * siendo por email — {@code loadUserByUsername} recibe el email que mando el cliente en el header
+ * Basic — pero {@link User#getUsername()} no tiene que devolver lo mismo que recibio: Spring
+ * Security arma el {@code Authentication} final con lo que este metodo devuelva, y despues
+ * {@code Authentication#getName()} delega en ese username. Devolviendo el id numerico, cualquier
+ * controller de cualquier modulo (Eventos incluido) obtiene el id del actuante leyendo
+ * {@code Authentication#getName()} — un tipo de Spring, no de Passly — sin depender de Usuarios
+ * para resolver email a id. Eventos en particular no puede hacer esa resolucion: su
+ * {@code package-info} no declara la dependencia y el build fallaria si la necesitara.
  */
 @Service
 class DetalleDeUsuarioParaAutenticacion implements UserDetailsService {
@@ -37,7 +47,7 @@ class DetalleDeUsuarioParaAutenticacion implements UserDetailsService {
 
         // El rol del dominio se mapea a una authority con prefijo ROLE_, que es lo que espera
         // hasRole('X') en los @PreAuthorize (hasRole agrega ROLE_ por convencion).
-        return User.withUsername(credencial.email())
+        return User.withUsername(String.valueOf(credencial.idUsuario()))
                 .password(credencial.passwordHash())
                 .authorities(new SimpleGrantedAuthority("ROLE_" + credencial.rol().name()))
                 .build();

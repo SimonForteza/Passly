@@ -1,4 +1,19 @@
 @baseUrl = http://localhost:8080
 
-### Listar eventos publicados (cartelera publica)
+@aurora = 1
+@nocturna = 2
+
+### Cartelera publica completa: fiestas de las dos productoras, cada una atribuida
 GET {{baseUrl}}/api/eventos
+
+### Solo las de Aurora Producciones
+GET {{baseUrl}}/api/eventos?productora={{aurora}}
+
+### Solo las de Nocturna Live
+GET {{baseUrl}}/api/eventos?productora={{nocturna}}
+
+### Las productoras que puede elegir el comprador
+GET {{baseUrl}}/api/productoras
+
+### Ficha de una productora
+GET {{baseUrl}}/api/productoras/{{aurora}}

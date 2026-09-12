@@ -5,9 +5,17 @@ arquitectura completa, el stack y las decisiones de diseno.
 
 ## Estado actual
 
-`ServicioDeEventos` implementado: alta, publicacion y consulta de eventos y tipos de entrada,
-con las tres capas (presentacion / negocio / datos) separadas y Spring Modulith verificando
-las fronteras en el build.
+Passly es **multi-productora**: un comprador elige entre fiestas de distintos organizadores y
+cada productora publica y gestiona solo las suyas.
+
+Tres componentes implementados, cada uno con las tres capas (presentacion / negocio / datos)
+separadas: `ServicioDeUsuarios`, `ServicioDeProductoras` y `ServicioDeEventos`. Spring Modulith
+verifica las fronteras en el build y las dependencias estan **declaradas** modulo por modulo:
+el grafo es la cadena `eventos -> productoras -> usuarios`.
+
+Todavia no hay Spring Security (es el proximo paso): hasta entonces la identidad de quien opera
+viaja en el header `X-Usuario-Id`, que es deliberadamente falsificable y no pretende ser
+seguridad.
 
 ## Levantar el entorno
 
@@ -15,12 +23,16 @@ Requisitos: Java 21, Maven (o el wrapper `./mvnw` incluido), Docker.
 
 ```bash
 # 1. Base de datos (Postgres local, descartable)
-docker compose up -d
+docker compose down -v && docker compose up -d
 
 # 2. Backend, con datos de demo
 cd backend
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=demo
 ```
+
+El `down -v` recrea el volumen, y hace falta la primera vez despues de un cambio de esquema:
+`db/init/` solo corre en la inicializacion del volumen, y con `ddl-auto: update` Hibernate no
+agrega una columna `not null` a una tabla que ya tiene filas. Despues, `up -d` alcanza.
 
 Sin el perfil `demo`, la base arranca vacia. Sin variables de entorno, el backend se conecta
 al Postgres de `docker-compose.yml` (ver [.env.example](.env.example) para apuntar a Supabase).
@@ -28,13 +40,22 @@ al Postgres de `docker-compose.yml` (ver [.env.example](.env.example) para apunt
 ## Probar que anda
 
 ```bash
-curl http://localhost:8080/actuator/health          # {"status":"UP"}
-curl http://localhost:8080/api/eventos              # cartelera publica
+curl http://localhost:8080/actuator/health           # {"status":"UP"}
+curl http://localhost:8080/api/productoras           # las dos productoras de demo
+curl http://localhost:8080/api/eventos               # cartelera, cada evento con su organizador
+curl "http://localhost:8080/api/eventos?productora=1" # solo las fiestas de Aurora
 curl http://localhost:8080/actuator/modulith         # modelo de modulos detectado
+
+# El corazon de la demo: Olga es de otra productora -> 403
+curl -i -X POST http://localhost:8080/api/eventos/3/publicacion -H "X-Usuario-Id: 4"
+# Omar es el dueno de Aurora -> 200
+curl -i -X POST http://localhost:8080/api/eventos/3/publicacion -H "X-Usuario-Id: 3"
 ```
 
-Guion completo de demo (crear, publicar, el 409 al republicar, etc.) como archivos `.http`
-listos para la extension REST Client de VS Code en [docs/http/](docs/http/).
+Guion completo de demo como archivos `.http` listos para la extension REST Client de VS Code
+en [docs/http/](docs/http/), incluido
+[06-aislamiento.http](docs/http/06-aislamiento.http): una productora no toca las fiestas de
+otra.
 
 ## Correr los tests
 
@@ -44,8 +65,12 @@ cd backend
 ```
 
 Incluye `EstructuraDeModulosTest`, que verifica las fronteras entre modulos
-(`ApplicationModules.verify()`) y genera la documentacion de la arquitectura desde el codigo
-en `target/spring-modulith-docs/`.
+(`ApplicationModules.verify()`), afirma la forma del grafo de dependencias y genera la
+documentacion de la arquitectura desde el codigo en `target/spring-modulith-docs/`.
+
+Para ver que las fronteras estan realmente verificadas y no solo documentadas: comentar la
+anotacion `@ApplicationModule` de cualquier `package-info.java` y volver a correr los tests.
+Falla con `Module 'eventos' depends on ... Allowed targets: none`.
 
 ## Nota para Windows: certificados y timezone
 

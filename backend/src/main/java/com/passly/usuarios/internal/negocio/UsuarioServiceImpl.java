@@ -70,6 +70,14 @@ class UsuarioServiceImpl implements UsuarioService {
 
     @Override
     @Transactional(readOnly = true)
+    public UsuarioDTO consultarUsuarioPorEmail(String email) {
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new UsuarioNoEncontradoException(email));
+        return mapper.aDTO(usuario);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<UsuarioDTO> listarUsuarios() {
         return usuarioRepository.findAllByOrderByEmailAsc().stream()
                 .map(mapper::aDTO)
@@ -82,6 +90,6 @@ class UsuarioServiceImpl implements UsuarioService {
         // Unico lugar donde el hash sale del componente: se arma el CredencialDTO a mano y no con
         // UsuarioMapper (que a proposito nunca lee el hash). El texto plano no interviene aca.
         return usuarioRepository.findByEmail(email)
-                .map(u -> new CredencialDTO(u.getEmail(), u.getPasswordHash(), u.getRol()));
+                .map(u -> new CredencialDTO(u.getId(), u.getEmail(), u.getPasswordHash(), u.getRol()));
     }
 }

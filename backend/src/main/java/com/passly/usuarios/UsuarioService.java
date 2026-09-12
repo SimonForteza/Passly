@@ -43,6 +43,17 @@ public interface UsuarioService {
      */
     UsuarioDTO consultarUsuario(Long idUsuario);
 
+    /**
+     * Devuelve un usuario por su email, que es la clave natural de la cuenta.
+     *
+     * <p>Existe por dos consumidores distintos: PAS-6 lo necesita para el login (el username de
+     * Spring Security es el email), y los componentes que resuelven un usuario del que solo
+     * conocen el email en vez del id generado.
+     *
+     * @throws UsuarioNoEncontradoException si no existe
+     */
+    UsuarioDTO consultarUsuarioPorEmail(String email);
+
     /** Lista todos los usuarios, ordenados por email ascendente. */
     List<UsuarioDTO> listarUsuarios();
 

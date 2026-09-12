@@ -29,8 +29,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 class AutorizacionPorRolTest {
 
+    // idProductora es @NotNull desde PAS-13; el id en si no importa aca, porque un COMPRADOR
+    // se rechaza en el @PreAuthorize antes de que el servicio llegue a mirar si existe.
     private static final String EVENTO_VALIDO = """
             {
+              "idProductora": 1,
               "nombre": "Festival de prueba",
               "fechaHora": "2030-01-01T20:00:00Z",
               "lugar": "Parque Centenario, CABA",

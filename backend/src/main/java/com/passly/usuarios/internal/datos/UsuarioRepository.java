@@ -17,7 +17,10 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     /** Guard de unicidad del alta: no puede haber dos cuentas con el mismo email. */
     boolean existsByEmail(String email);
 
-    /** Busca por email (identidad de login): lo usa la autenticacion de PAS-6. */
+    /**
+     * Busqueda por la clave natural de la cuenta. El email es {@code unique} en la tabla, asi que
+     * devuelve como maximo una fila. La usa la autenticacion de PAS-6 para resolver el login.
+     */
     Optional<Usuario> findByEmail(String email);
 
     /** Listado estable para la demo y la consulta: por email ascendente. */

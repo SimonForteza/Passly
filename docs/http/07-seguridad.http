@@ -1,6 +1,10 @@
 @baseUrl = http://localhost:8080
 @clave = passly1234
 
+# Id de Aurora, de la que organizador@passly.test es DUENIO (perfil demo). El idProductora es
+# @NotNull en CrearEventoRequest desde PAS-13 -- omitirlo da 400 antes de llegar al @PreAuthorize.
+@aurora = 1
+
 # Matriz de autorizacion por rol (PAS-6). Usuarios sembrados por el perfil demo, todos con
 # contrasena "passly1234". REST Client arma el Basic con "usuario contrasena" (separados por espacio).
 #
@@ -10,13 +14,13 @@
 # Por eso en un endpoint permitAll (como POST /api/usuarios) un anonimo que pide un rol
 # privilegiado recibe 401, no 403.
 
-# ============ Op sensible 1: crear evento (solo ORGANIZADOR) ============
+# ============ Op sensible 1: crear evento (solo ORGANIZADOR que pueda gestionar la productora) ============
 
 ### Anonimo -> 401 (el filter chain exige estar autenticado)
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
 
-{ "nombre": "X", "fechaHora": "2030-01-01T20:00:00Z", "lugar": "CABA",
+{ "idProductora": {{aurora}}, "nombre": "X", "fechaHora": "2030-01-01T20:00:00Z", "lugar": "CABA",
   "tiposEntrada": [ { "nombre": "General", "precio": 1000, "cupoTotal": 10 } ] }
 
 ### COMPRADOR autenticado -> 403 (autenticado pero rol equivocado)
@@ -24,15 +28,15 @@ POST {{baseUrl}}/api/eventos
 Content-Type: application/json
 Authorization: Basic comprador@passly.test {{clave}}
 
-{ "nombre": "X", "fechaHora": "2030-01-01T20:00:00Z", "lugar": "CABA",
+{ "idProductora": {{aurora}}, "nombre": "X", "fechaHora": "2030-01-01T20:00:00Z", "lugar": "CABA",
   "tiposEntrada": [ { "nombre": "General", "precio": 1000, "cupoTotal": 10 } ] }
 
-### ORGANIZADOR -> 201 Created
+### ORGANIZADOR que gestiona Aurora -> 201 Created
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
 Authorization: Basic organizador@passly.test {{clave}}
 
-{ "nombre": "Evento del organizador", "fechaHora": "2030-01-01T20:00:00Z", "lugar": "CABA",
+{ "idProductora": {{aurora}}, "nombre": "Evento del organizador", "fechaHora": "2030-01-01T20:00:00Z", "lugar": "CABA",
   "tiposEntrada": [ { "nombre": "General", "precio": 1000, "cupoTotal": 10 } ] }
 
 # ============ Op sensible 2: alta de usuarios (publica solo para COMPRADOR) ============

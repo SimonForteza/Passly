@@ -202,7 +202,20 @@ com.passly/
 **Ya implementado con esta misma estructura:** `usuarios/` (PAS-5) — mismas capas
 `web`/`negocio`/`datos`, DTOs con `@NamedInterface`, impl package-private. Suma además un
 `@Bean PasswordEncoder` propio en `internal/negocio/` (BCrypt) para guardar la credencial
-hasheada; ver §9.
+hasheada; ver §9. Y `productoras/` (PAS-7) — ídem, con `RolEnProductora` en la raíz como
+parte del contrato.
+
+**Cada módulo suma un `package-info.java` en su raíz** con
+`@ApplicationModule(allowedDependencies = ...)`, que declara de qué otros componentes puede
+depender. No es decorativo: el build falla si aparece una dependencia no declarada (§4.4).
+
+**Más un paquete que no es un componente de negocio:** `demo/`, con los datos de
+demostración. Vive fuera de los módulos porque sembrar un evento de una productora exige
+actuar como alguien de esa productora, y Eventos no puede consultar Usuarios — un seeder
+adentro de Eventos habría necesitado justamente la dependencia que el diseño evita. Los
+datos de demo son un **cliente** del sistema, como la app web, y usan solo contratos
+públicos; que alcancen para operar todo el sistema prueba que esos contratos están
+completos.
 
 **Aspiracional — todavía no existen** (se crean rebanada por rebanada, §4.1):
 `ventas/` (STATEFUL, hold), `pagos/`, `tickets/`, `accesos/`,
@@ -254,18 +267,28 @@ convención del equipo, está verificada en el build."*
 `Documenter` genera además el diagrama de dependencias desde el código, lo que
 mantiene la documentación sincronizada con la implementación real.
 
-> **Estado: el andamiaje ya está puesto.** El test vive en
+> **Estado: el andamiaje ya rinde.** El test vive en
 > `backend/src/test/java/com/passly/EstructuraDeModulosTest.java` y corre verde
-> (3 tests): `noHayViolacionesDeFrontera()` (el `verify()` de arriba),
-> `eventosEsLaRaizDelGrafoDeDependencias()` — que hoy sí es una afirmación no
-> trivial: el build verifica que Eventos no depende de ningún otro componente
-> (§4.6) — y `generarDocumentacion()`, que emite los diagramas PlantUML/AsciiDoc
-> (`target/spring-modulith-docs/`) con el `Documenter`.
+> (4 tests): `noHayViolacionesDeFrontera()`, `usuariosEsLaRaizDelGrafoDeDependencias()`,
+> `elGrafoDeNegocioEsUnaCadena()` y `generarDocumentacion()`, que emite los
+> diagramas PlantUML/AsciiDoc (`target/spring-modulith-docs/`) con el `Documenter`.
 >
-> Con un solo componente el `verify()` es casi tautológico; su valor real aparece
-> con el segundo. La decisión fue **montar el andamiaje desde el primer módulo**
-> en vez de esperar a tener 3+: así el segundo componente nace con la red debajo
-> en lugar de escribirse primero y auditarse después.
+> **Dependencias declaradas, no solo verificadas.** Cada módulo tiene un
+> `package-info.java` con `@ApplicationModule(allowedDependencies = ...)`. Eventos
+> declara `{"productoras", "productoras :: dto"}`, Productoras declara
+> `{"usuarios", "usuarios :: dto"}`, y **Usuarios declara `{}`** — que en Modulith
+> significa *ninguna dependencia permitida*, no "sin restricciones" (verificado
+> empíricamente; la documentación oficial no cubre ese caso). Así "Usuarios es la
+> raíz" pasó de ser una afirmación del informe a una condición de compilación.
+>
+> **El episodio a contar en el oral.** Al implementar múltiples productoras, Eventos
+> pasó a necesitar Productoras. El build falló con
+> `Module 'eventos' depends on ... Allowed targets: none` y siguió rojo hasta que la
+> dependencia quedó declarada por escrito. Después falló
+> `eventosEsLaRaizDelGrafoDeDependencias()`, que afirmaba algo que había dejado de
+> ser cierto. Ninguna de las dos cosas dependió de que alguien las notara en una
+> revisión de código. Es reproducible en vivo: comentar cualquiera de esas
+> anotaciones y correr `./mvnw test`.
 
 ### 4.5 Capas dentro de cada componente
 
@@ -279,11 +302,12 @@ presentación (Controller + DTO) → negocio (Service) → datos (Repository + E
 - **Datos:** patrón DAO sobre Spring Data JPA. Entidades mapeadas al esquema
   propio del componente.
 
-### 4.6 Componentes (8 — mínimo pedido: 6)
+### 4.6 Componentes (9 — mínimo pedido: 6)
 
 | Componente / Interfaz | Responsabilidad | Estado |
 |---|---|---|
 | `ServicioDeUsuarios` / `UsuarioService` | Registro y autenticación de compradores, organizadores y validadores. Roles y credenciales | stateless |
+| `ServicioDeProductoras` / `ProductoraService` | Identidad comercial de quien publica fiestas y el padrón de quiénes operan en su nombre | stateless |
 | `ServicioDeEventos` / `EventoService` | Alta, edición y publicación de eventos. Tipos de entrada, precios y cupos | stateless |
 | **`ServicioDeVentas` / `VentaService`** | Orquesta la compra. Mantiene el **hold temporal (~5 min)** mientras el comprador paga. Es el **Facade** | **stateful** |
 | `ServicioDePagos` / `PagoService` | Adapter REST hacia la pasarela de pago | stateless |
@@ -303,12 +327,34 @@ presentación (Controller + DTO) → negocio (Service) → datos (Repository + E
 | Ventas | Facturación | **Asincrónica** — cola P2P `orden.pagada` |
 | Tickets | Notificaciones, Accesos | **Asincrónica** — tópico `ticket.emitido` |
 | Accesos | Tickets | Síncrona — verificación de firma y marcado |
-| **Eventos** | — | **Sin dependencias salientes** |
+| **Eventos** | **Productoras** | Síncrona — quién puede gestionar, y el nombre comercial para la cartelera |
+| **Productoras** | **Usuarios** | Síncrona — identidad y rol global al incorporar un miembro |
+| **Usuarios** | — | **Sin dependencias salientes** |
 
-`ServicioDeEventos` es la raíz del grafo: por eso se implementa primero.
+**`ServicioDeUsuarios` es la raíz del grafo.** El grafo de negocio implementado es
+la cadena `eventos → productoras → usuarios`, declarada en los `package-info` y
+verificada en cada build (§4.4).
+
+> **Corrección (post-14/09):** el informe del 31/08 decía que *Eventos* era la raíz
+> y no tenía dependencias salientes. Era cierto mientras los eventos no tenían
+> dueño. Al implementar múltiples productoras dejó de serlo, y lo relevante es que
+> el cambio no pasó inadvertido: el build falló hasta declararlo. No es un error a
+> esconder — es la mejor evidencia de que la verificación de fronteras sirve.
+
+**Eventos no depende de Usuarios**, y eso es deliberado: la identidad queda detrás
+de Productoras, que ya resolvió el cruce de roles al armar su padrón. Si Eventos
+importara `com.passly.usuarios`, el build falla.
+
 `ServicioDeVentas` concentra la mayor cantidad de dependencias salientes: es el
 componente más complejo y el que más cuidado requiere para no volverse un punto
 de acoplamiento excesivo.
+
+**Por qué Productoras es un componente y no una tabla de Usuarios** (pregunta
+probable en el oral): Usuarios custodia identidad y credenciales de personas;
+Productora es identidad **comercial**, con ciclo de vida propio, nombre de
+fantasía, CUIT y un padrón N:M. Sus consumidores futuros — Ventas, reportes,
+facturación — no tienen nada que ver con el login. Meterla en Usuarios lo
+volvería un god-module y le haría perder la raíz del grafo.
 
 **Por qué Tickets y Accesos están separados** (pregunta probable en el oral):
 operan sobre la misma entidad pero tienen responsabilidades distintas. Tickets es
@@ -345,6 +391,8 @@ Reconocer el trade-off suma más que esconderlo.
 
 ```
 passly (base)
+├── usuarios.usuario
+├── productoras.productora, productoras.miembro
 ├── eventos.evento, eventos.tipo_entrada
 ├── ventas.orden, ventas.item_orden
 ├── tickets.ticket
@@ -353,6 +401,16 @@ passly (base)
 ```
 
 En JPA: `@Table(name = "evento", schema = "eventos")`.
+
+**Referencias entre esquemas: por id, sin clave foránea.** `eventos.evento.productora_id`
+y `productoras.miembro.usuario_id` apuntan a tablas de otro componente y **no llevan FK
+física**, porque una FK entre esquemas sería exactamente el join que esta sección prohíbe
+y ataría los dos componentes a nivel de motor. La integridad la impone el negocio: antes
+de crear un evento, Eventos le pregunta a `ProductoraService` si quien opera puede
+gestionar esa productora — y esa pregunta da `false` para una productora inexistente, así
+que no hay forma de crear un evento colgado de la nada. La contracara honesta es que un
+borrado de productora podría dejar huérfanos; hoy ese borrado no existe, y queda declarado
+como deuda junto a Flyway (§10).
 
 **Por qué no una base por componente:** eliminaría las transacciones ACID locales
 entre componentes y obligaría a sagas con compensación. Como el sistema se
@@ -402,6 +460,41 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
   `usuarios :: autenticacion` (`CredencialDTO`, que lleva el hash) y **reutiliza el mismo
   `@Bean PasswordEncoder` de `usuarios`** (inyectado por tipo, sin declarar un segundo bean).
   Se eligió Basic y no JWT: para la Obligatoria 1, JWT sería complejidad sin beneficio.
+- **El `UserDetails` lleva el id numérico como username, no el email.** El login sigue siendo
+  por email (es lo que el cliente manda en el header Basic), pero
+  `DetalleDeUsuarioParaAutenticacion` arma el `UserDetails` con
+  `User.withUsername(String.valueOf(credencial.idUsuario()))`. Como `Authentication#getName()`
+  después del login devuelve ese username, cualquier controller de cualquier módulo obtiene el id
+  de quien opera con un tipo de Spring Security — sin depender de `usuarios` para resolver
+  email → id. Esto no es un detalle menor: `eventos` tiene declarado en su `package-info` que
+  **no puede depender de `usuarios`** (§4.6), así que la resolución tiene que pasar por acá, una
+  sola vez, dentro de `seguridad` (que sí depende de `usuarios` legítimamente).
+
+**Los dos ejes de la autorización** (implementado). Rol y alcance responden preguntas
+distintas y por eso son dos enums, no uno:
+
+| | Pregunta | Dónde vive |
+|---|---|---|
+| `Rol` | *¿qué tipo de cosas puede hacer?* | `usuarios.usuario.rol` (uno solo por cuenta) |
+| `RolEnProductora` | *¿sobre las fiestas de quién?* | `productoras.miembro.rol_interno` — `DUENIO` / `STAFF` / `VALIDADOR` |
+
+Colapsarlos daría o un rol global por productora — perdiendo el sentido del rol — o un
+único rol global, y entonces cualquier validador podría escanear los tickets de cualquier
+productora.
+
+La invariante: **los dos ejes se cruzan una sola vez, al incorporar al miembro** (`DUENIO`
+y `STAFF` exigen `ORGANIZADOR`; `VALIDADOR` exige `VALIDADOR`). Después ninguna operación
+vuelve a consultar el rol global: se pregunta por la membresía. La verificación cara se
+paga en el alta, no en cada request. Esta invariante es la que hace posible el
+`@PreAuthorize("hasRole('ORGANIZADOR')")` de más abajo sin excluir a nadie legítimo: todo
+`DUENIO`/`STAFF` de una productora ya tiene el rol global `ORGANIZADOR`.
+
+**`COMPRADOR` es implícito:** cualquier usuario autenticado puede comprar, y el rol solo
+agrega capacidades por encima. Resuelve que un ORGANIZADOR también pueda comprar entradas
+sin abrir una segunda cuenta. El costo declarado es que `COMPRADOR` queda casi decorativo;
+la alternativa evaluada fue `@ElementCollection Set<Rol>`, descartada por no justificar el
+cambio de contrato de `UsuarioDTO` en esta entrega.
+
 - **Autorización por rol declarativa con `@PreAuthorize`, en los controllers.** Grano grueso
   (anónimo vs autenticado) en el `SecurityFilterChain`; el rol, en `@PreAuthorize` sobre cada
   operación sensible. Se puso en el controller y no en el servicio para no acoplar
@@ -409,7 +502,9 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
   servicio directo al arrancar (un `@PreAuthorize` sobre el servicio los haría fallar con
   AccessDenied en el boot). **Implementado (2 ops + bonus):**
   1. **Eventos:** solo `ORGANIZADOR` crea (`POST /api/eventos`) y publica
-     (`POST /api/eventos/{id}/publicacion`).
+     (`POST /api/eventos/{id}/publicacion`) — **y, por debajo, solo si además puede gestionar
+     la productora dueña del evento** (`ProductoraService.puedeGestionarEventos`, PAS-13): el rol
+     es el filtro grueso en el controller, la membresía es el filtro fino en el servicio.
   2. **Usuarios:** el alta pública (`POST /api/usuarios`) solo crea `COMPRADOR`;
      `ORGANIZADOR`/`VALIDADOR`/`ADMIN` los da de alta un `ADMIN` autenticado
      (`#solicitud.rol == COMPRADOR or hasRole('ADMIN')`). Cierra el pendiente de PAS-5: el
@@ -425,6 +520,10 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
   `COMPRADOR` (bajar su entrada) viven en componentes que todavía no existen
   (`ServicioDeAccesos` / `ServicioDeVentas`, PAS-8+). Cada uno agregará su `@PreAuthorize`
   sobre la infra de autenticación que dejó PAS-6.
+
+> **Estado:** Eventos ya migró del header `X-Usuario-Id` a la identidad de Spring Security
+> (`Authentication#getName()`, ver arriba). **Productoras todavía no** — sus endpoints siguen
+> leyendo `X-Usuario-Id`, deliberadamente falsificable, hasta que se le aplique el mismo patrón.
 - **Transacción declarativa:** `@Transactional` sobre confirmar compra —
   descuento de cupo → registro de pago → emisión de tickets. Si falla un paso, se
   revierte todo y se libera el hold. **La facturación queda afuera** (ver §2).
@@ -504,8 +603,11 @@ passly/
 ├── .env.example           ← plantilla de variables de entorno, sin secretos
 ├── docs/
 │   ├── ddl-eventos.sql    ← DDL de referencia del esquema eventos (Hibernate lo genera)
+│   ├── ddl-productoras.sql ← ídem esquema productoras (incl. por qué miembro.usuario_id no lleva FK)
 │   └── http/              ← peticiones .http (REST Client) + README:
-│                            salud, cartelera, flujo feliz (incl. republicar → 409), errores
+│                            salud, cartelera con filtro, flujo feliz (incl. republicar → 409),
+│                            errores (401/403/404/409), productoras, y **aislamiento entre
+│                            productoras** — el guion central de la demo
 ├── backend/               ← Spring Boot, un paquete por componente
 │   ├── pom.xml
 │   ├── mvnw, mvnw.cmd, .mvn/  ← Maven wrapper
@@ -545,6 +647,21 @@ filter chain ni `@PreAuthorize`): **PAS-6 reutiliza ese mismo encoder para verif
 y el hash nunca sale del componente (el `UsuarioDTO` no lo incluye). El test de fronteras de
 Modulith sigue en verde con el segundo módulo.
 
+**`ServicioDeProductoras` implementado y Passly pasó a ser multi-productora** (PAS-13): las
+tres capas separadas, esquema `productoras` propio con el padrón de miembros, y el evento
+con dueño. Verificado end-to-end: la cartelera muestra fiestas de dos productoras distintas
+y se puede filtrar por organizador; una productora recibe **403** al intentar publicar el
+evento de otra, un `VALIDADOR` de la productora también (pertenecer ≠ poder gestionar), sin
+identidad es **401**, y un `COMPRADOR` recibe **409** al intentar crear una productora.
+
+Lo relevante para la defensa no es el CRUD sino el episodio de §4.4: al aparecer la
+dependencia `eventos → productoras`, **el build falló** hasta declararla, y después falló el
+test que afirmaba que Eventos era la raíz. Como efecto colateral, los datos de demo se
+mudaron a `com.passly.demo`: sembrar un evento de Aurora exige actuar como alguien de
+Aurora, y un seeder dentro de Eventos habría necesitado justamente la dependencia a Usuarios
+que el diseño existe para evitar. Los datos de demo son un cliente del sistema, como la app
+web, y usan solo contratos públicos.
+
 **Seguridad implementada** (PAS-6): módulo **`seguridad/`** con Spring Security — **HTTP Basic**,
 sesión **STATELESS**, autorización por rol declarativa con `@PreAuthorize` **en los controllers**
 sobre 2 operaciones sensibles (Eventos: solo `ORGANIZADOR` crea/publica; Usuarios: el alta
@@ -552,19 +669,36 @@ pública solo crea `COMPRADOR`, el resto lo da de alta un `ADMIN`) más el bonus
 solo `ADMIN`). Autentica contra `usuarios` por el contrato `usuarios :: autenticacion`
 (`CredencialDTO`) y **reutiliza el `PasswordEncoder`** del componente, sin crear un segundo bean.
 Un test de integración (`AutorizacionPorRolTest`) fija que un `COMPRADOR` autenticado no puede
-crear eventos. El test de fronteras de Modulith sigue verde con el tercer módulo. Detalle en §4.11.
+crear eventos. El test de fronteras de Modulith sigue verde con el cuarto módulo. Detalle en §4.11.
+
+Integrar Seguridad con Productoras (ambas ramas partían del mismo `main`, previo a PAS-13) exigió
+resolver algo más que el conflicto de texto en `EventoController`: el `@PreAuthorize` de PAS-6
+estaba escrito sobre la firma vieja de `crearEvento`/`publicarEvento`, sin el `idUsuarioActuante`
+que PAS-13 les agregó para verificar membresía. Se aprovechó el momento para migrar Eventos del
+header temporal `X-Usuario-Id` a la identidad real de Spring Security — la migración que el propio
+`CLAUDE.md` daba por "una línea por endpoint". No lo fue del todo: el `UserDetails` de PAS-6 solo
+llevaba email y rol, sin el id numérico que Eventos necesita, y resolverlo llamando a
+`UsuarioService` desde Eventos habría violado la dependencia declarada en su `package-info`
+(`eventos → productoras`, nada de `usuarios`). La solución fue hacer que
+`DetalleDeUsuarioParaAutenticacion` arme el `UserDetails` con el **id** como `username` en vez del
+email: el login se sigue haciendo por email, pero `Authentication#getName()` después de
+autenticar ya es el id, así que Eventos lo lee con un tipo de Spring Security, sin tocar Usuarios
+(detalle completo en §4.11). Productoras todavía no migró: sigue con `X-Usuario-Id`.
 
 **Próximo paso inmediato:** **`ServicioDeVentas`** (el stateful, con callbacks de ciclo de vida),
 que consumirá Eventos y Usuarios y sumará sus propios `@PreAuthorize` sobre la infra de PAS-6.
+Antes, migrar Productoras del header temporal a `Authentication` con el mismo patrón que ya se
+aplicó a Eventos.
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 
-1. ~~`ServicioDeEventos` — raíz, sin dependencias~~ ✅ hecho
-2. ~~`ServicioDeUsuarios` — roles y credenciales, base de la seguridad por rol~~ ✅ hecho
-   - ~~**Seguridad (PAS-6)** — HTTP Basic + `@PreAuthorize` por rol; módulo `seguridad/`~~ ✅ hecho
-3. `ServicioDeVentas` — el stateful, con callbacks de ciclo de vida
-4. `ServicioDeTickets` — firma criptográfica del QR
-5. El resto, según lo que pida cada entrega
+1. ~~`ServicioDeEventos` — primer componente implementado~~ ✅ hecho
+2. ~~`ServicioDeUsuarios` — roles y credenciales, raíz del grafo~~ ✅ hecho
+3. ~~`ServicioDeProductoras` — múltiples organizadores, eventos con dueño~~ ✅ hecho
+4. ~~**Seguridad (PAS-6)** — HTTP Basic + `@PreAuthorize` por rol; módulo `seguridad/`~~ ✅ hecho
+5. `ServicioDeVentas` — el stateful, con callbacks de ciclo de vida
+6. `ServicioDeTickets` — firma criptográfica del QR
+7. El resto, según lo que pida cada entrega
 
 ---
 
@@ -579,10 +713,10 @@ que consumirá Eventos y Usuarios y sumará sus propios `@PreAuthorize` sobre la
 - **¿Separar `ServicioDeInventario` de `ServicioDeVentas`?** Hoy Ventas es a la
   vez Facade y titular del hold, lo que le da dos responsabilidades. Extraer el
   stock y el hold a un componente propio dejaría a Ventas como Facade puro y
-  stateless, y movería el estado a Inventario. Sería un diseño más limpio y
-  sumaría un noveno componente. **Evaluarlo para la Obligatoria 1 del 14/09**;
-  no cambiarlo antes, porque el informe del 31/08 ya documenta 8 componentes con
-  Ventas stateful.
+  stateless, y movería el estado a Inventario. Sería un diseño más limpio.
+  **El argumento de "suma un componente más" ya no aplica:** Productoras llevó el
+  total a 9, muy por encima del mínimo de 6. Así que la decisión ahora se juega
+  solo en si vale la pena el diseño más limpio, no en llegar al número.
 - Confirmar que la comisión maneja las mismas fechas de checkpoints.
 
 ### Deuda técnica declarada
