@@ -1,0 +1,94 @@
+@baseUrl = http://localhost:8080
+
+# Credenciales de demo (perfil demo). Cualquier usuario autenticado puede cobrar -- COMPRADOR
+# es implicito (CLAUDE.md 4.11) -- asi que alcanza con el comprador de siempre.
+@comprador = comprador@passly.test
+@clave = passly1234
+
+### 1. Cobro aprobado -- 201 Created, con el resultado del cobro
+# Cualquier numero de tarjeta que no sea uno de los dos "magicos" de abajo se aprueba.
+POST {{baseUrl}}/api/pagos
+Content-Type: application/json
+Authorization: Basic {{comprador}} {{clave}}
+
+{
+  "monto": 15000.00,
+  "moneda": "ARS",
+  "referencia": "orden-demo-1",
+  "tarjeta": {
+    "numero": "4242424242424242",
+    "titular": "Carla Compradora",
+    "vencimiento": "12/29",
+    "codigoSeguridad": "123"
+  }
+}
+
+### 2. Cobro rechazado -- 402 Payment Required
+# 4000000000000002 es el numero de tarjeta "de rechazo" del mock (convencion tomada de Stripe).
+POST {{baseUrl}}/api/pagos
+Content-Type: application/json
+Authorization: Basic {{comprador}} {{clave}}
+
+{
+  "monto": 15000.00,
+  "moneda": "ARS",
+  "referencia": "orden-demo-2",
+  "tarjeta": {
+    "numero": "4000000000000002",
+    "titular": "Carla Compradora",
+    "vencimiento": "12/29",
+    "codigoSeguridad": "123"
+  }
+}
+
+### 3. Pasarela caida -- 503 Service Unavailable
+# 4000000000000119 hace que el mock devuelva un 503 en vez de procesar el cobro: la pasarela
+# no respondio, distinto de que haya respondido con un rechazo (ver PagoServiceImpl).
+POST {{baseUrl}}/api/pagos
+Content-Type: application/json
+Authorization: Basic {{comprador}} {{clave}}
+
+{
+  "monto": 15000.00,
+  "moneda": "ARS",
+  "referencia": "orden-demo-3",
+  "tarjeta": {
+    "numero": "4000000000000119",
+    "titular": "Carla Compradora",
+    "vencimiento": "12/29",
+    "codigoSeguridad": "123"
+  }
+}
+
+### 4. Sin credenciales -> 401 (igual que cualquier otro endpoint no publico)
+POST {{baseUrl}}/api/pagos
+Content-Type: application/json
+
+{
+  "monto": 15000.00,
+  "moneda": "ARS",
+  "referencia": "orden-demo-4",
+  "tarjeta": {
+    "numero": "4242424242424242",
+    "titular": "Carla Compradora",
+    "vencimiento": "12/29",
+    "codigoSeguridad": "123"
+  }
+}
+
+### 5. Validacion de forma -- 400, con el detalle por campo (monto negativo, tarjeta invalida)
+POST {{baseUrl}}/api/pagos
+Content-Type: application/json
+Authorization: Basic {{comprador}} {{clave}}
+
+{
+  "monto": -100,
+  "moneda": "AR",
+  "referencia": "",
+  "tarjeta": {
+    "numero": "123",
+    "titular": "",
+    "vencimiento": "13/99",
+    "codigoSeguridad": "12"
+  }
+}

@@ -36,6 +36,16 @@ spring:
 server:
   port: 8080
 
+passly:
+  pagos:
+    pasarela:
+      # URL de la pasarela de pago externa. Hoy apunta al mock que corre en este mismo proceso
+      # (com.passly.pagos.internal.pasarelamock) para no pelear con un proveedor real ni con
+      # certificados de homologacion (mismo criterio que CLAUDE.md aplica a AFIP). Migrar a una
+      # pasarela real es cambiar esta propiedad, nada de codigo -- mismo patron que las variables
+      # de entorno de la base de datos (CLAUDE.md 4.8).
+      base-url: ${PASSLY_PASARELA_PAGO_URL:http://localhost:${server.port}}
+
 management:
   endpoints:
     web:

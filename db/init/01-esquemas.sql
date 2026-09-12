@@ -14,3 +14,4 @@
 create schema if not exists eventos;
 create schema if not exists usuarios;
 create schema if not exists productoras;
+create schema if not exists pagos;
