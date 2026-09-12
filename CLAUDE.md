@@ -521,9 +521,9 @@ cambio de contrato de `UsuarioDTO` en esta entrega.
   (`ServicioDeAccesos` / `ServicioDeVentas`, PAS-8+). Cada uno agregará su `@PreAuthorize`
   sobre la infra de autenticación que dejó PAS-6.
 
-> **Estado:** Eventos ya migró del header `X-Usuario-Id` a la identidad de Spring Security
-> (`Authentication#getName()`, ver arriba). **Productoras todavía no** — sus endpoints siguen
-> leyendo `X-Usuario-Id`, deliberadamente falsificable, hasta que se le aplique el mismo patrón.
+> **Estado (post-PAS-8-prep):** Eventos y Productoras ya migraron del header temporal
+> `X-Usuario-Id` a la identidad de Spring Security (`Authentication#getName()`, ver arriba).
+> Ningún endpoint del backend depende hoy de un header falsificable para resolver quién opera.
 - **Transacción declarativa:** `@Transactional` sobre confirmar compra —
   descuento de cupo → registro de pago → emisión de tickets. Si falla un paso, se
   revierte todo y se libera el hold. **La facturación queda afuera** (ver §2).
@@ -683,12 +683,19 @@ llevaba email y rol, sin el id numérico que Eventos necesita, y resolverlo llam
 `DetalleDeUsuarioParaAutenticacion` arme el `UserDetails` con el **id** como `username` en vez del
 email: el login se sigue haciendo por email, pero `Authentication#getName()` después de
 autenticar ya es el id, así que Eventos lo lee con un tipo de Spring Security, sin tocar Usuarios
-(detalle completo en §4.11). Productoras todavía no migró: sigue con `X-Usuario-Id`.
+(detalle completo en §4.11).
 
-**Próximo paso inmediato:** **`ServicioDeVentas`** (el stateful, con callbacks de ciclo de vida),
-que consumirá Eventos y Usuarios y sumará sus propios `@PreAuthorize` sobre la infra de PAS-6.
-Antes, migrar Productoras del header temporal a `Authentication` con el mismo patrón que ya se
-aplicó a Eventos.
+**Productoras migró a `Authentication`** (preparación de PAS-8): mismo patrón que Eventos,
+`Authentication#getName()` en vez de `X-Usuario-Id`. No cambió ningún DTO ni ninguna firma de
+`ProductoraService` — la identidad siempre viajó como parámetro aparte del *request body*. Se
+hizo antes de `ServicioDeVentas` porque el propio CLAUDE.md ya lo pedía en §9, y porque un
+componente nuevo que depende de identidad no debería construirse sobre un header falsificable
+que está a un commit de desaparecer. El handler de `MissingRequestHeaderException` en
+`ManejadorDeErroresDeProductoras` quedó sin uso y se eliminó.
+
+**Próximo paso inmediato:** **`ServicioDeVentas`** (PAS-8, el stateful, con callbacks de ciclo
+de vida y la transacción declarativa de confirmar compra), que consumirá `EventoService` y
+`UsuarioService` y sumará sus propios `@PreAuthorize` sobre la infra de PAS-6.
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 

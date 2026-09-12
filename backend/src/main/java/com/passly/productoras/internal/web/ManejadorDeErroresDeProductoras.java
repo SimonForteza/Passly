@@ -7,7 +7,6 @@ import com.passly.productoras.RolIncompatibleConLaMembresiaException;
 import com.passly.productoras.YaEsMiembroDeLaProductoraException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
-import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -60,20 +59,5 @@ class ManejadorDeErroresDeProductoras {
     @ExceptionHandler(NoEsMiembroDeLaProductoraException.class)
     ProblemDetail noAutorizado(NoEsMiembroDeLaProductoraException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
-    }
-
-    /**
-     * Falta el header con la identidad del actor.
-     *
-     * <p>Es <b>401 y no 400</b> a proposito: hoy el actor viaja en {@code X-Usuario-Id} y manana en
-     * un token, pero en los dos casos lo que falta es la identidad, no un dato del formulario. Que
-     * el status ya sea el definitivo significa que cuando PAS-6 reemplace el header por Spring
-     * Security, el contrato HTTP no cambia para los clientes.
-     */
-    @ExceptionHandler(MissingRequestHeaderException.class)
-    ProblemDetail faltaIdentidad(MissingRequestHeaderException ex) {
-        return ProblemDetail.forStatusAndDetail(
-                HttpStatus.UNAUTHORIZED,
-                "Falta la identidad de quien opera en el header " + ex.getHeaderName());
     }
 }

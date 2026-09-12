@@ -1,10 +1,6 @@
 @baseUrl = http://localhost:8080
 @organizador = organizador@passly.test
 @clave = passly1234
-
-# Productoras todavia se identifica con el header temporal (X-Usuario-Id) -- se migra a
-# Spring Security en un paso aparte, con el mismo patron que ya se aplico a Eventos (PAS-6/PAS-13).
-@omar = 3
 @aurora = 1
 
 ### Evento inexistente -> 404 ProblemDetail (GET publico, sin credenciales)
@@ -54,7 +50,7 @@ Authorization: Basic {{organizador}} {{clave}}
 # El patron acepta solo los 11 digitos, para no guardar el mismo CUIT en dos formatos.
 POST {{baseUrl}}/api/productoras
 Content-Type: application/json
-X-Usuario-Id: {{omar}}
+Authorization: Basic {{organizador}} {{clave}}
 
 {
   "nombreComercial": "Con Guiones SRL",

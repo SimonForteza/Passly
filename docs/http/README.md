@@ -47,17 +47,18 @@ no agrega una columna `not null` a una tabla que ya tiene filas. Despues, `up -d
 
 ## Como se resuelve "quien opera"
 
-Eventos y Productoras resuelven distinto la identidad de quien opera, y a proposito quedan
-en momentos distintos de la migracion:
+Eventos y Productoras resuelven la identidad de quien opera de la misma forma: no hay ningun
+header propio, y la resuelve Spring Security a partir de `Authorization: Basic`. El
+`UserDetails` que arma el modulo `seguridad` usa el **id numerico** del usuario como username
+(no el email), asi que cada controller lee `Authentication#getName()` para obtener el id del
+actuante sin depender de Usuarios para resolverlo — dependencia que ninguno de los dos
+`package-info` declara y que haria fallar el build (CLAUDE.md 4.4).
 
-- **Eventos** ya usa Spring Security: `Authorization: Basic` mas `@PreAuthorize`. El
-  `UserDetails` que arma el modulo `seguridad` usa el **id numerico** del usuario como
-  username (no el email), asi que el controller lee `Authentication#getName()` para
-  obtener el id del actuante sin depender de Usuarios para resolverlo — dependencia que el
-  `package-info` de Eventos no declara y que haria fallar el build (CLAUDE.md 4.4).
-- **Productoras** todavia usa el header temporal `X-Usuario-Id`: es deliberadamente
-  falsificable y no pretende ser seguridad. Migrarlo es aplicar el mismo patron que ya se
-  uso en Eventos.
+Productoras uso hasta hace poco un header temporal (`X-Usuario-Id`), deliberadamente
+falsificable, para poder probar el modelo de autorizacion antes de que existiera Spring
+Security. Migro con el mismo patron que ya se habia usado en Eventos, sin cambiar ningun DTO
+ni ninguna firma de `ProductoraService`: la identidad siempre viajo como parametro aparte,
+nunca dentro del request.
 
 La lectura publica (cartelera, ficha de productora) no pide identidad, que es justamente el
 punto de un marketplace.

@@ -38,6 +38,8 @@ class ConfiguracionDeSeguridad {
                 .authorizeHttpRequests(auth -> auth
                         // Cartelera publica: cualquiera ve los eventos publicados y un evento por id.
                         .requestMatchers(HttpMethod.GET, "/api/eventos", "/api/eventos/*").permitAll()
+                        // Cartelera de productoras: publico, es lo que elige el comprador.
+                        .requestMatchers(HttpMethod.GET, "/api/productoras", "/api/productoras/*").permitAll()
                         // Alta publica: el POST es anonimo; que solo pueda crear COMPRADOR lo impone
                         // el @PreAuthorize del controller, no este filtro.
                         .requestMatchers(HttpMethod.POST, "/api/usuarios").permitAll()
