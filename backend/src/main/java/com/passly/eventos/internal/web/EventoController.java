@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
@@ -18,6 +20,15 @@ import java.util.List;
 /**
  * Traduce HTTP a llamadas sobre {@link EventoService}. Sin logica de dominio y sin conocer
  * entidades: solo trata con la interfaz de negocio y los DTOs (CLAUDE.md 4.5).
+ *
+ * <p><b>Sobre el header {@code X-Usuario-Id}:</b> es la identidad de quien opera, y es temporal —
+ * Spring Security es PAS-6. Es deliberadamente falsificable y no pretende ser seguridad: lo que
+ * logra es que el modelo de autorizacion ya este completo y probado cuando llegue la autenticacion.
+ * Migrar es una linea por endpoint ({@code @RequestHeader} pasa a {@code @AuthenticationPrincipal})
+ * sin tocar los DTOs ni las firmas de {@link EventoService}.
+ *
+ * <p>Los endpoints de <b>lectura publica</b> no lo piden: la cartelera es de acceso libre, que es
+ * justamente el punto de un marketplace.
  *
  * <p>Package-private: nada fuera de este paquete necesita nombrarla, Spring la registra igual
  * como bean {@code @RestController}.
@@ -32,8 +43,11 @@ class EventoController {
     }
 
     @PostMapping("/api/eventos")
-    ResponseEntity<EventoDTO> crearEvento(@Valid @RequestBody CrearEventoRequest solicitud) {
-        EventoDTO creado = eventoService.crearEvento(solicitud);
+    ResponseEntity<EventoDTO> crearEvento(
+            @RequestHeader("X-Usuario-Id") Long idUsuarioActuante,
+            @Valid @RequestBody CrearEventoRequest solicitud
+    ) {
+        EventoDTO creado = eventoService.crearEvento(solicitud, idUsuarioActuante);
         return ResponseEntity.created(URI.create("/api/eventos/" + creado.id())).body(creado);
     }
 
@@ -49,13 +63,46 @@ class EventoController {
      * comunica peor que se esta pidiendo una transicion, no un update.
      */
     @PostMapping("/api/eventos/{id}/publicacion")
-    EventoDTO publicarEvento(@PathVariable("id") Long id) {
-        return eventoService.publicarEvento(id);
+    EventoDTO publicarEvento(
+            @PathVariable("id") Long id,
+            @RequestHeader("X-Usuario-Id") Long idUsuarioActuante
+    ) {
+        return eventoService.publicarEvento(id, idUsuarioActuante);
     }
 
+    /**
+     * Cartelera publica, opcionalmente filtrada por productora.
+     *
+     * <p>El filtro es un {@code @RequestParam} opcional sobre la misma coleccion y no un endpoint
+     * aparte: {@code /api/eventos?productora=1} sigue siendo "los eventos publicados", con un
+     * criterio de seleccion encima. Un path distinto sugeriria que es otro recurso.
+     */
     @GetMapping("/api/eventos")
-    List<EventoDTO> listarEventosPublicados() {
-        return eventoService.listarEventosPublicados();
+    List<EventoDTO> listarEventosPublicados(
+            @RequestParam(name = "productora", required = false) Long idProductora
+    ) {
+        return idProductora == null
+                ? eventoService.listarEventosPublicados()
+                : eventoService.listarEventosPublicadosDeProductora(idProductora);
+    }
+
+    /**
+     * Backoffice de la productora: sus eventos, <b>incluidos los borradores</b>.
+     *
+     * <p>Es un sub-recurso de la productora porque lo que se pide es "los eventos de esta
+     * productora", no "los eventos filtrados". La diferencia con el filtro de arriba no es de forma
+     * sino de contenido y de permisos: aca hay borradores y hace falta gestionar la productora.
+     *
+     * <p>Que el path empiece con {@code /api/productoras} y lo sirva el controlador de Eventos no es
+     * una inconsistencia: la URL describe la jerarquia del recurso, no que componente lo resuelve.
+     * Los eventos son de Eventos aunque cuelguen de una productora.
+     */
+    @GetMapping("/api/productoras/{idProductora}/eventos")
+    List<EventoDTO> listarEventosDeProductora(
+            @PathVariable("idProductora") Long idProductora,
+            @RequestHeader("X-Usuario-Id") Long idUsuarioActuante
+    ) {
+        return eventoService.listarEventosDeProductora(idProductora, idUsuarioActuante);
     }
 
     @GetMapping("/api/tipos-entrada/{id}/disponibilidad")

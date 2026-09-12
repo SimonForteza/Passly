@@ -68,6 +68,14 @@ class UsuarioServiceImpl implements UsuarioService {
 
     @Override
     @Transactional(readOnly = true)
+    public UsuarioDTO consultarUsuarioPorEmail(String email) {
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new UsuarioNoEncontradoException(email));
+        return mapper.aDTO(usuario);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<UsuarioDTO> listarUsuarios() {
         return usuarioRepository.findAllByOrderByEmailAsc().stream()
                 .map(mapper::aDTO)

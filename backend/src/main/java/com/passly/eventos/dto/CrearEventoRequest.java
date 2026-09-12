@@ -20,8 +20,18 @@ import java.util.List;
  *
  * <p>{@code OffsetDateTime} y no {@code LocalDateTime}: la hora de un evento tiene zona, y
  * perderla obligaria a que cada cliente adivine cual era.
+ *
+ * <p><b>El {@code idProductora} si va en el request, y no es una contradiccion con que la identidad
+ * viaje en el header.</b> Son dos cosas distintas: <i>quien opera</i> es identidad y la declara el
+ * servidor, mientras que <i>a nombre de que productora se publica</i> es un dato de la fiesta que
+ * elige quien la crea — igual que al crear un repositorio en GitHub se elige la organizacion. Una
+ * persona puede pertenecer a varias productoras, asi que el dato no es derivable de la identidad. Lo
+ * que si se valida siempre es que quien opera pueda gestionar esa productora.
  */
 public record CrearEventoRequest(
+
+        @NotNull(message = "el id de la productora organizadora es obligatorio")
+        Long idProductora,
 
         @NotBlank(message = "el nombre del evento es obligatorio")
         @Size(max = 150, message = "el nombre no puede superar los 150 caracteres")

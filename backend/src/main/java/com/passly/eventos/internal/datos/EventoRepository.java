@@ -20,4 +20,17 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
 
     /** Cartelera publica: los eventos de un estado dado, del mas proximo al mas lejano. */
     List<Evento> findByEstadoOrderByFechaHoraAsc(EstadoEvento estado);
+
+    /** Cartelera publica filtrada por productora: lo que ve el comprador al elegir un organizador. */
+    List<Evento> findByEstadoAndProductoraIdOrderByFechaHoraAsc(
+            EstadoEvento estado, Long productoraId);
+
+    /**
+     * Backoffice: <b>todos</b> los eventos de una productora, incluidos los BORRADOR.
+     *
+     * <p>Es la unica consulta que devuelve borradores, y por eso el servicio exige que quien
+     * pregunta pueda gestionar esa productora: el borrador de una fiesta todavia no anunciada es
+     * informacion comercial sensible.
+     */
+    List<Evento> findByProductoraIdOrderByFechaHoraAsc(Long productoraId);
 }

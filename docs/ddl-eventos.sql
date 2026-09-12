@@ -10,13 +10,16 @@
 -- tablas dentro de un esquema, no el esquema.
 
 create table eventos.evento (
-    id          bigint generated always as identity primary key,
-    nombre      varchar(150)  not null,
-    descripcion text,
-    fecha_hora  timestamptz   not null,
-    lugar       varchar(200)  not null,
-    estado      varchar(20)   not null          -- BORRADOR | PUBLICADO | CANCELADO
+    id            bigint generated always as identity primary key,
+    productora_id bigint        not null,       -- productoras.productora(id), SIN FK: ver abajo
+    nombre        varchar(150)  not null,
+    descripcion   text,
+    fecha_hora    timestamptz   not null,
+    lugar         varchar(200)  not null,
+    estado        varchar(20)   not null        -- BORRADOR | PUBLICADO | CANCELADO
 );
+
+create index idx_evento_productora on eventos.evento (productora_id);
 
 create table eventos.tipo_entrada (
     id              bigint  generated always as identity primary key,
@@ -37,3 +40,12 @@ create table eventos.tipo_entrada (
 -- * timestamptz + OffsetDateTime: la hora de un evento tiene zona.
 -- * estado como varchar (STRING), no un tipo numerico: agregar un estado nuevo no debe
 --   corromper las filas existentes (@Enumerated(EnumType.STRING) en la entidad).
+-- * productora_id NO lleva foreign key, aunque apunte a productoras.productora(id). Una FK
+--   entre esquemas de componentes distintos es exactamente el join que CLAUDE.md 4.8
+--   prohibe, y ataria los dos componentes a nivel de motor. La integridad la impone el
+--   negocio: antes de crear el evento, Eventos le pregunta a ProductoraService si quien
+--   opera puede gestionar esa productora, y esa pregunta da false para una productora
+--   inexistente. El indice si esta, porque filtrar la cartelera por productora es una
+--   consulta del camino caliente.
+-- * productora_id es updatable=false en la entidad: un evento no cambia de dueño.
+--   Transferirlo seria una operacion de negocio con sus propias reglas, no un update.

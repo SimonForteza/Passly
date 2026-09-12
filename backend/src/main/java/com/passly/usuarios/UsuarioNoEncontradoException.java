@@ -19,6 +19,15 @@ public class UsuarioNoEncontradoException extends RuntimeException {
         this.idUsuario = idUsuario;
     }
 
+    /**
+     * Variante para la busqueda por email. {@code idUsuario} queda en {@code null} porque no se
+     * busco por id: el identificador que fallo es el email, y va en el mensaje.
+     */
+    public UsuarioNoEncontradoException(String email) {
+        super("No existe un usuario con email " + email);
+        this.idUsuario = null;
+    }
+
     public Long getIdUsuario() {
         return idUsuario;
     }

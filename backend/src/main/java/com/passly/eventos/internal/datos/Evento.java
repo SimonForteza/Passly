@@ -42,6 +42,19 @@ public class Evento {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * La productora dueña del evento. Es un id de {@code productoras.productora} <b>sin clave
+     * foranea</b>: cruza el esquema de otro componente, y CLAUDE.md 4.8 prohibe unir esquemas de
+     * componentes distintos. Quien garantiza que apunte a una productora real es el servicio, que
+     * antes de crear el evento le pregunta a {@code ProductoraService} si quien opera puede
+     * gestionarla — y esa pregunta solo da {@code true} para una productora existente.
+     *
+     * <p>Es {@code updatable = false}: un evento no cambia de dueño. Transferirlo seria una
+     * operacion de negocio con sus propias reglas, no un update de campo.
+     */
+    @Column(name = "productora_id", nullable = false, updatable = false)
+    private Long productoraId;
+
     @Column(nullable = false, length = 150)
     private String nombre;
 
@@ -67,7 +80,14 @@ public class Evento {
     protected Evento() {
     }
 
-    public Evento(String nombre, String descripcion, OffsetDateTime fechaHora, String lugar) {
+    public Evento(
+            Long productoraId,
+            String nombre,
+            String descripcion,
+            OffsetDateTime fechaHora,
+            String lugar
+    ) {
+        this.productoraId = productoraId;
         this.nombre = nombre;
         this.descripcion = descripcion;
         this.fechaHora = fechaHora;
@@ -113,8 +133,24 @@ public class Evento {
         this.estado = EstadoEvento.PUBLICADO;
     }
 
+    /**
+     * Si el evento pertenece a esa productora.
+     *
+     * <p>Responde sobre la <b>pertenencia</b>, que es un dato propio del agregado. Deliberadamente
+     * no responde sobre la <i>autorizacion</i>: para saber si alguien puede operar el evento hay que
+     * preguntarle a Productoras quien gestiona esa productora, y eso es conocimiento externo. Por eso
+     * el guard vive en el servicio y esta entidad solo aporta la mitad que le corresponde.
+     */
+    public boolean perteneceA(Long idProductora) {
+        return this.productoraId.equals(idProductora);
+    }
+
     public Long getId() {
         return id;
+    }
+
+    public Long getProductoraId() {
+        return productoraId;
     }
 
     public String getNombre() {
