@@ -8,14 +8,14 @@ arquitectura completa, el stack y las decisiones de diseno.
 Passly es **multi-productora**: un comprador elige entre fiestas de distintos organizadores y
 cada productora publica y gestiona solo las suyas.
 
-Tres componentes implementados, cada uno con las tres capas (presentacion / negocio / datos)
-separadas: `ServicioDeUsuarios`, `ServicioDeProductoras` y `ServicioDeEventos`. Spring Modulith
-verifica las fronteras en el build y las dependencias estan **declaradas** modulo por modulo:
-el grafo es la cadena `eventos -> productoras -> usuarios`.
+Cuatro componentes implementados, cada uno con las tres capas (presentacion / negocio / datos)
+separadas: `ServicioDeUsuarios`, `ServicioDeProductoras`, `ServicioDeEventos` y el modulo
+`seguridad`. Spring Modulith verifica las fronteras en el build y las dependencias estan
+**declaradas** modulo por modulo: el grafo es la cadena `eventos -> productoras -> usuarios`.
 
-Todavia no hay Spring Security (es el proximo paso): hasta entonces la identidad de quien opera
-viaja en el header `X-Usuario-Id`, que es deliberadamente falsificable y no pretende ser
-seguridad.
+La identidad de quien opera la resuelve **Spring Security** (HTTP Basic, sesion STATELESS):
+ningun endpoint depende de un header propio para saber quien esta operando. La autorizacion
+por rol es declarativa con `@PreAuthorize` en los controllers (ver [CLAUDE.md](CLAUDE.md) 4.11).
 
 ## Levantar el entorno
 
@@ -47,9 +47,9 @@ curl "http://localhost:8080/api/eventos?productora=1" # solo las fiestas de Auro
 curl http://localhost:8080/actuator/modulith         # modelo de modulos detectado
 
 # El corazon de la demo: Olga es de otra productora -> 403
-curl -i -X POST http://localhost:8080/api/eventos/3/publicacion -H "X-Usuario-Id: 4"
+curl -i -X POST http://localhost:8080/api/eventos/3/publicacion -u organizador2@passly.test:passly1234
 # Omar es el dueno de Aurora -> 200
-curl -i -X POST http://localhost:8080/api/eventos/3/publicacion -H "X-Usuario-Id: 3"
+curl -i -X POST http://localhost:8080/api/eventos/3/publicacion -u organizador@passly.test:passly1234
 ```
 
 Guion completo de demo como archivos `.http` listos para la extension REST Client de VS Code
