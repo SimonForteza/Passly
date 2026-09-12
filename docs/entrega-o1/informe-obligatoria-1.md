@@ -6,17 +6,17 @@
 
 **Fecha de entrega:** 14/09/2026
 
-**Equipo:** Federico Torcini, Simon Forteza, Juan Segundo Addamo y Lucio
+**Equipo:** Federico Torcini, Simon Forteza, Juan Segundo Addamo y Lucio Dillon
 
-**Version de trabajo:** corte verificable del 11/09/2026
+**Version de trabajo:** corte verificable del 12/09/2026 (`main` b639aa9)
 
-> Este documento diferencia lo implementado de lo planificado. Antes de la entrega debe actualizarse con la evidencia de los componentes que se integren posteriormente al corte.
+> Este documento diferencia lo implementado de lo planificado y declara de forma explicita los requisitos que aun permanecen pendientes.
 
 ### Resumen ejecutivo
 
 Passly es una plataforma para vender y validar entradas de eventos. El backend se diseña como un monolito modular: una sola aplicacion desplegable, dividida en componentes de negocio con contratos explicitos y fronteras verificadas mediante Spring Modulith.
 
-Al corte de este informe estan implementados los componentes Eventos y Usuarios. Ambos poseen capas de presentacion, negocio y datos, persistencia en esquemas PostgreSQL separados y contratos que evitan exponer entidades JPA. El diseño completo contempla Ventas como componente stateful y Facade, Pagos como Adapter REST y los componentes Tickets, Accesos, Notificaciones y Facturacion para las siguientes etapas.
+Al corte de este informe estan implementados los componentes Usuarios, Productoras y Eventos, todos con capas de presentacion, negocio y datos, persistencia en esquemas PostgreSQL separados y contratos que evitan exponer entidades JPA. PAS-6 agrega autenticacion HTTP Basic stateless y autorizacion declarativa por rol. Ventas como componente stateful y Facade, y Pagos como Adapter REST, permanecen planificados; por lo tanto, esos requisitos no se presentan como cumplidos.
 
 <!-- PAGEBREAK -->
 
@@ -36,7 +36,7 @@ La decision completa se registra en `ADR-001: Monolito modular en lugar de micro
 
 ## 1.2 Persistencia por componente
 
-Se utiliza una unica instancia PostgreSQL con un esquema por componente. Eventos y Usuarios poseen esquemas separados. Un componente no puede consultar directamente las tablas de otro: debe utilizar su interfaz publica.
+Se utiliza una unica instancia PostgreSQL con un esquema por componente. Eventos, Productoras y Usuarios poseen esquemas separados. Un componente no puede consultar directamente las tablas de otro: debe utilizar su interfaz publica. Eventos conserva `productora_id` y Productoras conserva `usuario_id` como referencias logicas, sin claves foraneas ni joins entre esquemas.
 
 La decision reduce complejidad operativa y mantiene visible la propiedad de los datos. El detalle se registra en `ADR-002: Esquema PostgreSQL por componente`.
 
@@ -54,23 +54,32 @@ La decision reduce complejidad operativa y mantiene visible la propiedad de los 
 
 ## 2.1 ServicioDeEventos - implementado
 
-Eventos administra el alta y publicacion de eventos, tipos de entrada, precios, cupos y disponibilidad. Expone `EventoService` y DTO publicos. La implementacion de negocio, el controlador y la persistencia quedan encapsulados.
+Eventos administra el alta y publicacion de eventos, tipos de entrada, precios, cupos y disponibilidad. Cada evento pertenece a una productora. Expone `EventoService` y DTO publicos; la implementacion de negocio, el controlador y la persistencia quedan encapsulados.
 
-La demostracion disponible permite crear un evento, agregar tipos de entrada, publicarlo, consultar la cartelera y verificar el error 409 cuando se intenta una transicion de estado invalida.
+La demostracion permite crear y publicar eventos, consultar la cartelera completa o filtrada y verificar aislamiento: un `ORGANIZADOR` solo opera sobre eventos de una productora que puede gestionar. Eventos obtiene la identidad autenticada desde Spring Security y delega en `ProductoraService` la comprobacion de membresia.
 
 ## 2.2 ServicioDeUsuarios - implementado
 
 Usuarios administra el registro y la consulta de identidades con los roles `COMPRADOR`, `ORGANIZADOR`, `VALIDADOR` y `ADMIN`. Expone `UsuarioService`, mientras que la entidad, el repositorio, el mapper y el encoder permanecen internos.
 
-Las credenciales se transforman con BCrypt antes de persistirse. El hash no forma parte de `UsuarioDTO` y nunca se devuelve por la API. El componente incluye datos de demostracion idempotentes, uno por rol.
+Las credenciales se transforman con BCrypt antes de persistirse. El hash no forma parte de `UsuarioDTO` y nunca se devuelve por la API. Seguridad consume el contrato `usuarios :: autenticacion` para buscar credenciales sin acceder al repositorio interno.
 
-## 2.3 Componentes previstos para completar la O1
+## 2.3 ServicioDeProductoras - implementado
+
+Productoras administra las organizaciones y su padron. Distingue el rol global del usuario del rol interno `DUENIO`, `STAFF` o `VALIDADOR`, valida su compatibilidad y expone `ProductoraService`. El grafo de negocio verificado queda `eventos -> productoras -> usuarios`.
+
+La cartelera contiene eventos de distintas productoras y el backoffice rechaza con 403 a miembros de otra organizacion o a miembros sin capacidad de gestion. Como deuda tecnica declarada, los endpoints propios de Productoras todavia reciben el header temporal `X-Usuario-Id`; Eventos ya fue migrado a la identidad autenticada.
+
+## 2.4 Seguridad - implementada
+
+El modulo Seguridad configura HTTP Basic, sesion `STATELESS`, CSRF deshabilitado y reglas por rol con `@PreAuthorize`. Reutiliza el `PasswordEncoder` de Usuarios y representa el id numerico dentro del `UserDetails`, de modo que los controladores puedan identificar al actor sin introducir dependencias de negocio indebidas.
+
+## 2.5 Componentes previstos
 
 - **ServicioDeVentas:** orquesta la compra y mantiene temporalmente la seleccion del comprador. Debe implementar el estado conversacional y actuar como Facade.
 - **ServicioDePagos:** oculta el contrato de una pasarela externa detras de una interfaz propia. Debe implementar el patron Adapter.
-- **Seguridad:** debe autenticar credenciales y aplicar autorizacion declarativa por rol sobre al menos dos operaciones sensibles.
 
-## 2.4 Componentes posteriores
+## 2.6 Componentes posteriores
 
 Tickets emitira entradas con QR; Accesos validara su uso unico; Notificaciones enviara mensajes; Facturacion adaptara una integracion SOAP. Estos elementos pertenecen principalmente a entregas posteriores y no se presentan como implementados en este corte.
 
@@ -90,9 +99,9 @@ Las entidades no cruzan la frontera del componente. Los intercambios se realizan
 
 ## 3.2 Stateful y stateless
 
-Eventos y Usuarios son stateless: no conservan estado conversacional entre llamadas. Persistir eventos o usuarios no los vuelve stateful, porque ese estado pertenece al dominio y vive en la base.
+Eventos, Productoras, Usuarios y Seguridad son stateless: no conservan estado conversacional entre llamadas. Persistir informacion de dominio no vuelve stateful al componente, porque ese estado vive en PostgreSQL. Seguridad tampoco crea sesion HTTP; cada request vuelve a presentar sus credenciales.
 
-Ventas se diseña como stateful porque debe mantener un hold temporal mientras el comprador completa el pago. Ese estado en memoria crece durante la conversacion y expira si se abandona. La implementacion debe mostrar callbacks de ciclo de vida administrados por Spring.
+Ventas se diseña como stateful porque debe mantener un hold temporal mientras el comprador completa el pago. Ese estado en memoria crece durante la conversacion y expira si se abandona. La implementacion y sus callbacks de ciclo de vida permanecen pendientes; hoy no existe un componente stateful integrado.
 
 ## 3.3 Patrones de diseño
 
@@ -106,24 +115,27 @@ Los repositorios Spring Data separan la logica de negocio del acceso a PostgreSQ
 
 ### Adapter - planificado en Pagos
 
-`PagoService` presentara un contrato estable del dominio y traducira solicitudes y respuestas de la pasarela REST. Solo debe declararse implementado cuando PAS-7 este integrado y probado.
+`PagoService` presentara un contrato estable del dominio y traducira solicitudes y respuestas de la pasarela REST. No existe una implementacion integrada al corte.
+
+Los servicios de aplicacion y mappers aportan separacion estructural, pero no se contabilizan aqui para ocultar la brecha: de los tres patrones exigidos para la entrega, DAO esta aplicado y Facade/Adapter continuan pendientes.
 
 <!-- PAGEBREAK -->
 
 # 4. Seguridad, transacciones e integraciones
 
-## 4.1 Estado actual de credenciales
+## 4.1 Autenticacion stateless
 
-Usuarios valida los datos de registro, rechaza emails repetidos y persiste un hash BCrypt. Este mecanismo protege la credencial almacenada, pero no constituye todavia autenticacion ni autorizacion completa.
+Usuarios valida el registro, rechaza emails repetidos y persiste hashes BCrypt. `DetalleDeUsuarioParaAutenticacion` implementa `UserDetailsService`, consulta el contrato publico de Usuarios y entrega las credenciales a un `DaoAuthenticationProvider`. El login se realiza por email, pero el principal autenticado conserva el id numerico del usuario para las reglas de alcance.
 
-## 4.2 Seguridad declarativa requerida
+## 4.2 Autorizacion declarativa implementada
 
-PAS-6 debe incorporar Spring Security, verificacion de credenciales y autorizacion mediante `@PreAuthorize`. Como minimo deben demostrarse dos operaciones sensibles, por ejemplo:
+El `SecurityFilterChain` permite la cartelera, el healthcheck y el alta publica de compradores; el resto exige autenticacion. `@PreAuthorize` protege operaciones sensibles:
 
-- Solo `ORGANIZADOR` puede crear o publicar eventos.
-- Solo `ADMIN` puede asignar roles privilegiados.
+- Solo `ORGANIZADOR` puede crear o publicar eventos, y el servicio exige ademas que gestione la productora correspondiente.
+- Un alta anonima solo puede registrar `COMPRADOR`; los roles privilegiados requieren `ADMIN`.
+- Solo `ADMIN` puede listar usuarios.
 
-La demostracion debe incluir tanto un acceso permitido como uno rechazado con 403. El informe final debe nombrar las operaciones realmente implementadas, sin reemplazarlas por ejemplos hipoteticos.
+La evidencia reproducible esta en `docs/http/07-seguridad.http`: principal anonimo rechazado con 401, usuario autenticado con rol insuficiente rechazado con 403 y accesos autorizados con 200/201. `AutorizacionPorRolTest` fija el caso de un `COMPRADOR` autenticado que no puede crear eventos.
 
 ## 4.3 Transaccion critica
 
@@ -144,26 +156,27 @@ La llamada externa de facturacion queda fuera de la transaccion. Mantener una co
 
 ## 5.1 Verificacion automatica
 
-`EstructuraDeModulosTest` ejecuta tres verificaciones: ausencia de violaciones entre modulos, independencia saliente de Eventos y generacion de documentacion arquitectonica. Sobre el corte del 11/09, las tres pruebas pasan con Eventos y Usuarios detectados como modulos separados.
+`EstructuraDeModulosTest` ejecuta cuatro verificaciones: ausencia de violaciones, Usuarios como raiz, grafo `eventos -> productoras -> usuarios` y generacion de documentacion. El 12/09 se ejecuto en Java 21: 4 pruebas, 0 fallos y build exitoso, con Usuarios, Productoras, Eventos y Seguridad detectados como modulos.
 
-El codigo integrado compila. El test general `contextLoads` requiere una instancia PostgreSQL accesible; por ello, la demostracion y el cierre deben ejecutarse con la infraestructura levantada. Actualmente el repositorio no posee un workflow de integracion continua.
+La suite completa compila, pero en esta verificacion finalizo con 2 errores de contexto porque no habia PostgreSQL escuchando en `localhost:5432`; no fueron fallos de asercion. Debe repetirse con la infraestructura levantada. Actualmente el repositorio no posee un workflow de integracion continua.
 
 ## 5.2 Guion de demostracion
 
 1. Levantar PostgreSQL con `docker compose up -d`.
 2. Iniciar el backend con el perfil `demo`.
 3. Consultar `/actuator/health` y `/actuator/modulith`.
-4. Crear y publicar un evento.
-5. Consultar la cartelera publica.
-6. Registrar y consultar un usuario, verificando que el hash no aparece en la respuesta.
-7. Ejecutar las pruebas de seguridad, Ventas y Pagos que se incorporen antes del cierre.
-8. Ejecutar `mvnw test` y conservar el resultado como evidencia.
+4. Ejecutar `07-seguridad.http` para demostrar 401, 403 y accesos permitidos por rol.
+5. Ejecutar `06-aislamiento.http` para demostrar que una productora no gestiona eventos de otra.
+6. Consultar la cartelera completa y filtrada por productora.
+7. Registrar y consultar un usuario, verificando que el hash no aparece en la respuesta.
+8. Ejecutar `mvnw test` con PostgreSQL disponible y conservar el resultado como evidencia.
 
 ## 5.3 Pendientes para cerrar la entrega
 
-- Integrar y probar PAS-6, PAS-7 y PAS-8.
-- Actualizar este informe con clases, endpoints y resultados reales.
-- Incorporar peticiones reproducibles para los nuevos flujos.
+- Implementar Ventas/PAS-8 como componente stateful y Facade.
+- Implementar el Adapter de Pagos si se lo incluye en el alcance de la Obligatoria 1.
+- Migrar Productoras desde `X-Usuario-Id` hacia el principal autenticado.
+- Ejecutar la suite completa con PostgreSQL y conservar el resultado exitoso.
 - Ejecutar la demo completa en la maquina que se utilizara en la defensa.
 - Realizar una revision cruzada: cada integrante debe explicar cualquier componente.
 
@@ -198,7 +211,7 @@ La declaracion no implica por si misma una penalizacion. La omision del uso de e
 
 La arquitectura elegida busca equilibrio entre separacion y simplicidad. El monolito modular permite contratos claros, transacciones locales y una demostracion reproducible sin asumir prematuramente los costos de un sistema distribuido. El esquema PostgreSQL por componente refleja la misma decision en la persistencia.
 
-Eventos y Usuarios demuestran la estructura vertical propuesta y hacen que la verificacion de Spring Modulith sea significativa. El cierre de la Obligatoria 1 depende de integrar Ventas, Pagos y Seguridad, actualizar la evidencia y ensayar el flujo completo.
+Usuarios, Productoras y Eventos demuestran tres rebanadas verticales y Seguridad cubre autenticacion y autorizacion por rol. Spring Modulith verifica fronteras y el grafo de dependencias. Para cumplir integralmente la vara de la Obligatoria 1 aun deben incorporarse un componente stateful y los patrones Facade y Adapter; ademas debe repetirse la suite completa con PostgreSQL y ensayarse la defensa.
 
 ## Referencias
 

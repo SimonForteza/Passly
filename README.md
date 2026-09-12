@@ -53,12 +53,12 @@ curl http://localhost:8080/actuator/health           # {"status":"UP"}
 curl http://localhost:8080/api/productoras           # las dos productoras de demo
 curl http://localhost:8080/api/eventos               # cartelera, cada evento con su organizador
 curl "http://localhost:8080/api/eventos?productora=1" # solo las fiestas de Aurora
-curl http://localhost:8080/actuator/modulith         # modelo de modulos detectado
+curl -u admin@passly.test:passly1234 http://localhost:8080/actuator/modulith
 
 # El corazon de la demo: Olga es de otra productora -> 403
-curl -i -X POST http://localhost:8080/api/eventos/3/publicacion -H "X-Usuario-Id: 4"
+curl -i -u organizador2@passly.test:passly1234 -X POST http://localhost:8080/api/eventos/3/publicacion
 # Omar es el dueno de Aurora -> 200
-curl -i -X POST http://localhost:8080/api/eventos/3/publicacion -H "X-Usuario-Id: 3"
+curl -i -u organizador@passly.test:passly1234 -X POST http://localhost:8080/api/eventos/3/publicacion
 ```
 
 Guion completo de demo como archivos `.http` listos para la extension REST Client de VS Code

@@ -18,12 +18,14 @@ from reportlab.lib.units import mm
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from reportlab.platypus import (
+    BaseDocTemplate,
+    Frame,
     HRFlowable,
     ListFlowable,
     ListItem,
     PageBreak,
+    PageTemplate,
     Paragraph,
-    SimpleDocTemplate,
     Spacer,
 )
 
@@ -332,35 +334,48 @@ def parse_markdown(markdown: str):
     return story
 
 
-def draw_page(canvas, doc):
+def draw_cover_background(canvas, doc):
     width, height = A4
     page = canvas.getPageNumber()
+    if page != 1:
+        return
+
     canvas.saveState()
 
+    canvas.setFillColor(NAVY)
+    canvas.rect(0, 0, width, height, stroke=0, fill=1)
+    canvas.setFillColor(BLUE)
+    canvas.rect(0, height - 18 * mm, width, 18 * mm, stroke=0, fill=1)
+    canvas.setFillColor(CYAN)
+    canvas.rect(0, 0, 7 * mm, height, stroke=0, fill=1)
+    canvas.setFillColor(colors.white)
+    canvas.setFont(BODY_FONT, 8)
+    canvas.drawString(22 * mm, 16 * mm, "PASSLY / DESARROLLO DE APLICACIONES II")
+
+    canvas.restoreState()
+
+
+def draw_page_chrome(canvas, doc):
+    width, height = A4
+    page = canvas.getPageNumber()
     if page == 1:
-        canvas.setFillColor(NAVY)
-        canvas.rect(0, 0, width, height, stroke=0, fill=1)
-        canvas.setFillColor(BLUE)
-        canvas.rect(0, height - 18 * mm, width, 18 * mm, stroke=0, fill=1)
-        canvas.setFillColor(CYAN)
-        canvas.rect(0, 0, 7 * mm, height, stroke=0, fill=1)
-        canvas.setFillColor(colors.white)
-        canvas.setFont(BODY_FONT, 8)
-        canvas.drawString(22 * mm, 16 * mm, "PASSLY / DESARROLLO DE APLICACIONES II")
-    else:
-        canvas.setFillColor(NAVY)
-        canvas.rect(0, height - 12 * mm, width, 12 * mm, stroke=0, fill=1)
-        canvas.setFillColor(colors.white)
-        canvas.setFont(BOLD_FONT, 8)
-        canvas.drawString(18 * mm, height - 7.6 * mm, "PASSLY")
-        canvas.setFont(BODY_FONT, 7.5)
-        canvas.drawRightString(width - 18 * mm, height - 7.6 * mm, "OBLIGATORIA 1 / 14.09.2026")
-        canvas.setStrokeColor(LINE)
-        canvas.line(18 * mm, 13 * mm, width - 18 * mm, 13 * mm)
-        canvas.setFillColor(MUTED)
-        canvas.setFont(BODY_FONT, 7.5)
-        canvas.drawString(18 * mm, 8.5 * mm, "Arquitectura, componentes, patrones y verificacion")
-        canvas.drawRightString(width - 18 * mm, 8.5 * mm, f"Pagina {page}")
+        return
+
+    # Se dibuja al finalizar la pagina para que ningun flowable pueda tapar el encabezado o el pie.
+    canvas.saveState()
+    canvas.setFillColor(NAVY)
+    canvas.rect(0, height - 12 * mm, width, 12 * mm, stroke=0, fill=1)
+    canvas.setFillColor(colors.white)
+    canvas.setFont(BOLD_FONT, 8)
+    canvas.drawString(18 * mm, height - 7.6 * mm, "PASSLY")
+    canvas.setFont(BODY_FONT, 7.5)
+    canvas.drawRightString(width - 18 * mm, height - 7.6 * mm, "OBLIGATORIA 1 / 14.09.2026")
+    canvas.setStrokeColor(LINE)
+    canvas.line(18 * mm, 13 * mm, width - 18 * mm, 13 * mm)
+    canvas.setFillColor(MUTED)
+    canvas.setFont(BODY_FONT, 7.5)
+    canvas.drawString(18 * mm, 8.5 * mm, "Arquitectura, componentes, patrones y verificacion")
+    canvas.drawRightString(width - 18 * mm, 8.5 * mm, f"Pagina {page}")
 
     canvas.restoreState()
 
@@ -372,7 +387,7 @@ def main() -> None:
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     markdown = SOURCE.read_text(encoding="utf-8")
 
-    document = SimpleDocTemplate(
+    document = BaseDocTemplate(
         str(OUTPUT),
         pagesize=A4,
         rightMargin=18 * mm,
@@ -383,7 +398,21 @@ def main() -> None:
         author="Equipo Passly",
         subject="Arquitectura, componentes, patrones, seguridad y uso de IA",
     )
-    document.build(parse_markdown(markdown), onFirstPage=draw_page, onLaterPages=draw_page)
+    frame = Frame(
+        document.leftMargin,
+        document.bottomMargin,
+        document.width,
+        document.height,
+        id="contenido",
+        showBoundary=0,
+    )
+    document.addPageTemplates(PageTemplate(
+        id="passly",
+        frames=[frame],
+        onPage=draw_cover_background,
+        onPageEnd=draw_page_chrome,
+    ))
+    document.build(parse_markdown(markdown))
     print(OUTPUT)
 
 
