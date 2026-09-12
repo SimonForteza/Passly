@@ -1,17 +1,23 @@
 @baseUrl = http://localhost:8080
 
-# Ids del perfil demo, con la base recien creada (docker compose down -v && up -d).
-# Si no coinciden, salen de GET /api/usuarios y GET /api/productoras.
-@omar = 3
+# Credenciales de demo (perfil demo). REST Client arma el header Basic a partir de
+# "usuario contrasena" separados por un espacio. Crear y publicar exigen rol ORGANIZADOR (PAS-6)
+# y ademas poder gestionar la productora indicada (PAS-13) -- Omar es DUENIO de Aurora.
+@organizador = organizador@passly.test
+@clave = passly1234
+
+# Id de la productora a nombre de la que se publica, con la base recien creada
+# (docker compose down -v && up -d). Si no coincide, sale de GET /api/productoras.
 @aurora = 1
 
-### 1. Crear evento a nombre de Aurora (nace en BORRADOR)
-# El header X-Usuario-Id es quien opera. El idProductora es a nombre de quien se publica:
-# son dos cosas distintas, por eso una va en el header y la otra en el body.
+### 1. Crear evento a nombre de Aurora (nace en BORRADOR) -- exige ORGANIZADOR que gestione Aurora
+# La identidad de quien opera ya no viaja en un header propio: la resuelve Spring Security a
+# partir del Basic auth. El idProductora es a nombre de quien se publica -- son dos cosas
+# distintas, por eso una sale de la autenticacion y la otra va en el body.
 # @name crearEvento
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
-X-Usuario-Id: {{omar}}
+Authorization: Basic {{organizador}} {{clave}}
 
 {
   "idProductora": {{aurora}},
@@ -24,22 +30,23 @@ X-Usuario-Id: {{omar}}
   ]
 }
 
-### 2. Consultar el evento recien creado (BORRADOR, con su organizador)
+### 2. Consultar el evento recien creado (publico, sin credenciales) -- BORRADOR, con su organizador
 GET {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}
 
-### 3. Publicar el evento
+### 3. Publicar el evento -- exige ORGANIZADOR que gestione Aurora
 POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
-X-Usuario-Id: {{omar}}
+Authorization: Basic {{organizador}} {{clave}}
 
-### 4. Cartelera: ahora aparece, y cada evento dice de que productora es
+### 4. Cartelera (publica, sin credenciales): ahora aparece, y cada evento dice de que productora es
 GET {{baseUrl}}/api/eventos
 
-### 5. Republicar -> 409 Conflict (la regla de negocio real)
+### 5. Republicar -> 409 Conflict (la regla de negocio real) -- exige ORGANIZADOR
 POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
-X-Usuario-Id: {{omar}}
+Authorization: Basic {{organizador}} {{clave}}
 
-### 6. Disponibilidad del tipo de entrada creado
+### 6. Disponibilidad del tipo de entrada creado -- exige estar autenticado (PAS-6), sin importar el rol
 GET {{baseUrl}}/api/tipos-entrada/{{crearEvento.response.body.$.tiposEntrada[0].id}}/disponibilidad
+Authorization: Basic {{organizador}} {{clave}}
 
-### 7. Sin el header no hay identidad -> 401
+### 7. Sin credenciales no hay identidad -> 401
 POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion

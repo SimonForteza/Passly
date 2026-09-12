@@ -1,9 +1,11 @@
 package com.passly.usuarios;
 
+import com.passly.usuarios.autenticacion.CredencialDTO;
 import com.passly.usuarios.dto.CrearUsuarioRequest;
 import com.passly.usuarios.dto.UsuarioDTO;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Contrato publico de <b>ServicioDeUsuarios</b>: registro y consulta de usuarios y su rol.
@@ -13,10 +15,12 @@ import java.util.List;
  * contrato; los demas componentes inyectan esta interfaz y no pueden nombrar la clase concreta.
  *
  * <p><b>Sobre la credencial:</b> el password en texto plano entra solo por
- * {@link #registrarUsuario(CrearUsuarioRequest)} y no vuelve a salir: se guarda hasheado con
- * BCrypt dentro del componente y {@link UsuarioDTO} no incluye el hash. Verificar credenciales
- * en el login es responsabilidad de PAS-6 y ocurrira <b>adentro</b> del componente, para que el
- * hash nunca cruce la frontera.
+ * {@link #registrarUsuario(CrearUsuarioRequest)} y nunca vuelve a salir; {@link UsuarioDTO} no
+ * incluye el hash. La verificacion del login (PAS-6) la hace el modulo {@code seguridad} con
+ * Spring Security, no este componente: para eso {@link #buscarCredencialPorEmail(String)} expone
+ * el hash BCrypt por el contrato acotado {@code usuarios :: autenticacion}
+ * ({@link CredencialDTO}). Es la <b>unica</b> operacion por la que el hash cruza la frontera, y
+ * su unico consumidor previsto es {@code seguridad}.
  *
  * <p><b>Posicion en el sistema:</b> Usuarios no llama a ningun otro componente. Es
  * <b>stateless</b>: no guarda estado conversacional entre llamadas (persistir usuarios no lo
@@ -52,4 +56,15 @@ public interface UsuarioService {
 
     /** Lista todos los usuarios, ordenados por email ascendente. */
     List<UsuarioDTO> listarUsuarios();
+
+    /**
+     * Devuelve la credencial de autenticacion asociada a un email, o {@link Optional#empty()} si
+     * no existe una cuenta con ese email.
+     *
+     * <p>Es el contrato que consume {@code seguridad} para autenticar: entrega el hash BCrypt
+     * (nunca el texto plano) dentro de un {@link CredencialDTO}, sin filtrar la entidad. Devuelve
+     * {@code Optional} a proposito, para no acoplar este componente a las excepciones de Spring
+     * Security: el {@code empty} lo traduce {@code seguridad} a un {@code UsernameNotFoundException}.
+     */
+    Optional<CredencialDTO> buscarCredencialPorEmail(String email);
 }

@@ -19,7 +19,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
     /**
      * Busqueda por la clave natural de la cuenta. El email es {@code unique} en la tabla, asi que
-     * devuelve como maximo una fila.
+     * devuelve como maximo una fila. La usa la autenticacion de PAS-6 para resolver el login.
      */
     Optional<Usuario> findByEmail(String email);
 

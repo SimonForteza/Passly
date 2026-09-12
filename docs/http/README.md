@@ -5,12 +5,34 @@ independiente: se abre, aparece un link `Send Request` arriba de cada `###`, y s
 
 | Archivo | Que prueba |
 |---|---|
-| [01-salud.http](01-salud.http) | `/actuator/health` y `/actuator/modulith` |
+| [01-salud.http](01-salud.http) | `/actuator/health` (publico) y `/actuator/modulith` (autenticado) |
 | [02-cartelera.http](02-cartelera.http) | cartelera publica, filtro por productora, listado de productoras |
 | [03-flujo-feliz.http](03-flujo-feliz.http) | crear -> consultar -> publicar -> cartelera -> **republicar (409)** -> disponibilidad |
 | [04-errores.http](04-errores.http) | 404, 400 por campo, **401 sin identidad**, 403 por productora inexistente |
 | [05-productoras.http](05-productoras.http) | alta de productoras, padron de miembros y el cruce de los dos ejes de rol |
 | [06-aislamiento.http](06-aislamiento.http) | **el guion central: una productora no toca las fiestas de otra** |
+| [07-seguridad.http](07-seguridad.http) | matriz de autorizacion por rol (PAS-6): 401 / 403 / 201-200 |
+
+## Autenticacion (PAS-6)
+
+La API usa **HTTP Basic**. Los endpoints publicos no piden credenciales: `GET /actuator/health`,
+la cartelera (`GET /api/eventos`, `GET /api/eventos/{id}`) y el alta publica (`POST /api/usuarios`,
+que solo puede crear `COMPRADOR`). Todo lo demas exige estar autenticado, y las operaciones
+sensibles exigen ademas un rol (`@PreAuthorize`): crear/publicar eventos -> `ORGANIZADOR` **que
+ademas pueda gestionar la productora indicada** (PAS-13); crear usuarios privilegiados y listar
+usuarios -> `ADMIN`.
+
+El perfil `demo` siembra un usuario por rol, todos con contrasena `passly1234`:
+
+| Rol | Usuario |
+|---|---|
+| COMPRADOR | `comprador@passly.test` |
+| ORGANIZADOR | `organizador@passly.test` |
+| VALIDADOR | `validador@passly.test` |
+| ADMIN | `admin@passly.test` |
+
+En los `.http`, REST Client arma el header a partir de `Authorization: Basic usuario contrasena`
+(separados por un espacio). Con `curl`, el equivalente es `-u usuario:contrasena`.
 
 ## Antes de correrlas
 
@@ -23,15 +45,21 @@ El `down -v` recrea el volumen. Hace falta la primera vez despues de un cambio d
 `db/init/` solo corre en la inicializacion del volumen, y con `ddl-auto: update` Hibernate
 no agrega una columna `not null` a una tabla que ya tiene filas. Despues, `up -d` alcanza.
 
-## Sobre el header `X-Usuario-Id`
+## Como se resuelve "quien opera"
 
-Las operaciones de gestion llevan `X-Usuario-Id`, que es **quien opera**. Es temporal:
-Spring Security es PAS-6. Es deliberadamente falsificable y no pretende ser seguridad —
-lo que logra es que el modelo de autorizacion ya este completo y probado para cuando
-llegue la autenticacion de verdad. Migrar sera una linea por endpoint, sin tocar ningun
-DTO ni ninguna firma de servicio.
+Eventos y Productoras resuelven distinto la identidad de quien opera, y a proposito quedan
+en momentos distintos de la migracion:
 
-La lectura publica (cartelera, ficha de productora) no lo pide, que es justamente el
+- **Eventos** ya usa Spring Security: `Authorization: Basic` mas `@PreAuthorize`. El
+  `UserDetails` que arma el modulo `seguridad` usa el **id numerico** del usuario como
+  username (no el email), asi que el controller lee `Authentication#getName()` para
+  obtener el id del actuante sin depender de Usuarios para resolverlo — dependencia que el
+  `package-info` de Eventos no declara y que haria fallar el build (CLAUDE.md 4.4).
+- **Productoras** todavia usa el header temporal `X-Usuario-Id`: es deliberadamente
+  falsificable y no pretende ser seguridad. Migrarlo es aplicar el mismo patron que ya se
+  uso en Eventos.
+
+La lectura publica (cartelera, ficha de productora) no pide identidad, que es justamente el
 punto de un marketplace.
 
 ## Ids del perfil demo

@@ -1,22 +1,28 @@
 @baseUrl = http://localhost:8080
+@organizador = organizador@passly.test
+@clave = passly1234
 
+# Productoras todavia se identifica con el header temporal (X-Usuario-Id) -- se migra a
+# Spring Security en un paso aparte, con el mismo patron que ya se aplico a Eventos (PAS-6/PAS-13).
 @omar = 3
 @aurora = 1
 
-### Evento inexistente -> 404 ProblemDetail
+### Evento inexistente -> 404 ProblemDetail (GET publico, sin credenciales)
 GET {{baseUrl}}/api/eventos/999999
 
 ### Productora inexistente -> 404
 GET {{baseUrl}}/api/productoras/999999
 
 ### Crear evento invalido -> 400 con el detalle por campo
+# Va con credenciales ORGANIZADOR a proposito: el 401/403 se chequea antes de llegar aca, asi
+# que para ver el 400 de validacion hay que estar autenticado y autorizado primero.
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
-X-Usuario-Id: {{omar}}
+Authorization: Basic {{organizador}} {{clave}}
 
 { "nombre": "" }
 
-### Crear evento sin el header de identidad -> 401, no 400
+### Crear evento sin credenciales -> 401, no 400
 # Lo que falta no es un campo del formulario sino quien opera.
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
@@ -34,7 +40,7 @@ Content-Type: application/json
 # 403 en vez de 404 evita filtrar que ids existen.
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
-X-Usuario-Id: {{omar}}
+Authorization: Basic {{organizador}} {{clave}}
 
 {
   "idProductora": 999999,

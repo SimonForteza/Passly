@@ -455,9 +455,20 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
 ### 4.11 Seguridad y transacciones
 
 - **Roles:** `COMPRADOR`, `ORGANIZADOR`, `VALIDADOR`, `ADMIN`.
-- **Operaciones sensibles (≥2):** solo el ORGANIZADOR crea/edita su evento; solo
-  el VALIDADOR marca tickets como usados; solo el COMPRADOR dueño descarga su
-  entrada. Con `@PreAuthorize`.
+- **Autenticación (PAS-6):** **HTTP Basic**, sesión **STATELESS**, CSRF off (API REST).
+  Vive en el módulo `seguridad/`, que autentica contra `usuarios` por el contrato
+  `usuarios :: autenticacion` (`CredencialDTO`, que lleva el hash) y **reutiliza el mismo
+  `@Bean PasswordEncoder` de `usuarios`** (inyectado por tipo, sin declarar un segundo bean).
+  Se eligió Basic y no JWT: para la Obligatoria 1, JWT sería complejidad sin beneficio.
+- **El `UserDetails` lleva el id numérico como username, no el email.** El login sigue siendo
+  por email (es lo que el cliente manda en el header Basic), pero
+  `DetalleDeUsuarioParaAutenticacion` arma el `UserDetails` con
+  `User.withUsername(String.valueOf(credencial.idUsuario()))`. Como `Authentication#getName()`
+  después del login devuelve ese username, cualquier controller de cualquier módulo obtiene el id
+  de quien opera con un tipo de Spring Security — sin depender de `usuarios` para resolver
+  email → id. Esto no es un detalle menor: `eventos` tiene declarado en su `package-info` que
+  **no puede depender de `usuarios`** (§4.6), así que la resolución tiene que pasar por acá, una
+  sola vez, dentro de `seguridad` (que sí depende de `usuarios` legítimamente).
 
 **Los dos ejes de la autorización** (implementado). Rol y alcance responden preguntas
 distintas y por eso son dos enums, no uno:
@@ -474,7 +485,9 @@ productora.
 La invariante: **los dos ejes se cruzan una sola vez, al incorporar al miembro** (`DUENIO`
 y `STAFF` exigen `ORGANIZADOR`; `VALIDADOR` exige `VALIDADOR`). Después ninguna operación
 vuelve a consultar el rol global: se pregunta por la membresía. La verificación cara se
-paga en el alta, no en cada request.
+paga en el alta, no en cada request. Esta invariante es la que hace posible el
+`@PreAuthorize("hasRole('ORGANIZADOR')")` de más abajo sin excluir a nadie legítimo: todo
+`DUENIO`/`STAFF` de una productora ya tiene el rol global `ORGANIZADOR`.
 
 **`COMPRADOR` es implícito:** cualquier usuario autenticado puede comprar, y el rol solo
 agrega capacidades por encima. Resuelve que un ORGANIZADOR también pueda comprar entradas
@@ -482,12 +495,35 @@ sin abrir una segunda cuenta. El costo declarado es que `COMPRADOR` queda casi d
 la alternativa evaluada fue `@ElementCollection Set<Rol>`, descartada por no justificar el
 cambio de contrato de `UsuarioDTO` en esta entrega.
 
-> **Estado:** la operación sensible *"solo el ORGANIZADOR edita **su** evento"* ya está
-> cubierta — por membresía verificada en el servicio, todavía **no** con `@PreAuthorize`.
-> Hasta PAS-6 la identidad de quien opera viaja en el header `X-Usuario-Id`: es
-> deliberadamente falsificable y no pretende ser seguridad. Lo que logra es que el modelo
-> de autorización esté completo y probado para cuando llegue la autenticación, y migrar
-> sea una línea por endpoint sin tocar DTOs ni firmas de servicio.
+- **Autorización por rol declarativa con `@PreAuthorize`, en los controllers.** Grano grueso
+  (anónimo vs autenticado) en el `SecurityFilterChain`; el rol, en `@PreAuthorize` sobre cada
+  operación sensible. Se puso en el controller y no en el servicio para no acoplar
+  `eventos`/`usuarios` a Spring Security y para no romper los seeders de demo, que llaman al
+  servicio directo al arrancar (un `@PreAuthorize` sobre el servicio los haría fallar con
+  AccessDenied en el boot). **Implementado (2 ops + bonus):**
+  1. **Eventos:** solo `ORGANIZADOR` crea (`POST /api/eventos`) y publica
+     (`POST /api/eventos/{id}/publicacion`) — **y, por debajo, solo si además puede gestionar
+     la productora dueña del evento** (`ProductoraService.puedeGestionarEventos`, PAS-13): el rol
+     es el filtro grueso en el controller, la membresía es el filtro fino en el servicio.
+  2. **Usuarios:** el alta pública (`POST /api/usuarios`) solo crea `COMPRADOR`;
+     `ORGANIZADOR`/`VALIDADOR`/`ADMIN` los da de alta un `ADMIN` autenticado
+     (`#solicitud.rol == COMPRADOR or hasRole('ADMIN')`). Cierra el pendiente de PAS-5: el
+     rol viajaba libre en `CrearUsuarioRequest`.
+  3. **Bonus:** `GET /api/usuarios` (listar) solo `ADMIN`.
+- **Códigos de una denegación (comportamiento por defecto de Spring Security):** ante un
+  `@PreAuthorize` que deniega, el status depende de si hay identidad. Principal **anónimo →
+  401** (Spring invoca el `AuthenticationEntryPoint`: "identificate"); principal **autenticado
+  sin el rol → 403**. Por eso, en el endpoint público `POST /api/usuarios`, un anónimo que pide
+  un rol privilegiado recibe **401**, no 403 (el 403 aparece cuando ya está autenticado, p.ej.
+  un `COMPRADOR` intentando crear un evento). Útil para el oral: *anon+deny = 401, auth+deny = 403*.
+- **Fuera de alcance de PAS-6:** las ops sensibles de `VALIDADOR` (marcar ticket usado) y
+  `COMPRADOR` (bajar su entrada) viven en componentes que todavía no existen
+  (`ServicioDeAccesos` / `ServicioDeVentas`, PAS-8+). Cada uno agregará su `@PreAuthorize`
+  sobre la infra de autenticación que dejó PAS-6.
+
+> **Estado:** Eventos ya migró del header `X-Usuario-Id` a la identidad de Spring Security
+> (`Authentication#getName()`, ver arriba). **Productoras todavía no** — sus endpoints siguen
+> leyendo `X-Usuario-Id`, deliberadamente falsificable, hasta que se le aplique el mismo patrón.
 - **Transacción declarativa:** `@Transactional` sobre confirmar compra —
   descuento de cupo → registro de pago → emisión de tickets. Si falla un paso, se
   revierte todo y se libera el hold. **La facturación queda afuera** (ver §2).
@@ -611,7 +647,7 @@ filter chain ni `@PreAuthorize`): **PAS-6 reutiliza ese mismo encoder para verif
 y el hash nunca sale del componente (el `UsuarioDTO` no lo incluye). El test de fronteras de
 Modulith sigue en verde con el segundo módulo.
 
-**`ServicioDeProductoras` implementado y Passly pasó a ser multi-productora** (PAS-7): las
+**`ServicioDeProductoras` implementado y Passly pasó a ser multi-productora** (PAS-13): las
 tres capas separadas, esquema `productoras` propio con el padrón de miembros, y el evento
 con dueño. Verificado end-to-end: la cartelera muestra fiestas de dos productoras distintas
 y se puede filtrar por organizador; una productora recibe **403** al intentar publicar el
@@ -626,21 +662,43 @@ Aurora, y un seeder dentro de Eventos habría necesitado justamente la dependenc
 que el diseño existe para evitar. Los datos de demo son un cliente del sistema, como la app
 web, y usan solo contratos públicos.
 
-**Próximo paso inmediato:** **PAS-6 — seguridad por rol** (Spring Security + `@PreAuthorize`),
-reutilizando el `PasswordEncoder` del componente Usuarios para el login. El trabajo está
-preparado: la autorización ya está completa y probada, y migrar es reemplazar
-`@RequestHeader("X-Usuario-Id")` por `@AuthenticationPrincipal` — una línea por endpoint, sin
-tocar DTOs ni firmas de servicio. Después, `ServicioDeVentas` (el stateful, con callbacks de
-ciclo de vida).
+**Seguridad implementada** (PAS-6): módulo **`seguridad/`** con Spring Security — **HTTP Basic**,
+sesión **STATELESS**, autorización por rol declarativa con `@PreAuthorize` **en los controllers**
+sobre 2 operaciones sensibles (Eventos: solo `ORGANIZADOR` crea/publica; Usuarios: el alta
+pública solo crea `COMPRADOR`, el resto lo da de alta un `ADMIN`) más el bonus (listar usuarios
+solo `ADMIN`). Autentica contra `usuarios` por el contrato `usuarios :: autenticacion`
+(`CredencialDTO`) y **reutiliza el `PasswordEncoder`** del componente, sin crear un segundo bean.
+Un test de integración (`AutorizacionPorRolTest`) fija que un `COMPRADOR` autenticado no puede
+crear eventos. El test de fronteras de Modulith sigue verde con el cuarto módulo. Detalle en §4.11.
+
+Integrar Seguridad con Productoras (ambas ramas partían del mismo `main`, previo a PAS-13) exigió
+resolver algo más que el conflicto de texto en `EventoController`: el `@PreAuthorize` de PAS-6
+estaba escrito sobre la firma vieja de `crearEvento`/`publicarEvento`, sin el `idUsuarioActuante`
+que PAS-13 les agregó para verificar membresía. Se aprovechó el momento para migrar Eventos del
+header temporal `X-Usuario-Id` a la identidad real de Spring Security — la migración que el propio
+`CLAUDE.md` daba por "una línea por endpoint". No lo fue del todo: el `UserDetails` de PAS-6 solo
+llevaba email y rol, sin el id numérico que Eventos necesita, y resolverlo llamando a
+`UsuarioService` desde Eventos habría violado la dependencia declarada en su `package-info`
+(`eventos → productoras`, nada de `usuarios`). La solución fue hacer que
+`DetalleDeUsuarioParaAutenticacion` arme el `UserDetails` con el **id** como `username` en vez del
+email: el login se sigue haciendo por email, pero `Authentication#getName()` después de
+autenticar ya es el id, así que Eventos lo lee con un tipo de Spring Security, sin tocar Usuarios
+(detalle completo en §4.11). Productoras todavía no migró: sigue con `X-Usuario-Id`.
+
+**Próximo paso inmediato:** **`ServicioDeVentas`** (el stateful, con callbacks de ciclo de vida),
+que consumirá Eventos y Usuarios y sumará sus propios `@PreAuthorize` sobre la infra de PAS-6.
+Antes, migrar Productoras del header temporal a `Authentication` con el mismo patrón que ya se
+aplicó a Eventos.
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 
 1. ~~`ServicioDeEventos` — primer componente implementado~~ ✅ hecho
 2. ~~`ServicioDeUsuarios` — roles y credenciales, raíz del grafo~~ ✅ hecho
 3. ~~`ServicioDeProductoras` — múltiples organizadores, eventos con dueño~~ ✅ hecho
-4. `ServicioDeVentas` — el stateful, con callbacks de ciclo de vida
-5. `ServicioDeTickets` — firma criptográfica del QR
-6. El resto, según lo que pida cada entrega
+4. ~~**Seguridad (PAS-6)** — HTTP Basic + `@PreAuthorize` por rol; módulo `seguridad/`~~ ✅ hecho
+5. `ServicioDeVentas` — el stateful, con callbacks de ciclo de vida
+6. `ServicioDeTickets` — firma criptográfica del QR
+7. El resto, según lo que pida cada entrega
 
 ---
 

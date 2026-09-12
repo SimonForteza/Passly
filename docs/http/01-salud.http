@@ -1,7 +1,10 @@
 @baseUrl = http://localhost:8080
 
-### Health
+### Health (publico, sin credenciales)
 GET {{baseUrl}}/actuator/health
 
-### Modelo de modulos detectado por Spring Modulith
+### Modelo de modulos detectado por Spring Modulith -- exige estar autenticado (PAS-6)
+# Solo /actuator/health quedo publico; el resto de actuator pide credenciales. Cualquier
+# usuario de demo sirve.
 GET {{baseUrl}}/actuator/modulith
+Authorization: Basic admin@passly.test passly1234

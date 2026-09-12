@@ -6,11 +6,12 @@ import com.passly.eventos.dto.DisponibilidadDTO;
 import com.passly.eventos.dto.EventoDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,11 +22,12 @@ import java.util.List;
  * Traduce HTTP a llamadas sobre {@link EventoService}. Sin logica de dominio y sin conocer
  * entidades: solo trata con la interfaz de negocio y los DTOs (CLAUDE.md 4.5).
  *
- * <p><b>Sobre el header {@code X-Usuario-Id}:</b> es la identidad de quien opera, y es temporal —
- * Spring Security es PAS-6. Es deliberadamente falsificable y no pretende ser seguridad: lo que
- * logra es que el modelo de autorizacion ya este completo y probado cuando llegue la autenticacion.
- * Migrar es una linea por endpoint ({@code @RequestHeader} pasa a {@code @AuthenticationPrincipal})
- * sin tocar los DTOs ni las firmas de {@link EventoService}.
+ * <p><b>Sobre {@code idUsuarioActuante}:</b> es la identidad de quien opera, y viaja aparte de la
+ * solicitud (nunca adentro), tal como {@link EventoService} lo pide. Desde PAS-6 sale de
+ * {@link Authentication#getName()}: el {@code UserDetails} que arma el modulo {@code seguridad}
+ * usa el id numerico como username (no el email), asi que este controller lo obtiene con un tipo
+ * de Spring Security, sin depender de Usuarios para resolver email a id — dependencia que su
+ * {@code package-info} no declara y que haria fallar el build.
  *
  * <p>Los endpoints de <b>lectura publica</b> no lo piden: la cartelera es de acceso libre, que es
  * justamente el punto de un marketplace.
@@ -43,11 +45,12 @@ class EventoController {
     }
 
     @PostMapping("/api/eventos")
+    @PreAuthorize("hasRole('ORGANIZADOR')")
     ResponseEntity<EventoDTO> crearEvento(
-            @RequestHeader("X-Usuario-Id") Long idUsuarioActuante,
+            Authentication authentication,
             @Valid @RequestBody CrearEventoRequest solicitud
     ) {
-        EventoDTO creado = eventoService.crearEvento(solicitud, idUsuarioActuante);
+        EventoDTO creado = eventoService.crearEvento(solicitud, idDelActuante(authentication));
         return ResponseEntity.created(URI.create("/api/eventos/" + creado.id())).body(creado);
     }
 
@@ -63,11 +66,9 @@ class EventoController {
      * comunica peor que se esta pidiendo una transicion, no un update.
      */
     @PostMapping("/api/eventos/{id}/publicacion")
-    EventoDTO publicarEvento(
-            @PathVariable("id") Long id,
-            @RequestHeader("X-Usuario-Id") Long idUsuarioActuante
-    ) {
-        return eventoService.publicarEvento(id, idUsuarioActuante);
+    @PreAuthorize("hasRole('ORGANIZADOR')")
+    EventoDTO publicarEvento(@PathVariable("id") Long id, Authentication authentication) {
+        return eventoService.publicarEvento(id, idDelActuante(authentication));
     }
 
     /**
@@ -100,13 +101,22 @@ class EventoController {
     @GetMapping("/api/productoras/{idProductora}/eventos")
     List<EventoDTO> listarEventosDeProductora(
             @PathVariable("idProductora") Long idProductora,
-            @RequestHeader("X-Usuario-Id") Long idUsuarioActuante
+            Authentication authentication
     ) {
-        return eventoService.listarEventosDeProductora(idProductora, idUsuarioActuante);
+        return eventoService.listarEventosDeProductora(idProductora, idDelActuante(authentication));
     }
 
     @GetMapping("/api/tipos-entrada/{id}/disponibilidad")
     DisponibilidadDTO consultarDisponibilidad(@PathVariable("id") Long id) {
         return eventoService.consultarDisponibilidad(id);
+    }
+
+    /**
+     * El {@code UserDetails} de {@code seguridad} usa el id numerico como username (ver
+     * {@code DetalleDeUsuarioParaAutenticacion}), asi que {@link Authentication#getName()} ya es el
+     * id del actuante — sin resolverlo contra Usuarios, que este modulo no puede importar.
+     */
+    private static Long idDelActuante(Authentication authentication) {
+        return Long.valueOf(authentication.getName());
     }
 }

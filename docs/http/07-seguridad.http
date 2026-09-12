@@ -1,0 +1,74 @@
+@baseUrl = http://localhost:8080
+@clave = passly1234
+
+# Id de Aurora, de la que organizador@passly.test es DUENIO (perfil demo). El idProductora es
+# @NotNull en CrearEventoRequest desde PAS-13 -- omitirlo da 400 antes de llegar al @PreAuthorize.
+@aurora = 1
+
+# Matriz de autorizacion por rol (PAS-6). Usuarios sembrados por el perfil demo, todos con
+# contrasena "passly1234". REST Client arma el Basic con "usuario contrasena" (separados por espacio).
+#
+# Comportamiento por defecto de Spring Security ante una denegacion de @PreAuthorize:
+#   - principal ANONIMO  -> 401 (invoca el AuthenticationEntryPoint: "identificate")
+#   - principal AUTENTICADO sin el rol -> 403 (Forbidden)
+# Por eso en un endpoint permitAll (como POST /api/usuarios) un anonimo que pide un rol
+# privilegiado recibe 401, no 403.
+
+# ============ Op sensible 1: crear evento (solo ORGANIZADOR que pueda gestionar la productora) ============
+
+### Anonimo -> 401 (el filter chain exige estar autenticado)
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+
+{ "idProductora": {{aurora}}, "nombre": "X", "fechaHora": "2030-01-01T20:00:00Z", "lugar": "CABA",
+  "tiposEntrada": [ { "nombre": "General", "precio": 1000, "cupoTotal": 10 } ] }
+
+### COMPRADOR autenticado -> 403 (autenticado pero rol equivocado)
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+Authorization: Basic comprador@passly.test {{clave}}
+
+{ "idProductora": {{aurora}}, "nombre": "X", "fechaHora": "2030-01-01T20:00:00Z", "lugar": "CABA",
+  "tiposEntrada": [ { "nombre": "General", "precio": 1000, "cupoTotal": 10 } ] }
+
+### ORGANIZADOR que gestiona Aurora -> 201 Created
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+Authorization: Basic organizador@passly.test {{clave}}
+
+{ "idProductora": {{aurora}}, "nombre": "Evento del organizador", "fechaHora": "2030-01-01T20:00:00Z", "lugar": "CABA",
+  "tiposEntrada": [ { "nombre": "General", "precio": 1000, "cupoTotal": 10 } ] }
+
+# ============ Op sensible 2: alta de usuarios (publica solo para COMPRADOR) ============
+
+### Anonimo crea COMPRADOR -> 201 (alta publica permitida)
+POST {{baseUrl}}/api/usuarios
+Content-Type: application/json
+
+{ "email": "nuevo.comprador@x.test", "nombre": "Nuevo", "password": "passly1234", "rol": "COMPRADOR" }
+
+### Anonimo intenta crear ORGANIZADOR -> 401 (rol privilegiado; anon+deny => 401, no 403)
+POST {{baseUrl}}/api/usuarios
+Content-Type: application/json
+
+{ "email": "org.trucho@x.test", "nombre": "Trucho", "password": "passly1234", "rol": "ORGANIZADOR" }
+
+### ADMIN crea ORGANIZADOR -> 201
+POST {{baseUrl}}/api/usuarios
+Content-Type: application/json
+Authorization: Basic admin@passly.test {{clave}}
+
+{ "email": "org.real@x.test", "nombre": "Organizador Real", "password": "passly1234", "rol": "ORGANIZADOR" }
+
+# ============ Bonus: listar usuarios (solo ADMIN) ============
+
+### Anonimo -> 401
+GET {{baseUrl}}/api/usuarios
+
+### COMPRADOR -> 403
+GET {{baseUrl}}/api/usuarios
+Authorization: Basic comprador@passly.test {{clave}}
+
+### ADMIN -> 200
+GET {{baseUrl}}/api/usuarios
+Authorization: Basic admin@passly.test {{clave}}
