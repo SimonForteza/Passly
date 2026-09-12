@@ -7,9 +7,10 @@
 #   productoras  1 Aurora Producciones (Omar DUENIO, Vera VALIDADOR)   2 Nocturna Live (Olga DUENIO)
 #   eventos      1 Jazz (Aurora, PUBLICADO)  2 Tech (Nocturna, PUBLICADO)  3 Recital (Aurora, BORRADOR)
 
-@omar = 3
-@olga = 4
-@vera = 5
+@clave = passly1234
+@omar = organizador@passly.test
+@olga = organizador2@passly.test
+@vera = validador@passly.test
 @aurora = 1
 @nocturna = 2
 @recitalDeAurora = 3
@@ -22,34 +23,34 @@ GET {{baseUrl}}/api/eventos?productora={{nocturna}}
 
 ### 3. Omar ve los eventos de Aurora INCLUIDO el borrador
 GET {{baseUrl}}/api/productoras/{{aurora}}/eventos
-X-Usuario-Id: {{omar}}
+Authorization: Basic {{omar}} {{clave}}
 
 ### 4. Olga pide el backoffice de Aurora -> 403
 # Es de Nocturna: los borradores de Aurora no son asunto suyo.
 GET {{baseUrl}}/api/productoras/{{aurora}}/eventos
-X-Usuario-Id: {{olga}}
+Authorization: Basic {{olga}} {{clave}}
 
 ### 5. Olga intenta publicar el borrador de Aurora -> 403
 # EL caso que justifica todo el trabajo.
 POST {{baseUrl}}/api/eventos/{{recitalDeAurora}}/publicacion
-X-Usuario-Id: {{olga}}
+Authorization: Basic {{olga}} {{clave}}
 
 ### 6. Vera SI es miembro de Aurora, pero es VALIDADOR -> 403
 # Pertenecer a una productora no es lo mismo que poder publicar sus fiestas.
 POST {{baseUrl}}/api/eventos/{{recitalDeAurora}}/publicacion
-X-Usuario-Id: {{vera}}
+Authorization: Basic {{vera}} {{clave}}
 
 ### 7. Sin identidad -> 401 (no 400: lo que falta es quien opera)
 POST {{baseUrl}}/api/eventos/{{recitalDeAurora}}/publicacion
 
 ### 8. Omar es DUENIO de Aurora -> 200, el borrador se publica
 POST {{baseUrl}}/api/eventos/{{recitalDeAurora}}/publicacion
-X-Usuario-Id: {{omar}}
+Authorization: Basic {{omar}} {{clave}}
 
 ### 9. Olga intenta crear un evento a nombre de Aurora -> 403
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
-X-Usuario-Id: {{olga}}
+Authorization: Basic {{olga}} {{clave}}
 
 {
   "idProductora": {{aurora}},
@@ -64,7 +65,7 @@ X-Usuario-Id: {{olga}}
 ### 10. Olga a nombre de SU productora -> 201
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
-X-Usuario-Id: {{olga}}
+Authorization: Basic {{olga}} {{clave}}
 
 {
   "idProductora": {{nocturna}},
