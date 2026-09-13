@@ -1,0 +1,27 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Description
+|<b>ServicioDeEventos</b>: alta, publicacion y consulta de eventos, sus tipos de entrada y sus cupos.  
++
+<b>Eventos dejo de ser la raiz del grafo.</b> Hasta que los eventos tuvieron dueno, este modulo no dependia de nadie y `EstructuraDeModulosTest` lo verificaba. Cuando aparecio el requerimiento de multiples productoras eso cambio, y lo importante es <b>como</b> cambio: el build fallo con `Module 'eventos' depends on ... Allowed targets: none` hasta que la dependencia quedo declarada aca por escrito. No hubo forma de que el acoplamiento entrara sin que alguien lo decidiera.  
++
+La superficie de contacto es chica y esta acotada a proposito: Eventos le pregunta a Productoras quien puede gestionar sus eventos y como se llama comercialmente. <b>No depende de Usuarios</b> — ni lo necesita: la cadena `eventos -> productoras -> usuarios` deja la identidad detras de Productoras, que ya resolvio el cruce de roles al armar su padron. Si este modulo importara `com.passly.usuarios`, el build fallaria.
+|Base package
+|`com.passly.eventos`
+|Spring components
+|_Services_
+
+* `c.p.e.EventoService` (via `c.p.e.internal.negocio.EventoServiceImpl` -- Implementacion de `c.p.e.EventoService`: las reglas del dominio y el limite transaccional.  
++
+<b>Package-private a proposito.</b> Spring la instancia igual por reflexion; los demas componentes solo pueden inyectar `c.p.e.EventoService`, sin poder nombrar esta clase concreta (CLAUDE.md 4.3, regla 1).  
++
+<b>Es el punto donde Eventos consume a Productoras</b>, para dos cosas distintas: autorizar las operaciones de gestion y resolver el nombre comercial con el que se muestra cada fiesta. Esa dependencia esta declarada en el `c.p.p.dto.package-info` del modulo, y hasta que se la declaro el build fallaba.)
+|Bean references
+|* `c.p.p.ProductoraService` (in Productoras) -- Contrato publico de <b>ServicioDeProductoras</b>: las identidades comerciales que publican fiestas y el padron de quienes pueden operar en nombre de cada una.  
++
+Es la unica puerta de entrada al componente. La implementacion, las entidades y el repositorio viven en `internal` y no forman parte de este contrato.  
++
+<b>Posicion en el sistema:</b> Productoras depende de Usuarios (valida identidad y rol global) y es consumido por Eventos (que le pregunta quien puede gestionar los eventos de una productora). Es el eslabon del medio de la cadena `eventos -> productoras -> usuarios` que `EstructuraDeModulosTest` verifica en cada build. Es <b>stateless</b>: no guarda estado conversacional entre llamadas.  
++
+<b>Sobre las tres consultas booleanas del final:</b> son preguntas de negocio, no getters del padron. Eventos pregunta `puedeGestionarEventos(Long, Long)` y Productoras decide internamente que roles califican; si manana aparece un rol nuevo, Eventos no se toca y ni siquiera necesita conocer `c.p.p.RolEnProductora`. Es <i>tell, don't ask</i>: la alternativa — exponer el padron y que cada consumidor evalue el rol por su cuenta — desparramaria la misma regla por todo el sistema.
+|===

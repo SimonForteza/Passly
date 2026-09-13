@@ -1,0 +1,31 @@
+== PasslyApplication
+plantuml::components.puml[,,format=svg]
+
+== Pagos
+plantuml::module-pagos.puml[,,format=svg]
+include::module-pagos.adoc[]
+
+== Usuarios
+plantuml::module-usuarios.puml[,,format=svg]
+include::module-usuarios.adoc[]
+
+== Productoras
+plantuml::module-productoras.puml[,,format=svg]
+include::module-productoras.adoc[]
+
+== Seguridad
+plantuml::module-seguridad.puml[,,format=svg]
+include::module-seguridad.adoc[]
+
+== Eventos
+plantuml::module-eventos.puml[,,format=svg]
+include::module-eventos.adoc[]
+
+== Demo
+plantuml::module-demo.puml[,,format=svg]
+include::module-demo.adoc[]
+
+== Ventas
+plantuml::module-ventas.puml[,,format=svg]
+include::module-ventas.adoc[]
+

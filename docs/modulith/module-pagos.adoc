@@ -1,0 +1,21 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Description
+|<b>ServicioDePagos</b>: Adapter REST hacia la pasarela de pago externa (PAS-7).  
++
+Aporta dos cosas al checklist: el patron <b>Adapter</b> (interfaz propia de "proveedor externo" sobre un protocolo incompatible) y la integracion <b>REST saliente</b> del sistema — la pasarela de pago, no la API autogenerada de Supabase (CLAUDE.md 3).  
++
+<b>Pagos no depende de ningun otro componente de Passly.</b> Su unica colaboracion externa es una llamada HTTP a un proveedor de pago, y eso no es una dependencia de modulo en el sentido de Spring Modulith: es una llamada de red a traves de `RestClient`, no un import de Java. La lista vacia de `allowedDependencies` lo deja escrito: si algun dia este modulo necesitara importar `eventos` o `usuarios`, el build fallaria hasta declararlo, tal como paso con Eventos al aparecer Productoras.  
++
+<b>Sobre el mock:</b> el endpoint de la pasarela vive en `internal.pasarelamock` y corre en este mismo proceso, para no pelear con una pasarela real ni con certificados de homologacion — el mismo criterio que CLAUDE.md aplica a AFIP. `c.p.p.internal.negocio.PagoServiceImpl` le habla por HTTP real (no una llamada Java directa), asi que pasar a un proveedor real el dia de mañana es cambiar la propiedad `passly.pagos.pasarela.base-url`, nada de codigo — el mismo patron de externalizacion que la URL de la base de datos (CLAUDE.md 4.8).
+|Base package
+|`com.passly.pagos`
+|Spring components
+|_Services_
+
+* `c.p.p.PagoService` (via `c.p.p.internal.negocio.PagoServiceImpl` -- Implementacion de `c.p.p.PagoService`: el Adapter propiamente dicho.  
++
+<b>Package-private a proposito.</b> Spring la instancia igual por reflexion; los demas componentes solo pueden inyectar `c.p.p.PagoService` (CLAUDE.md 4.3, regla 1).  
++
+<b>Deliberadamente sin `@Transactional`.</b> El unico trabajo con la base es un `save()` despues de que la llamada HTTP ya termino, y `SimpleJpaRepository.save()` abre su propia transaccion corta para eso. Envolver todo el metodo en `@Transactional` dejaria una conexion (y potencialmente una fila) tomada mientras se espera una respuesta de red lenta — exactamente lo que CLAUDE.md 2 explica que hay que evitar con AFIP, aplicado aca a la pasarela de pago.)
+|===

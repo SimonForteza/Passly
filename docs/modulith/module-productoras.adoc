@@ -1,0 +1,29 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Description
+|<b>ServicioDeProductoras</b>: las identidades comerciales que publican fiestas y el padron de quienes pueden operar en nombre de cada una.  
++
+<b>Que hace esta anotacion:</b> declara que Productoras solo puede depender de Usuarios, y de el solo su paquete base y su interfaz nombrada `dto`. Si manana alguien importa desde aca cualquier otro modulo — o los `internal` de Usuarios — <b>el build falla</b>. La frontera deja de ser una convencion del equipo y pasa a ser una condicion de compilacion.  
++
+Con esto el grafo del sistema queda declarado como la cadena `eventos -> productoras -> usuarios`, con Usuarios como raiz. `EstructuraDeModulosTest` lo verifica en cada build.  
++
+<b>Para que sirve en la practica:</b> Productoras necesita a Usuarios para una sola cosa — validar que quien entra al padron existe y que su rol global es compatible con el rol interno pedido. Esa es toda la superficie de contacto, y esta anotacion la fija por escrito.
+|Base package
+|`com.passly.productoras`
+|Spring components
+|_Services_
+
+* `c.p.p.ProductoraService` (via `c.p.p.internal.negocio.ProductoraServiceImpl` -- Implementacion de `c.p.p.ProductoraService`: las reglas del dominio y el limite transaccional.  
++
+<b>Package-private a proposito.</b> Spring la instancia igual por reflexion; los demas componentes solo pueden inyectar `c.p.p.ProductoraService`, sin poder nombrar esta clase concreta (CLAUDE.md 4.3, regla 1).  
++
+<b>Este es el unico punto del sistema donde se consulta el rol global para decidir una membresia.</b> Despues de que alguien entra al padron, ninguna operacion vuelve a preguntarle a Usuarios: se pregunta por la membresia. La verificacion cara se paga una vez, en el alta.)
+|Bean references
+|* `c.p.u.UsuarioService` (in Usuarios) -- Contrato publico de <b>ServicioDeUsuarios</b>: registro y consulta de usuarios y su rol.  
++
+Es la unica puerta de entrada al componente. La implementacion, la entidad JPA, el repositorio y el `PasswordEncoder` viven en `internal` y no forman parte de este contrato; los demas componentes inyectan esta interfaz y no pueden nombrar la clase concreta.  
++
+<b>Sobre la credencial:</b> el password en texto plano entra solo por `registrarUsuario(CrearUsuarioRequest)` y nunca vuelve a salir; `c.p.u.dto.UsuarioDTO` no incluye el hash. La verificacion del login (PAS-6) la hace el modulo `seguridad` con Spring Security, no este componente: para eso `buscarCredencialPorEmail(String)` expone el hash BCrypt por el contrato acotado `usuarios :: autenticacion` (`c.p.u.autenticacion.CredencialDTO`). Es la <b>unica</b> operacion por la que el hash cruza la frontera, y su unico consumidor previsto es `seguridad`.  
++
+<b>Posicion en el sistema:</b> Usuarios no llama a ningun otro componente. Es <b>stateless</b>: no guarda estado conversacional entre llamadas (persistir usuarios no lo vuelve stateful, CLAUDE.md 4.7).
+|===
