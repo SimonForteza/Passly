@@ -27,6 +27,13 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
+		<!-- pagos.internal.ConfiguracionDePagos pide un RestClient.Builder para hablarle a la
+			 pasarela de pago (PAS-7). En Boot 4 webmvc ya no trae esa autoconfiguracion: sin este
+			 starter el contexto falla al arrancar con "No qualifying bean of type RestClient.Builder". -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-restclient</artifactId>
+		</dependency>
 		<!-- Bean Validation: la validacion de forma (@Valid) vive en presentacion, no en negocio. -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

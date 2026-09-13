@@ -736,17 +736,26 @@ passly/
 │       ├── main/java/com/passly/     ← código (§4.3)
 │       ├── main/resources/application.yml
 │       └── test/java/com/passly/     ← EstructuraDeModulosTest, PasslyApplicationTests
+├── frontend/              ← app web (comprador + organizador), Vite + React + TS (PAS-14)
+│   ├── package.json, tsconfig*.json, vite.config.ts
+│   ├── .env.example       ← VITE_API_BASE_URL, plantilla sin secretos
+│   └── src/
+│       ├── router.tsx, App.tsx, theme.css
+│       ├── layout/        ← AppLayout, Header, RutaPrivada, EstadoCarga/EstadoError
+│       ├── lib/http/       ← httpClient (fetch + Basic + credentials:'include' + ApiError)
+│       ├── lib/auth/       ← session.ts (sessionStorage) + AuthContext
+│       └── usuarios/, productoras/, eventos/, ventas/   ← un paquete por componente del
+│                            backend, cada uno con types.ts + api.ts + sus páginas
 └── (aspiracional — todavía no existen):
     ├── docs/arquitectura.md, docs/componentes.md, docs/patrones.md,
-    │   docs/integraciones.md, docs/entregas.md, docs/adr/  ← se escriben a medida que se decide
-    ├── web/               ← app web (comprador + organizador)
+    │   docs/integraciones.md, docs/entregas.md  ← se escriben a medida que se decide
     └── app-validador/     ← app móvil del validador
 ```
 
 > `CLAUDE.local.md` es un archivo personal opcional (gitignored); puede no existir
 > en un clon recién hecho. Los `.md` de `docs/` listados como aspiracionales todavía
 > no están escritos: hoy `docs/` contiene los DDL de referencia (`ddl-eventos.sql`,
-> `ddl-productoras.sql`, `ddl-pagos.sql`, `ddl-ventas.sql`), `http/` y `modulith/`.
+> `ddl-productoras.sql`, `ddl-pagos.sql`, `ddl-ventas.sql`), `http/`, `modulith/` y `adr/`.
 
 ---
 
@@ -877,9 +886,45 @@ desarrollar en paralelo sin bloquear ni ser bloqueado por Ventas.
 existe para eso (§4.9), pero cablear `VentaServiceImpl` a `PagoService` es un cambio de
 código aparte, no un efecto automático de mergear ambas ramas.
 
+**`frontend/` — esqueleto de la app web implementado** (PAS-14, en paralelo al backend): Vite +
+React + TypeScript, con carpetas por módulo de negocio (`usuarios/`, `productoras/`,
+`eventos/`, `ventas/`) reflejando los componentes del backend en vez de agrupar por tipo de
+archivo — mismo criterio de "rebanada vertical" que el resto del sistema. Router
+(`react-router-dom`) con rutas públicas (cartelera, detalle de evento, login, registro) y
+privadas (carrito, mis órdenes, backoffice de productora) detrás de un guard que redirige a
+`/login`. No incluye ninguna pantalla de negocio real — cada ruta hoy es un placeholder — eso
+lo resuelven las cuatro issues de frontend que dependen de esta.
+
+El cliente HTTP (`lib/http/httpClient.ts`) centraliza tres cosas que, si no, cada módulo
+reimplementaría: el header `Authorization: Basic` armado a partir de lo que haya en
+`sessionStorage` (el backend es Basic puro, sin JWT — §4.11), `credentials: 'include'` en
+toda llamada (el carrito de `ventas` vive en una `HttpSession` aunque la autenticación sea
+stateless — §4.7), y el parseo de `ProblemDetail` (RFC 9457, incluido el campo `errores` que
+agregan los `@RestControllerAdvice` en validaciones 400) en una `ApiError` tipada por
+`status`.
+
+**Dos decisiones que valen para el oral:**
+
+- **CORS no existía en el backend y se agregó en esta misma rama**
+  (`seguridad/internal/ConfiguracionDeSeguridad.java`, bean `CorsConfigurationSource`,
+  origen externalizado por `passly.web.origen` — mismo patrón que
+  `passly.pagos.pasarela.base-url`, §9 arriba). No es una migración de arquitectura: es la
+  contraparte obligatoria de exponer un API REST a un cliente que corre en otro origen
+  (`localhost:5173` en desarrollo) y que además necesita mandar la cookie de sesión del
+  carrito.
+- **Deuda declarada, no escondida: no hay forma de pedir "quién soy" tras un login real.**
+  El login es HTTP Basic puro (email + password); el backend no expone un endpoint que
+  devuelva el `UsuarioDTO` (con su `rol`) a partir de esas credenciales sin conocer de
+  antemano el `id`. El `AuthContext` del frontend queda diseñado para guardar un `UsuarioDTO`
+  una vez que se consiga (hoy la única vía es la respuesta de `POST /api/usuarios` al
+  registrarse) — la pantalla de login, en otra issue, decide cómo resolverlo, con o sin un
+  endpoint nuevo del lado del backend.
+
 **Próximo paso inmediato:** **`ServicioDeTickets`** — firma criptográfica del QR. Es el seam
 que `ConfirmacionDeCompra` ya dejó preparado (hoy no emite ningún ticket; la emisión está
 fuera del alcance de PAS-8) y lo que necesita `ServicioDeAccesos` para validar en la puerta.
+En paralelo, las otras 4 issues de frontend construyen pantallas reales sobre el esqueleto de
+PAS-14.
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 
@@ -897,8 +942,9 @@ fuera del alcance de PAS-8) y lo que necesita `ServicioDeAccesos` para validar e
 
 ## 10. Dudas abiertas
 
-- **Framework de la app web y stack de la app móvil:** decididos como React /
-  React Native, falta confirmarlo con el equipo.
+- **Stack de la app móvil:** decidido como React Native, falta confirmarlo con el equipo.
+  El de la app web ya no es una duda: **React + Vite + TypeScript, implementado en
+  `frontend/` (PAS-14)**.
 - **Fecha de la Entrega Final:** la tabla del TP dice **21/12**; el detalle de esa
   misma entrega dice **30/11**. Confirmar con la cátedra por Teams.
 - **Nota mínima de la final:** la tabla dice **mín. 4**; el detalle dice
@@ -932,3 +978,9 @@ fuera del alcance de PAS-8) y lo que necesita `ServicioDeAccesos` para validar e
   al cobro (`comprobante_cobro`, `cobrada_en`), no su registro. Crear una tabla de
   pagos hoy, antes de que `ServicioDePagos` (PAS-7) exista como módulo propio, sería
   crear algo que después habría que borrar o duplicar en el esquema de ese módulo.
+- **No hay endpoint "quién soy" (PAS-14).** El login del frontend es HTTP Basic puro
+  (email + password); no existe un `GET /api/usuarios/me` ni equivalente que devuelva el
+  `UsuarioDTO` propio a partir de esas credenciales. Hoy el único momento en que el
+  frontend conoce su `UsuarioDTO` completo es la respuesta de `POST /api/usuarios` al
+  registrarse — un login de un usuario ya existente no tiene de dónde sacar el `rol` sin
+  ese endpoint. Queda para cuando se implemente la pantalla de login.

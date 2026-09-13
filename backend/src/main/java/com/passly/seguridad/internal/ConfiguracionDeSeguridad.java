@@ -1,5 +1,7 @@
 package com.passly.seguridad.internal;
 
+import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -11,6 +13,9 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * Configuracion de seguridad de Passly: autenticacion <b>HTTP Basic</b>, sesion
@@ -34,14 +39,25 @@ import org.springframework.security.web.SecurityFilterChain;
  * principal, alguien que reutilizara la cookie de otro junto con sus propias credenciales veria
  * su carrito. Por eso el carrito valida al dueño en cada operacion
  * ({@code CarritoDeOtroCompradorException}) en vez de confiar en la sesion a secas.
+ *
+ * <p><b>CORS (PAS-14).</b> La app web (Vite, otro origen) llama a esta API con
+ * {@code credentials: 'include'} porque necesita la cookie de sesion del carrito ademas del
+ * header Basic. Sin una {@link CorsConfigurationSource} explicita el navegador bloquea esas
+ * llamadas antes de que lleguen al filtro de arriba -- no es una migracion de arquitectura,
+ * es la contraparte obligatoria de exponer la API a un cliente que corre en otro puerto. El
+ * origen permitido sale de {@code passly.web.origen} (mismo patron de externalizacion que
+ * {@code passly.pagos.pasarela.base-url}), con default al puerto de Vite en desarrollo.
  */
 @Configuration
 @EnableMethodSecurity
 class ConfiguracionDeSeguridad {
 
     @Bean
-    SecurityFilterChain filtros(HttpSecurity http) throws Exception {
+    SecurityFilterChain filtros(HttpSecurity http, CorsConfigurationSource fuenteDeConfiguracionCors) throws Exception {
         http
+                // Ver Javadoc de la clase: sin esto el navegador bloquea las llamadas de la app
+                // web (otro origen) antes de que lleguen a authorizeHttpRequests.
+                .cors(cors -> cors.configurationSource(fuenteDeConfiguracionCors))
                 // Desde PAS-8 SI hay una cookie de sesion (el carrito de Ventas es @SessionScope),
                 // pero CSRF sigue apagado con sentido: la identidad la sigue dando el header
                 // Authorization, que un formulario cross-site no puede setear. La cookie habilita
@@ -67,6 +83,26 @@ class ConfiguracionDeSeguridad {
                 .httpBasic(Customizer.withDefaults());
 
         return http.build();
+    }
+
+    /**
+     * Origen permitido para CORS: por defecto el puerto de Vite en desarrollo. Externalizado
+     * por property (ver Javadoc de la clase) para no hardcodear el origen de produccion.
+     */
+    @Bean
+    CorsConfigurationSource fuenteDeConfiguracionCors(
+            @Value("${passly.web.origen}") String origenWeb
+    ) {
+        CorsConfiguration configuracion = new CorsConfiguration();
+        configuracion.setAllowedOrigins(List.of(origenWeb));
+        configuracion.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuracion.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        // El carrito depende de la cookie de sesion ademas del header Basic (ver Javadoc).
+        configuracion.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource fuente = new UrlBasedCorsConfigurationSource();
+        fuente.registerCorsConfiguration("/**", configuracion);
+        return fuente;
     }
 
     /**

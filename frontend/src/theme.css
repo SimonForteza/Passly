@@ -1,0 +1,56 @@
+/*
+ * Tokens de diseño. Valores aproximados, relevados a ojo de las capturas del PDF de
+ * wireframes ("Passly — App Validador (Wireframes)"), no del archivo Figma real todavía —
+ * confirmar/ajustar cuando se pueda inspeccionar el Figma directamente.
+ */
+:root {
+  --color-bg: #0a0a0c;
+  --color-surface: #141417;
+  --color-surface-alt: #1a1a1e;
+  --color-border: #26262b;
+
+  --color-acento: #e8123a;
+  --color-acento-texto: #ffffff;
+  --color-exito: #22c55e;
+  --color-advertencia: #f5a623;
+
+  --color-texto: #f5f5f5;
+  --color-texto-secundario: #9ca3af;
+
+  --font-display: 'Anton', system-ui, sans-serif;
+  --font-texto: 'Inter', system-ui, sans-serif;
+
+  --radio-card: 14px;
+  --radio-pill: 999px;
+  --radio-input: 8px;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-texto);
+  font-family: var(--font-texto);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
