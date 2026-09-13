@@ -2,10 +2,11 @@
 
 # Ids del perfil demo, con la base recien creada.
 # Salen de GET /api/usuarios y GET /api/productoras si no coinciden.
-@carla = 1
-@omar = 3
-@olga = 4
-@vera = 5
+@carla = comprador@passly.test
+@omar = organizador@passly.test
+@olga = organizador2@passly.test
+@vera = validador@passly.test
+@clave = passly1234
 @aurora = 1
 
 ### 1. Las productoras del sistema (publico)
@@ -17,22 +18,22 @@ GET {{baseUrl}}/api/productoras/{{aurora}}
 ### 3. El padron de Aurora, pedido por Omar que es su DUENIO
 # Aparecen Omar (DUENIO) y Vera (VALIDADOR).
 GET {{baseUrl}}/api/productoras/{{aurora}}/miembros
-X-Usuario-Id: {{omar}}
+Authorization: Basic {{omar}} {{clave}}
 
 ### 4. El mismo padron pedido por Olga, que es de otra productora -> 403
 # Quien trabaja en una productora no es informacion de catalogo.
 GET {{baseUrl}}/api/productoras/{{aurora}}/miembros
-X-Usuario-Id: {{olga}}
+Authorization: Basic {{olga}} {{clave}}
 
 ### 5. Las productoras de Omar
 GET {{baseUrl}}/api/productoras/mias
-X-Usuario-Id: {{omar}}
+Authorization: Basic {{omar}} {{clave}}
 
 ### 6. Crear una productora nueva (Omar es ORGANIZADOR, queda DUENIO)
 # @name crearProductora
 POST {{baseUrl}}/api/productoras
 Content-Type: application/json
-X-Usuario-Id: {{omar}}
+Authorization: Basic {{omar}} {{clave}}
 
 {
   "nombreComercial": "Productora de Prueba",
@@ -44,7 +45,7 @@ X-Usuario-Id: {{omar}}
 # Es el cruce de los dos ejes: el rol global habilita o no la membresia.
 POST {{baseUrl}}/api/productoras
 Content-Type: application/json
-X-Usuario-Id: {{carla}}
+Authorization: Basic {{carla}} {{clave}}
 
 {
   "nombreComercial": "Trucha SRL"
@@ -54,7 +55,7 @@ X-Usuario-Id: {{carla}}
 # Si dos productoras pudieran llamarse igual, el comprador no sabria de quien es la fiesta.
 POST {{baseUrl}}/api/productoras
 Content-Type: application/json
-X-Usuario-Id: {{olga}}
+Authorization: Basic {{olga}} {{clave}}
 
 {
   "nombreComercial": "Aurora Producciones"
@@ -64,29 +65,37 @@ X-Usuario-Id: {{olga}}
 # STAFF exige ORGANIZADOR global, y Carla es COMPRADOR.
 POST {{baseUrl}}/api/productoras/{{aurora}}/miembros
 Content-Type: application/json
-X-Usuario-Id: {{omar}}
+Authorization: Basic {{omar}} {{clave}}
 
 {
-  "idUsuario": {{carla}},
+  "idUsuario": 1,
   "rolEnProductora": "STAFF"
 }
 
 ### 10. Vera ya es miembro de Aurora -> 409
 POST {{baseUrl}}/api/productoras/{{aurora}}/miembros
 Content-Type: application/json
-X-Usuario-Id: {{omar}}
+Authorization: Basic {{omar}} {{clave}}
 
 {
-  "idUsuario": {{vera}},
+  "idUsuario": 5,
   "rolEnProductora": "VALIDADOR"
 }
 
 ### 11. Vera es miembro pero no DUENIO: no puede incorporar gente -> 403
 POST {{baseUrl}}/api/productoras/{{aurora}}/miembros
 Content-Type: application/json
-X-Usuario-Id: {{vera}}
+Authorization: Basic {{vera}} {{clave}}
 
 {
-  "idUsuario": {{olga}},
+  "idUsuario": 4,
   "rolEnProductora": "STAFF"
+}
+
+### 12. Sin credenciales no hay identidad -> 401
+POST {{baseUrl}}/api/productoras
+Content-Type: application/json
+
+{
+  "nombreComercial": "Sin Identidad SRL"
 }

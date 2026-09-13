@@ -1,0 +1,147 @@
+@baseUrl = http://localhost:8080
+@comprador = comprador@passly.test
+@organizador = organizador@passly.test
+@clave = passly1234
+
+# Este archivo depende de cookies: el carrito vive en un bean @SessionScope (CLAUDE.md 4.7),
+# y la extension REST Client mantiene el JSESSIONID entre requests del mismo archivo por
+# defecto (rest-client.rememberCookiesForSubsequentRequests). Si se corre con curl a mano,
+# hace falta -b/-c con el mismo archivo de cookies en TODAS las llamadas -- y ademas
+# ARRANCAR de una cookie vacia y no reusar una vieja: Spring Security cambia el JSESSIONID
+# en cada request autenticado (ChangeSessionIdAuthenticationStrategy, proteccion contra
+# session fixation), asi que la cookie de la respuesta anterior es la unica valida para la
+# siguiente -- una cookie de dos respuestas atras ya no sirve, aunque la sesion siga viva.
+
+# Ids del perfil demo con la base recien creada. Si no coinciden, salen de GET /api/eventos
+# y GET /api/usuarios (Carla, la @comprador, es la id 1).
+@tipoEntradaConCupo = 1
+@idCarla = 1
+
+### 1. Disponibilidad antes de tocar el carrito
+GET {{baseUrl}}/api/tipos-entrada/{{tipoEntradaConCupo}}/disponibilidad
+Authorization: Basic {{comprador}} {{clave}}
+
+### 2. El carrito arranca vacio -- 200 siempre, nunca un error
+GET {{baseUrl}}/api/ventas/carrito
+Authorization: Basic {{comprador}} {{clave}}
+
+### 3. Agregar 2 entradas
+POST {{baseUrl}}/api/ventas/carrito/items
+Content-Type: application/json
+Authorization: Basic {{comprador}} {{clave}}
+
+{
+  "idTipoEntrada": {{tipoEntradaConCupo}},
+  "cantidad": 2
+}
+
+### 4. Agregar 1 mas del mismo tipo -- suma en la misma linea (cantidad: 3), no duplica
+POST {{baseUrl}}/api/ventas/carrito/items
+Content-Type: application/json
+Authorization: Basic {{comprador}} {{clave}}
+
+{
+  "idTipoEntrada": {{tipoEntradaConCupo}},
+  "cantidad": 1
+}
+
+### 5. Confirmar la compra -> 201, con la orden y el total ya cobrado (pasarela simulada)
+POST {{baseUrl}}/api/ventas/ordenes
+Authorization: Basic {{comprador}} {{clave}}
+
+### 6. El cupo bajo de verdad (era 200, ahora 197)
+GET {{baseUrl}}/api/tipos-entrada/{{tipoEntradaConCupo}}/disponibilidad
+Authorization: Basic {{comprador}} {{clave}}
+
+### 7. El carrito quedo vacio: la compra se confirmo
+GET {{baseUrl}}/api/ventas/carrito
+Authorization: Basic {{comprador}} {{clave}}
+
+# ============================================================================
+# El guion central: el rollback. Necesita un evento con cupos chicos para que
+# excederlos no dispare primero el limite de la pasarela simulada ($1.000.000,
+# PasarelaDePagoSimulada.LIMITE) -- por eso se crea uno nuevo, en vez de reusar
+# el del perfil demo (cupos de 50/200, y superarlos ya cuesta mas que el limite).
+# ============================================================================
+
+### 8. Omar crea un evento con dos tipos de entrada: uno con cupo de sobra, otro con solo 2
+# @name crearEventoDeDemo
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+Authorization: Basic {{organizador}} {{clave}}
+
+{
+  "idProductora": 1,
+  "nombre": "Demo del rollback",
+  "descripcion": "Evento chico para mostrar la transaccion declarativa de PAS-8",
+  "fechaHora": "2027-01-01T20:00:00-03:00",
+  "lugar": "Sala de prueba",
+  "tiposEntrada": [
+    { "nombre": "ConSobra", "precio": 1000, "cupoTotal": 10 },
+    { "nombre": "SinCupo", "precio": 1000, "cupoTotal": 2 }
+  ]
+}
+
+@idConSobra = {{crearEventoDeDemo.response.body.$.tiposEntrada[0].id}}
+@idSinCupo = {{crearEventoDeDemo.response.body.$.tiposEntrada[1].id}}
+
+### 9. Disponibilidad ANTES del intento -- anotar estos dos numeros (10 y 2)
+GET {{baseUrl}}/api/tipos-entrada/{{idConSobra}}/disponibilidad
+Authorization: Basic {{comprador}} {{clave}}
+
+### 10.
+GET {{baseUrl}}/api/tipos-entrada/{{idSinCupo}}/disponibilidad
+Authorization: Basic {{comprador}} {{clave}}
+
+### 11. Carrito nuevo: 3 de ConSobra (hay de sobra)
+POST {{baseUrl}}/api/ventas/carrito/items
+Content-Type: application/json
+Authorization: Basic {{comprador}} {{clave}}
+
+{
+  "idTipoEntrada": {{idConSobra}},
+  "cantidad": 3
+}
+
+### 12. Y 5 de SinCupo -- solo hay 2. El carrito no lo rechaza: no reserva cupo (CLAUDE.md 4.7)
+POST {{baseUrl}}/api/ventas/carrito/items
+Content-Type: application/json
+Authorization: Basic {{comprador}} {{clave}}
+
+{
+  "idTipoEntrada": {{idSinCupo}},
+  "cantidad": 5
+}
+
+### 13. Confirmar -> 409: CupoInsuficienteException en la segunda linea
+POST {{baseUrl}}/api/ventas/ordenes
+Authorization: Basic {{comprador}} {{clave}}
+
+### 14. Disponibilidad DESPUES: exactamente los mismos numeros que en el paso 9 (10, sin cambios)
+# El UPDATE de la primera linea se emitio de verdad (visible en la consola con show-sql: true,
+# ANTES de la excepcion) y la transaccion lo revirtio igual -- no es que nunca se escribio.
+GET {{baseUrl}}/api/tipos-entrada/{{idConSobra}}/disponibilidad
+Authorization: Basic {{comprador}} {{clave}}
+
+### 15.
+GET {{baseUrl}}/api/tipos-entrada/{{idSinCupo}}/disponibilidad
+Authorization: Basic {{comprador}} {{clave}}
+
+### 16. El carrito sobrevive con sus dos lineas: no se vacio porque la compra no se confirmo
+GET {{baseUrl}}/api/ventas/carrito
+Authorization: Basic {{comprador}} {{clave}}
+
+### 17. Abandonar: invalida la sesion -> @PreDestroy del carrito en el acto (ver la consola)
+DELETE {{baseUrl}}/api/ventas/carrito
+Authorization: Basic {{comprador}} {{clave}}
+
+### 18. Mis ordenes (solo la que se confirmo en el paso 5)
+GET {{baseUrl}}/api/ventas/compradores/{{idCarla}}/ordenes
+Authorization: Basic {{comprador}} {{clave}}
+
+### 19. Otro comprador no puede ver las ordenes de Carla -> 403 (rol + identidad, no solo rol)
+GET {{baseUrl}}/api/ventas/compradores/{{idCarla}}/ordenes
+Authorization: Basic {{organizador}} {{clave}}
+
+### 20. Sin credenciales -> 401
+GET {{baseUrl}}/api/ventas/carrito

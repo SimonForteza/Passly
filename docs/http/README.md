@@ -12,7 +12,8 @@ independiente: se abre, aparece un link `Send Request` arriba de cada `###`, y s
 | [05-productoras.http](05-productoras.http) | alta de productoras, padron de miembros y el cruce de los dos ejes de rol |
 | [06-aislamiento.http](06-aislamiento.http) | **el guion central: una productora no toca las fiestas de otra** |
 | [07-seguridad.http](07-seguridad.http) | matriz de autorizacion por rol (PAS-6): 401 / 403 / 201-200 |
-| [08-pagos.http](08-pagos.http) | Adapter REST hacia la pasarela de pago (PAS-7): cobro aprobado, **rechazado (402)**, **pasarela caida (503)**, 401, validacion |
+| [08-ventas.http](08-ventas.http) | carrito stateful que crece y funde cantidades, confirmar compra, y **el rollback: dos lineas, la segunda sin cupo -> 409, la primera vuelve a su cupo original** |
+| [09-pagos.http](09-pagos.http) | Adapter REST hacia la pasarela de pago (PAS-7): cobro aprobado, **rechazado (402)**, **pasarela caida (503)**, 401, validacion |
 
 ## Autenticacion (PAS-6)
 
@@ -48,20 +49,35 @@ no agrega una columna `not null` a una tabla que ya tiene filas. Despues, `up -d
 
 ## Como se resuelve "quien opera"
 
-Eventos y Productoras resuelven distinto la identidad de quien opera, y a proposito quedan
-en momentos distintos de la migracion:
+Eventos y Productoras resuelven la identidad de quien opera de la misma forma: no hay ningun
+header propio, y la resuelve Spring Security a partir de `Authorization: Basic`. El
+`UserDetails` que arma el modulo `seguridad` usa el **id numerico** del usuario como username
+(no el email), asi que cada controller lee `Authentication#getName()` para obtener el id del
+actuante sin depender de Usuarios para resolverlo — dependencia que ninguno de los dos
+`package-info` declara y que haria fallar el build (CLAUDE.md 4.4).
 
-- **Eventos** ya usa Spring Security: `Authorization: Basic` mas `@PreAuthorize`. El
-  `UserDetails` que arma el modulo `seguridad` usa el **id numerico** del usuario como
-  username (no el email), asi que el controller lee `Authentication#getName()` para
-  obtener el id del actuante sin depender de Usuarios para resolverlo — dependencia que el
-  `package-info` de Eventos no declara y que haria fallar el build (CLAUDE.md 4.4).
-- **Productoras** todavia usa el header temporal `X-Usuario-Id`: es deliberadamente
-  falsificable y no pretende ser seguridad. Migrarlo es aplicar el mismo patron que ya se
-  uso en Eventos.
+Productoras uso hasta hace poco un header temporal (`X-Usuario-Id`), deliberadamente
+falsificable, para poder probar el modelo de autorizacion antes de que existiera Spring
+Security. Migro con el mismo patron que ya se habia usado en Eventos, sin cambiar ningun DTO
+ni ninguna firma de `ProductoraService`: la identidad siempre viajo como parametro aparte,
+nunca dentro del request.
 
 La lectura publica (cartelera, ficha de productora) no pide identidad, que es justamente el
 punto de un marketplace.
+
+## El carrito de Ventas necesita cookies (08-ventas.http)
+
+A diferencia de todo lo demas en este directorio, el carrito de `ServicioDeVentas` (PAS-8) es
+**estado conversacional en memoria**, atado a la sesion HTTP (`@SessionScope`), no solo a las
+credenciales Basic. REST Client mantiene el `JSESSIONID` entre requests del mismo archivo por
+defecto (`rest-client.rememberCookiesForSubsequentRequests`).
+
+Con `curl` a mano hace falta `-b`/`-c` con el mismo archivo de cookies en **todas** las
+llamadas del flujo del carrito, y ademas empezar de una cookie vacia: Spring Security cambia
+el `JSESSIONID` en **cada** request autenticado (proteccion contra session fixation), asi que
+la cookie de la respuesta anterior es la unica valida para la siguiente -- una de dos
+respuestas atras ya no sirve, aunque la sesion siga viva del lado del servidor. Es un detalle
+no obvio que vale la pena poder explicar en el oral.
 
 ## Ids del perfil demo
 

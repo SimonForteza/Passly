@@ -2,8 +2,11 @@ package com.passly.eventos.internal.datos;
 
 import com.passly.eventos.EstadoEvento;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Patron DAO / Repository sobre la raiz del agregado.
@@ -33,4 +36,12 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
      * informacion comercial sensible.
      */
     List<Evento> findByProductoraIdOrderByFechaHoraAsc(Long productoraId);
+
+    /**
+     * Sube de un tipo de entrada a su evento. Es la puerta de entrada para descontar cupo por la
+     * raiz del agregado ({@link Evento#descontarCupo}) a partir de un id que
+     * {@code ServicioDeVentas} ya conoce, sin que nadie tenga que pedirle el evento entero antes.
+     */
+    @Query("select e from Evento e join e.tiposEntrada t where t.id = :idTipoEntrada")
+    Optional<Evento> findByTipoEntradaId(@Param("idTipoEntrada") Long idTipoEntrada);
 }

@@ -8,9 +8,9 @@ import jakarta.validation.constraints.Size;
  * Alta de una productora.
  *
  * <p><b>No lleva el id del creador.</b> Quien crea la productora es <i>identidad</i>, y la
- * identidad no la declara el cliente: viaja aparte (hoy en el header {@code X-Usuario-Id}, con
- * Spring Security en el principal autenticado). Si estuviera en este record, cualquiera podria dar
- * de alta una productora a nombre de otro.
+ * identidad no la declara el cliente: viaja aparte, resuelta por Spring Security a partir del
+ * principal autenticado. Si estuviera en este record, cualquiera podria dar de alta una
+ * productora a nombre de otro.
  */
 public record CrearProductoraRequest(
 

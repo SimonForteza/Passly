@@ -1,5 +1,6 @@
 package com.passly.eventos.internal.datos;
 
+import com.passly.eventos.CupoInsuficienteException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -78,6 +79,24 @@ public class TipoEntrada {
 
     public boolean tieneCupo() {
         return cupoDisponible != null && cupoDisponible > 0;
+    }
+
+    /**
+     * Descuenta cupo. Package-private a proposito, igual que {@link #asignarA(Evento)}: cualquier
+     * cambio sobre el cupo entra por la raiz del agregado ({@link Evento#descontarCupo}), nunca
+     * directo sobre este hijo.
+     *
+     * <p>El {@link #version} de esta fila es lo que convierte una carrera entre dos confirmaciones
+     * concurrentes sobre el mismo tipo de entrada en un {@code ObjectOptimisticLockingFailureException}
+     * en vez de una sobreventa silenciosa.
+     *
+     * @throws CupoInsuficienteException si {@code cantidad} supera {@link #cupoDisponible}
+     */
+    void descontar(int cantidad) {
+        if (cupoDisponible < cantidad) {
+            throw new CupoInsuficienteException(id, nombre, cantidad, cupoDisponible);
+        }
+        this.cupoDisponible -= cantidad;
     }
 
     public Long getId() {
