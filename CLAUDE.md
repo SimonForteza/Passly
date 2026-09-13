@@ -202,8 +202,11 @@ com.passly/
 **Ya implementado con esta misma estructura:** `usuarios/` (PAS-5) — mismas capas
 `web`/`negocio`/`datos`, DTOs con `@NamedInterface`, impl package-private. Suma además un
 `@Bean PasswordEncoder` propio en `internal/negocio/` (BCrypt) para guardar la credencial
-hasheada; ver §9. Y `productoras/` (PAS-7) — ídem, con `RolEnProductora` en la raíz como
-parte del contrato.
+hasheada; ver §9. `productoras/` (PAS-13) — ídem, con `RolEnProductora` en la raíz como
+parte del contrato [corregido: esta línea decía "PAS-7", que en realidad es
+`ServicioDePagos`]. Y `pagos/` (PAS-7) — Adapter REST hacia la pasarela de pago externa,
+sin dependencias salientes a otros componentes de Passly (`allowedDependencies = {}`); ver
+§9.
 
 **`ventas/` (PAS-8) — el componente stateful, con una variación real sobre la plantilla.**
 Mismas capas, pero `internal/negocio/` suma dos colaboradores que `eventos` no necesita:
@@ -253,7 +256,7 @@ públicos; que alcancen para operar todo el sistema prueba que esos contratos es
 completos.
 
 **Aspiracional — todavía no existen** (se crean rebanada por rebanada, §4.1):
-`pagos/`, `tickets/`, `accesos/`, `notificaciones/`, `facturacion/`.
+`tickets/`, `accesos/`, `notificaciones/`, `facturacion/`.
 
 **Reglas duras:**
 
@@ -367,7 +370,7 @@ presentación (Controller + DTO) → negocio (Service) → datos (Repository + E
 |---|---|---|
 | **Ventas** | **Eventos** | **Síncrona, implementada** — disponibilidad, descuento de cupo |
 | **Ventas** | **Usuarios** | **Síncrona, implementada** — datos del comprador en la orden |
-| Ventas | Pagos | Síncrona — cobro. Hoy resuelto **adentro** de Ventas con un Port/Adapter propio (`PasarelaDePago` / `PasarelaDePagoSimulada`, §4.9); si PAS-7 llega a existir como módulo aparte, esta fila pasa de "adapter interno" a "dependencia entre componentes" sin tocar `VentaServiceImpl` |
+| Ventas | Pagos | Síncrona — cobro. Hoy resuelto **adentro** de Ventas con un Port/Adapter propio (`PasarelaDePago` / `PasarelaDePagoSimulada`, §4.9). `ServicioDePagos` (PAS-7) ya existe como módulo, pero todavía no está cableado: falta escribir el adapter real y declarar la dependencia en el `package-info` de `ventas` — sin tocar el resto de `VentaServiceImpl` |
 | Ventas | Tickets | Síncrona — emisión dentro de la transacción |
 | Ventas | Facturación | **Asincrónica** — cola P2P `orden.pagada` |
 | Tickets | Notificaciones, Accesos | **Asincrónica** — tópico `ticket.emitido` |
@@ -715,6 +718,7 @@ passly/
 ├── docs/
 │   ├── ddl-eventos.sql    ← DDL de referencia del esquema eventos (Hibernate lo genera)
 │   ├── ddl-productoras.sql ← ídem esquema productoras (incl. por qué miembro.usuario_id no lleva FK)
+│   ├── ddl-pagos.sql      ← ídem esquema pagos (incl. por qué no guarda datos de tarjeta)
 │   └── http/              ← peticiones .http (REST Client) + README:
 │                            salud, cartelera con filtro, flujo feliz (incl. republicar → 409),
 │                            errores (401/403/404/409), productoras, y **aislamiento entre
@@ -735,7 +739,8 @@ passly/
 
 > `CLAUDE.local.md` es un archivo personal opcional (gitignored); puede no existir
 > en un clon recién hecho. Los `.md` de `docs/` listados como aspiracionales todavía
-> no están escritos: hoy `docs/` contiene solo `ddl-eventos.sql` y `http/`.
+> no están escritos: hoy `docs/` contiene los DDL de referencia (`ddl-eventos.sql`,
+> `ddl-productoras.sql`, `ddl-pagos.sql`) y `http/`.
 
 ---
 
@@ -841,6 +846,31 @@ del mismo tipo de entrada, confirmar descuenta cupo real y cobra, y el rollback 
 carrito de dos líneas donde la segunda excede el cupo — revierte también la primera línea
 (que ya había hecho `flush`) y compensa el cobro, dejando el carrito intacto para reintentar.
 
+**`ServicioDePagos` implementado en paralelo** (PAS-7, desarrollado en rama propia mientras
+avanzaba PAS-8, recién integrado a `main`): Adapter REST hacia la pasarela de pago externa.
+Las tres capas separadas, esquema `pagos` propio, y **sin dependencias salientes a ningún
+otro componente de Passly** (`allowedDependencies = {}`) — su única colaboración es una
+llamada HTTP a un proveedor externo, que no es una dependencia de módulo en el sentido de
+Spring Modulith. El endpoint de la pasarela está mockeado con un `@RestController` propio
+(`internal.pasarelamock`) que corre en el mismo proceso, con el mismo criterio que este
+documento aplica a AFIP: no pelear con un proveedor real ni con certificados de
+homologación. `PagoServiceImpl` le habla por `RestClient` real (HTTP de verdad, no una
+llamada Java directa), así que pasar a un proveedor real es cambiar la propiedad
+`passly.pagos.pasarela.base-url` — el mismo patrón de externalización que la URL de la base
+de datos (§4.8). Distingue explícitamente el rechazo de negocio (`PagoRechazadoException` →
+402, la pasarela respondió que no) de la caída técnica del proveedor
+(`PasarelaDePagoNoDisponibleException` → 503, la pasarela no respondió), y la llamada HTTP
+queda deliberadamente fuera de cualquier `@Transactional` — un externo lento no puede
+sostener una fila de la base bloqueada (§2). No persiste número de tarjeta ni código de
+seguridad: son datos transitorios que se descartan apenas se usan, el mismo criterio que
+`usuarios` aplica a la contraseña hasheada. Al ser un componente sin dependencias, se pudo
+desarrollar en paralelo sin bloquear ni ser bloqueado por Ventas.
+
+**Pendiente, no parte de esta integración:** `ventas` sigue cobrando con
+`PasarelaDePagoSimulada`, no con el `ServicioDePagos` real que este merge trae — el Port ya
+existe para eso (§4.9), pero cablear `VentaServiceImpl` a `PagoService` es un cambio de
+código aparte, no un efecto automático de mergear ambas ramas.
+
 **Próximo paso inmediato:** **`ServicioDeTickets`** — firma criptográfica del QR. Es el seam
 que `ConfirmacionDeCompra` ya dejó preparado (hoy no emite ningún ticket; la emisión está
 fuera del alcance de PAS-8) y lo que necesita `ServicioDeAccesos` para validar en la puerta.
@@ -851,9 +881,11 @@ fuera del alcance de PAS-8) y lo que necesita `ServicioDeAccesos` para validar e
 2. ~~`ServicioDeUsuarios` — roles y credenciales, raíz del grafo~~ ✅ hecho
 3. ~~`ServicioDeProductoras` — múltiples organizadores, eventos con dueño~~ ✅ hecho
 4. ~~**Seguridad (PAS-6)** — HTTP Basic + `@PreAuthorize` por rol; módulo `seguridad/`~~ ✅ hecho
-5. ~~`ServicioDeVentas` — el stateful, con callbacks de ciclo de vida~~ ✅ hecho
-6. `ServicioDeTickets` — firma criptográfica del QR
-7. El resto, según lo que pida cada entrega
+5. ~~`ServicioDePagos` (PAS-7) — Adapter REST hacia la pasarela de pago, sin dependencias,
+   desarrollado en paralelo~~ ✅ hecho
+6. ~~`ServicioDeVentas` — el stateful, con callbacks de ciclo de vida~~ ✅ hecho
+7. `ServicioDeTickets` — firma criptográfica del QR
+8. El resto, según lo que pida cada entrega
 
 ---
 
