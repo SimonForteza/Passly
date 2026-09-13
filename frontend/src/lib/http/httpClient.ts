@@ -1,0 +1,47 @@
+import { getHeaderAutorizacion } from '../auth/session';
+import { ApiError, type ProblemDetail } from './ApiError';
+
+const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers);
+  headers.set('Accept', 'application/json');
+  if (init.body) headers.set('Content-Type', 'application/json');
+
+  const autorizacion = getHeaderAutorizacion();
+  if (autorizacion) headers.set('Authorization', autorizacion);
+
+  const respuesta = await fetch(`${BASE_URL}${path}`, {
+    ...init,
+    headers,
+    // El carrito de ventas vive en una HttpSession (@SessionScope) aunque la
+    // autenticación sea STATELESS: sin esto la cookie JSESSIONID no viaja y el
+    // carrito no persiste entre llamadas (CLAUDE.md §4.7 / §4.11).
+    credentials: 'include',
+  });
+
+  if (respuesta.status === 204) {
+    return undefined as T;
+  }
+
+  const contentType = respuesta.headers.get('content-type') ?? '';
+  const cuerpo = contentType.includes('json') ? await respuesta.json() : undefined;
+
+  if (!respuesta.ok) {
+    throw new ApiError(cuerpo as ProblemDetail);
+  }
+
+  return cuerpo as T;
+}
+
+export const httpClient = {
+  get<T>(path: string): Promise<T> {
+    return request<T>(path, { method: 'GET' });
+  },
+  post<T>(path: string, body?: unknown): Promise<T> {
+    return request<T>(path, { method: 'POST', body: body !== undefined ? JSON.stringify(body) : undefined });
+  },
+  delete<T>(path: string): Promise<T> {
+    return request<T>(path, { method: 'DELETE' });
+  },
+};

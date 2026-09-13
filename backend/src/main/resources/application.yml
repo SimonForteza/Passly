@@ -61,6 +61,11 @@ passly:
       # pasarela real es cambiar esta propiedad, nada de codigo -- mismo patron que las variables
       # de entorno de la base de datos (CLAUDE.md 4.8).
       base-url: ${PASSLY_PASARELA_PAGO_URL:http://localhost:${server.port}}
+  web:
+    # Origen permitido por CORS para la app web (PAS-14, ver Javadoc de ConfiguracionDeSeguridad).
+    # Default al puerto de Vite en desarrollo; en deploy se pisa por variable de entorno, mismo
+    # patron que el resto de las propiedades externalizadas de este archivo.
+    origen: ${PASSLY_WEB_ORIGEN:http://localhost:5173}
 
 management:
   endpoints:

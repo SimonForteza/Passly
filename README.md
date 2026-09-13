@@ -37,6 +37,21 @@ agrega una columna `not null` a una tabla que ya tiene filas. Despues, `up -d` a
 Sin el perfil `demo`, la base arranca vacia. Sin variables de entorno, el backend se conecta
 al Postgres de `docker-compose.yml` (ver [.env.example](.env.example) para apuntar a Supabase).
 
+## Levantar la app web
+
+Requisito: Node 20+. Con el backend corriendo en `:8080` (paso anterior):
+
+```bash
+cd frontend
+cp .env.example .env   # VITE_API_BASE_URL=http://localhost:8080 por default
+npm install
+npm run dev             # sirve en http://localhost:5173
+```
+
+El backend permite CORS desde `http://localhost:5173` por default
+(`passly.web.origen` en `application.yml`, ver [CLAUDE.md](CLAUDE.md) 9) — si se corre la app
+web en otro puerto u origen, hay que pisar esa property.
+
 ## Probar que anda
 
 ```bash
