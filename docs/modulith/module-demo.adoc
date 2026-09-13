@@ -1,0 +1,37 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Description
+|Datos de demostracion. Solo se activa con el perfil `demo`; sin el, la base arranca vacia.  
++
+<b>Por que la siembra vive afuera de los componentes y no adentro de cada uno.</b> Hasta que los eventos tuvieron dueño, cada modulo podia sembrar lo suyo con su propio servicio. Con la cadena `eventos -> productoras -> usuarios` eso dejo de cerrar: para crear un evento de Aurora hay que actuar como alguien de Aurora, y Eventos <b>no puede consultar Usuarios</b> — su `c.p.p.dto.package-info` lo prohibe y el build lo hace cumplir. Un seeder adentro de Eventos habria necesitado exactamente la dependencia que el diseño existe para evitar.  
++
+La salida no fue relajar la frontera sino reconocer que los datos de demo <b>no son de ningun componente</b>: son un cliente del sistema, igual que la app web. Por eso viven aca y usan unicamente contratos publicos. Que alcancen para operar el sistema entero es, de paso, la prueba de que esos contratos estan completos.  
++
+Como consecuencia desaparecio el problema de coordinar tres `ApplicationRunner` con `@Order`: un solo runner ejecuta los tres pasos en secuencia y los ids generados fluyen por variables locales, sin tener que volver a buscarlos por clave natural.
+|Base package
+|`com.passly.demo`
+|Bean references
+|* `c.p.u.UsuarioService` (in Usuarios) -- Contrato publico de <b>ServicioDeUsuarios</b>: registro y consulta de usuarios y su rol.  
++
+Es la unica puerta de entrada al componente. La implementacion, la entidad JPA, el repositorio y el `PasswordEncoder` viven en `internal` y no forman parte de este contrato; los demas componentes inyectan esta interfaz y no pueden nombrar la clase concreta.  
++
+<b>Sobre la credencial:</b> el password en texto plano entra solo por `registrarUsuario(CrearUsuarioRequest)` y nunca vuelve a salir; `c.p.u.dto.UsuarioDTO` no incluye el hash. La verificacion del login (PAS-6) la hace el modulo `seguridad` con Spring Security, no este componente: para eso `buscarCredencialPorEmail(String)` expone el hash BCrypt por el contrato acotado `usuarios :: autenticacion` (`c.p.u.autenticacion.CredencialDTO`). Es la <b>unica</b> operacion por la que el hash cruza la frontera, y su unico consumidor previsto es `seguridad`.  
++
+<b>Posicion en el sistema:</b> Usuarios no llama a ningun otro componente. Es <b>stateless</b>: no guarda estado conversacional entre llamadas (persistir usuarios no lo vuelve stateful, CLAUDE.md 4.7).
+* `c.p.p.ProductoraService` (in Productoras) -- Contrato publico de <b>ServicioDeProductoras</b>: las identidades comerciales que publican fiestas y el padron de quienes pueden operar en nombre de cada una.  
++
+Es la unica puerta de entrada al componente. La implementacion, las entidades y el repositorio viven en `internal` y no forman parte de este contrato.  
++
+<b>Posicion en el sistema:</b> Productoras depende de Usuarios (valida identidad y rol global) y es consumido por Eventos (que le pregunta quien puede gestionar los eventos de una productora). Es el eslabon del medio de la cadena `eventos -> productoras -> usuarios` que `EstructuraDeModulosTest` verifica en cada build. Es <b>stateless</b>: no guarda estado conversacional entre llamadas.  
++
+<b>Sobre las tres consultas booleanas del final:</b> son preguntas de negocio, no getters del padron. Eventos pregunta `puedeGestionarEventos(Long, Long)` y Productoras decide internamente que roles califican; si manana aparece un rol nuevo, Eventos no se toca y ni siquiera necesita conocer `c.p.p.RolEnProductora`. Es <i>tell, don't ask</i>: la alternativa — exponer el padron y que cada consumidor evalue el rol por su cuenta — desparramaria la misma regla por todo el sistema.
+* `c.p.e.EventoService` (in Eventos) -- Contrato publico de <b>ServicioDeEventos</b>: alta, publicacion y consulta de eventos y sus tipos de entrada.  
++
+Es la unica puerta de entrada al componente. La implementacion, las entidades JPA y los repositorios viven en `internal` y no forman parte de este contrato; los demas componentes inyectan esta interfaz y no pueden nombrar la clase concreta.  
++
+<b>Posicion en el sistema:</b> Eventos depende de Productoras — para saber quien puede gestionar los eventos de cada una y con que nombre comercial mostrarlos — y de nadie mas. La dependencia esta declarada en el `c.p.p.dto.package-info` del modulo y el build falla si aparece cualquier otra. No depende de Usuarios: la identidad queda detras de Productoras, que ya resolvio el cruce de roles al armar su padron.  
++
+<b>Sobre el `idUsuarioActuante` de las operaciones de gestion:</b> es quien opera, y viaja como parametro <i>aparte</i> de la solicitud, nunca adentro. Hoy la capa web lo saca de un header temporal y con Spring Security saldra del principal autenticado — y este contrato no cambia en esa migracion, justamente por estar separado.  
++
+<b>No es un Facade.</b> Es una interfaz de servicio: no oculta la coordinacion de varios subsistemas porque no hay ninguno que coordinar. El Facade del sistema es `ServicioDeVentas`, que si orquesta Eventos, Usuarios, Pagos y Tickets.
+|===

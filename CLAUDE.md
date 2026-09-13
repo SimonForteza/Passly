@@ -719,10 +719,16 @@ passly/
 │   ├── ddl-eventos.sql    ← DDL de referencia del esquema eventos (Hibernate lo genera)
 │   ├── ddl-productoras.sql ← ídem esquema productoras (incl. por qué miembro.usuario_id no lleva FK)
 │   ├── ddl-pagos.sql      ← ídem esquema pagos (incl. por qué no guarda datos de tarjeta)
-│   └── http/              ← peticiones .http (REST Client) + README:
-│                            salud, cartelera con filtro, flujo feliz (incl. republicar → 409),
-│                            errores (401/403/404/409), productoras, y **aislamiento entre
-│                            productoras** — el guion central de la demo
+│   ├── ddl-ventas.sql     ← ídem esquema ventas
+│   ├── http/              ← peticiones .http (REST Client) + README:
+│   │                        salud, cartelera con filtro, flujo feliz (incl. republicar → 409),
+│   │                        errores (401/403/404/409), productoras, y **aislamiento entre
+│   │                        productoras** — el guion central de la demo
+│   └── modulith/          ← salida de Documenter (PAS-9): components.puml (diagrama global),
+│                            un module-*.puml/.adoc por módulo, y el README que explica cómo
+│                            regenerarlos y la corrida real de "romper una regla a propósito"
+├── .github/workflows/     ← modulith-boundaries.yml: corre EstructuraDeModulosTest en cada
+│                            push/PR (no necesita Postgres/Docker)
 ├── backend/               ← Spring Boot, un paquete por componente
 │   ├── pom.xml
 │   ├── mvnw, mvnw.cmd, .mvn/  ← Maven wrapper
@@ -740,7 +746,7 @@ passly/
 > `CLAUDE.local.md` es un archivo personal opcional (gitignored); puede no existir
 > en un clon recién hecho. Los `.md` de `docs/` listados como aspiracionales todavía
 > no están escritos: hoy `docs/` contiene los DDL de referencia (`ddl-eventos.sql`,
-> `ddl-productoras.sql`, `ddl-pagos.sql`) y `http/`.
+> `ddl-productoras.sql`, `ddl-pagos.sql`, `ddl-ventas.sql`), `http/` y `modulith/`.
 
 ---
 

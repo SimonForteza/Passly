@@ -1,0 +1,27 @@
+name: Fronteras de modulos (Spring Modulith)
+
+# Solo corre EstructuraDeModulosTest, no la suite completa: es el unico test que no necesita
+# Postgres/Docker (ApplicationModules.verify() solo introspecciona el bytecode compilado), asi
+# que puede correr en CI sin levantar infraestructura. Ver docs/modulith/README.md.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verificar-fronteras-modulith:
+    name: Verificar fronteras entre modulos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Correr EstructuraDeModulosTest
+        working-directory: backend
+        run: ./mvnw --batch-mode --no-transfer-progress test -Dtest=EstructuraDeModulosTest

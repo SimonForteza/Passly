@@ -1,0 +1,19 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Description
+|Componente transversal de <b>seguridad</b>: autenticacion HTTP Basic y el cableado de la autorizacion por rol (PAS-6).  
++
+No expone contrato publico: es infraestructura. Toda su implementacion vive en `internal` — el `SecurityFilterChain`, el `UserDetailsService` y el `AuthenticationProvider`. Las reglas <i>por rol</i> (`@PreAuthorize`) no viven aca: se declaran sobre los controllers de cada componente, que es lo que guarda cada operacion sensible en su punto de entrada.  
++
+<b>Dependencias:</b> `seguridad` depende de `usuarios` — de su API publica (`c.p.u.UsuarioService`) y del contrato `usuarios :: autenticacion` (`c.p.u.autenticacion.CredencialDTO`) — para resolver quien es quien. Reutiliza ademas el `PasswordEncoder` que declara `usuarios` (inyectado por tipo), de modo que hashear y verificar usen siempre el mismo algoritmo, sin un segundo bean.
+|Base package
+|`com.passly.seguridad`
+|Bean references
+|* `c.p.u.UsuarioService` (in Usuarios) -- Contrato publico de <b>ServicioDeUsuarios</b>: registro y consulta de usuarios y su rol.  
++
+Es la unica puerta de entrada al componente. La implementacion, la entidad JPA, el repositorio y el `PasswordEncoder` viven en `internal` y no forman parte de este contrato; los demas componentes inyectan esta interfaz y no pueden nombrar la clase concreta.  
++
+<b>Sobre la credencial:</b> el password en texto plano entra solo por `registrarUsuario(CrearUsuarioRequest)` y nunca vuelve a salir; `c.p.u.dto.UsuarioDTO` no incluye el hash. La verificacion del login (PAS-6) la hace el modulo `seguridad` con Spring Security, no este componente: para eso `buscarCredencialPorEmail(String)` expone el hash BCrypt por el contrato acotado `usuarios :: autenticacion` (`c.p.u.autenticacion.CredencialDTO`). Es la <b>unica</b> operacion por la que el hash cruza la frontera, y su unico consumidor previsto es `seguridad`.  
++
+<b>Posicion en el sistema:</b> Usuarios no llama a ningun otro componente. Es <b>stateless</b>: no guarda estado conversacional entre llamadas (persistir usuarios no lo vuelve stateful, CLAUDE.md 4.7).
+|===
