@@ -159,6 +159,49 @@ button:disabled {
   grid-column: 1 / -1;
 }
 
+.tarjeta-evento {
+  display: grid;
+  gap: 1rem;
+}
+
+.tarjeta-evento-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.badge-borrador {
+  border-color: var(--color-advertencia);
+  color: var(--color-advertencia);
+}
+
+.badge-publicado {
+  border-color: var(--color-exito);
+  color: var(--color-exito);
+}
+
+.stack-chico {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.fila-tipo-entrada {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  align-items: end;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radio-input);
+}
+
+@media (max-width: 640px) {
+  .fila-tipo-entrada {
+    grid-template-columns: 1fr;
+  }
+}
+
 .formulario {
   display: grid;
   gap: 1rem;

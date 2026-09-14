@@ -114,6 +114,11 @@ export function ProductorasPage() {
               <Link className="boton boton-secundario" to={`/productoras/${productora.id}/backoffice`}>
                 Ver padrón
               </Link>
+              {puedeCrear ? (
+                <Link className="boton boton-secundario" to={`/productoras/${productora.id}/eventos`}>
+                  Ver eventos
+                </Link>
+              ) : null}
             </article>
           ))}
         </div>
