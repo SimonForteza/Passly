@@ -1,8 +1,26 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth/AuthContext';
+import { vaciarCarrito } from '../ventas/api';
 
 export function Header() {
   const { usuario, estaAutenticado, cerrarSesion } = useAuth();
+  const navigate = useNavigate();
+  const [saliendo, setSaliendo] = useState(false);
+
+  async function salir() {
+    setSaliendo(true);
+    // Abandonar el carrito ANTES de borrar las credenciales. La cookie JSESSIONID es http-only y
+    // sobrevive al logout; el carrito de esa sesión queda atado a este comprador, y si otra
+    // persona entra en el mismo navegador el backend le responde 409
+    // (CarritoDeOtroCompradorException) hasta en el DELETE, sin forma de salir hasta que venza la
+    // sesión. Con credenciales todavía válidas, el DELETE invalida la sesión y la próxima nace
+    // limpia. Best-effort: si falla, se cierra la sesión igual.
+    await vaciarCarrito().catch(() => undefined);
+    cerrarSesion();
+    setSaliendo(false);
+    navigate('/');
+  }
 
   return (
     <header
@@ -20,7 +38,13 @@ export function Header() {
       </Link>
 
       {estaAutenticado && usuario ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem' }}>
+          <Link className="enlace-cabecera" to="/carrito">
+            Carrito
+          </Link>
+          <Link className="enlace-cabecera" to="/mis-ordenes">
+            Mis órdenes
+          </Link>
           {(usuario.rol === 'ORGANIZADOR' || usuario.rol === 'VALIDADOR') ? (
             <Link className="enlace-cabecera" to="/productoras">
               Mis productoras
@@ -31,7 +55,8 @@ export function Header() {
           </Link>
           <button
             type="button"
-            onClick={cerrarSesion}
+            onClick={salir}
+            disabled={saliendo}
             style={{
               background: 'transparent',
               border: '1px solid var(--color-border)',
