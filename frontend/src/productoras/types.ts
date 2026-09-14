@@ -3,9 +3,9 @@ export type RolEnProductora = 'DUENIO' | 'STAFF' | 'VALIDADOR';
 export interface ProductoraDTO {
   id: number;
   nombreComercial: string;
-  cuit: string;
-  descripcion?: string;
-  logoUrl?: string;
+  cuit: string | null;
+  descripcion: string | null;
+  logoUrl: string | null;
 }
 
 export interface CrearProductoraRequest {

@@ -8,6 +8,7 @@ export function Header() {
     <header
       style={{
         display: 'flex',
+        flexWrap: 'wrap',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '1rem 1.5rem',
@@ -20,6 +21,11 @@ export function Header() {
 
       {estaAutenticado && usuario ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {(usuario.rol === 'ORGANIZADOR' || usuario.rol === 'VALIDADOR') ? (
+            <Link className="enlace-cabecera" to="/productoras">
+              Mis productoras
+            </Link>
+          ) : null}
           <Link to="/perfil" style={{ color: 'var(--color-texto-secundario)', textDecoration: 'none' }}>
             {usuario.nombre} · {usuario.rol}
           </Link>
