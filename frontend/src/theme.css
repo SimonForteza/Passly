@@ -1,21 +1,32 @@
 /*
- * Tokens de diseño. Valores aproximados, relevados a ojo de las capturas del PDF de
- * wireframes ("Passly — App Validador (Wireframes)"), no del archivo Figma real todavía —
- * confirmar/ajustar cuando se pueda inspeccionar el Figma directamente.
+ * Tokens de diseño, tomados de las variables del Figma "Passly — App Validador (Wireframes)"
+ * (bg/*, border/*, text/*, brand/*, status/*). Los nombres siguen en castellano para no romper
+ * las pantallas que ya los usan; el comentario de cada grupo dice a qué variable corresponden.
  */
 :root {
-  --color-bg: #0a0a0c;
-  --color-surface: #141417;
-  --color-surface-alt: #1a1a1e;
-  --color-border: #26262b;
+  /* bg/base, bg/surface, bg/elevated, bg/input */
+  --color-bg: #08080a;
+  --color-surface: #121215;
+  --color-surface-alt: #1a1a1f;
+  --color-input: #0e0e11;
+  /* border/default, border/strong */
+  --color-border: #26262d;
+  --color-border-fuerte: #3a3a42;
 
-  --color-acento: #e8123a;
+  /* brand/red, brand/red-hover, brand/red-tint */
+  --color-acento: #e8112d;
+  --color-acento-hover: #ff2e48;
+  --color-acento-tinte: #2a0a10;
   --color-acento-texto: #ffffff;
+  /* status/success, status/success-tint */
   --color-exito: #22c55e;
+  --color-exito-tinte: #0d2a18;
   --color-advertencia: #f5a623;
 
-  --color-texto: #f5f5f5;
-  --color-texto-secundario: #9ca3af;
+  /* text/primary, text/secondary, text/tertiary */
+  --color-texto: #fafafa;
+  --color-texto-secundario: #a1a1aa;
+  --color-texto-terciario: #6e6e78;
 
   --font-display: 'Anton', system-ui, sans-serif;
   --font-texto: 'Inter', system-ui, sans-serif;
@@ -33,6 +44,9 @@
 
 body {
   margin: 0;
+  /* La barra de vencimiento del carrito sangra a todo el ancho con 100vw, que incluye la
+     barra de scroll vertical: sin esto aparece un scroll horizontal de unos píxeles. */
+  overflow-x: clip;
   background: var(--color-bg);
   color: var(--color-texto);
   font-family: var(--font-texto);
@@ -253,7 +267,7 @@ button:disabled {
 
 .mensaje-error {
   border: 1px solid var(--color-acento);
-  background: rgba(232, 18, 58, 0.12);
+  background: rgba(232, 17, 45, 0.12);
 }
 
 .estado-vacio {
@@ -312,5 +326,688 @@ th {
   .encabezado-pagina,
   .titulo-seccion {
     flex-direction: column;
+  }
+}
+
+/*
+ * Ventas (PAS-18): selección de entradas, checkout, compra confirmada, mis órdenes y el modal
+ * de carrito vencido. Medidas y colores de los frames Web 02/03/04/06/12 del Figma.
+ */
+
+.icono {
+  display: block;
+  flex-shrink: 0;
+}
+
+.boton-texto {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-texto-secundario);
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.boton-texto:hover {
+  color: var(--color-texto);
+}
+
+.boton-sombra {
+  box-shadow: 0 8px 28px rgba(232, 17, 45, 0.45);
+}
+
+.boton-ancho {
+  width: 100%;
+}
+
+/* Barra de vencimiento del carrito (Web 03, "Barra de hold"). Rompe el max-width del <main>
+   para ocupar todo el ancho, como en el diseño. */
+.barra-hold {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 52px;
+  margin: -2rem calc(50% - 50vw) 0;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(90deg, #5c0713 0%, var(--color-acento) 50%, #5c0713 100%);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.barra-hold strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.pasos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 0 0 12px;
+  list-style: none;
+}
+
+.paso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.paso-numero {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--color-border-fuerte);
+  border-radius: var(--radio-pill);
+  color: var(--color-texto-terciario);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.paso-hecho .paso-numero {
+  border-color: var(--color-acento);
+  background: var(--color-acento-tinte);
+}
+
+.paso-actual .paso-numero {
+  border-color: var(--color-acento);
+  background: var(--color-acento);
+  color: var(--color-texto);
+}
+
+.paso-pendiente {
+  color: var(--color-texto-terciario);
+  font-weight: 500;
+}
+
+.paso-separador {
+  width: 48px;
+  height: 1px;
+  background: var(--color-border-fuerte);
+}
+
+/* Dos columnas: contenido + resumen de 400px (Web 02 y Web 03, "Cuerpo"). */
+.checkout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  align-items: start;
+  gap: 32px;
+}
+
+.checkout-columna {
+  display: grid;
+  gap: 18px;
+}
+
+.checkout-columna h3,
+.resumen-compra h3 {
+  font-family: var(--font-texto);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.checkout-columna h3 {
+  font-size: 22px;
+}
+
+.resumen-compra {
+  position: sticky;
+  top: 1.5rem;
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+  border: 1px solid var(--color-acento);
+  border-radius: 16px;
+  background: var(--color-surface);
+  box-shadow: 0 16px 60px rgba(232, 17, 45, 0.18);
+}
+
+.resumen-compra h3 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.resumen-evento p {
+  margin: 0.35rem 0 0;
+  font-size: 13px;
+}
+
+.resumen-linea {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--color-texto-secundario);
+  font-size: 14px;
+}
+
+.resumen-divisor {
+  height: 1px;
+  background: var(--color-border);
+}
+
+.resumen-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.aviso-hold {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 0 14px;
+  border: 1px solid var(--color-acento);
+  border-radius: 12px;
+  background: var(--color-acento-tinte);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.aviso-pasarela {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--color-texto-terciario);
+  font-size: 12px;
+}
+
+.dato-lectura {
+  display: grid;
+  gap: 6px;
+  color: var(--color-texto-secundario);
+  font-size: 12px;
+}
+
+.dato-lectura-valor {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 14px;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-input);
+  font-size: 14px;
+}
+
+.fila-datos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.opcion-pago {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1.5px solid var(--color-acento);
+  border-radius: 16px;
+  background: var(--color-acento-tinte);
+}
+
+.opcion-pago p {
+  margin: 0;
+}
+
+.opcion-pago-titulo {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.opcion-pago-detalle {
+  margin-top: 3px;
+  color: var(--color-texto-terciario);
+  font-size: 12px;
+}
+
+/* Filas de tipo de entrada con stepper (Web 02, "Tipo de entrada"). */
+.fila-entrada {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 88px;
+  padding: 12px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+}
+
+.fila-entrada-seleccionada {
+  border: 1.5px solid var(--color-acento);
+  background: var(--color-acento-tinte);
+}
+
+.fila-entrada-info {
+  display: grid;
+  gap: 4px;
+}
+
+.fila-entrada-info p {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  color: var(--color-texto-terciario);
+  font-size: 12px;
+}
+
+.fila-entrada-info .fila-entrada-nombre {
+  color: var(--color-texto);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.fila-entrada-info .cupo-escaso,
+.aviso-sobrecupo {
+  color: var(--color-acento-hover);
+  font-weight: 600;
+}
+
+.fila-entrada-selector {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 120px;
+  height: 40px;
+  padding: 0 6px;
+  border: 1px solid var(--color-border-fuerte);
+  border-radius: var(--radio-pill);
+  background: var(--color-input);
+  font-size: 15px;
+}
+
+.fila-entrada-seleccionada .stepper {
+  border-color: var(--color-acento);
+}
+
+.stepper button {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-texto-secundario);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.stepper button:last-child {
+  color: var(--color-acento-hover);
+}
+
+.stepper button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.stepper output {
+  font-variant-numeric: tabular-nums;
+}
+
+.boton-recargar {
+  padding: 0 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-texto-terciario);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.boton-recargar:hover {
+  color: var(--color-texto);
+}
+
+/* Compra confirmada y detalle de orden (Web 04). */
+.confirmacion {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  padding-block: 2rem;
+  text-align: center;
+  background:
+    radial-gradient(ellipse 45% 30% at 50% 15%, rgba(34, 197, 94, 0.14), transparent),
+    radial-gradient(ellipse 50% 45% at 50% 70%, rgba(232, 17, 45, 0.22), transparent);
+}
+
+.confirmacion h2 {
+  font-size: clamp(2rem, 5vw, 38px);
+}
+
+.confirmacion p {
+  margin: 0;
+}
+
+.icono-ok {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  border: 2px solid var(--color-exito);
+  border-radius: var(--radio-pill);
+  background: var(--color-exito-tinte);
+  box-shadow: 0 0 40px rgba(34, 197, 94, 0.4);
+}
+
+.texto-terciario {
+  color: var(--color-texto-terciario);
+  font-size: 13px;
+}
+
+.grilla-entradas {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 32px;
+}
+
+.tarjeta-entrada {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 300px);
+  overflow: hidden;
+  padding-bottom: 20px;
+  border: 1px solid var(--color-border-fuerte);
+  border-radius: 20px;
+  background: var(--color-surface);
+  text-align: center;
+}
+
+.banda-evento {
+  display: grid;
+  gap: 2px;
+  padding: 14px 20px;
+  background: linear-gradient(90deg, var(--color-acento), #5c0713);
+  text-align: left;
+}
+
+.banda-evento h3 {
+  font-size: 22px;
+}
+
+.banda-evento p {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tarjeta-entrada-tipo {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tarjeta-entrada-precio {
+  font-family: var(--font-display);
+  font-size: 30px;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+}
+
+/* Mis órdenes (Web 06). */
+.tabs {
+  display: flex;
+  gap: 10px;
+}
+
+.tab {
+  min-width: 130px;
+  height: 38px;
+  border: 1px solid var(--color-border-fuerte);
+  border-radius: var(--radio-pill);
+  background: transparent;
+  color: var(--color-texto-secundario);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tab-activa {
+  border-color: var(--color-acento);
+  background: var(--color-acento);
+  color: var(--color-texto);
+}
+
+.tarjeta-orden {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 24px 20px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background: var(--color-surface);
+}
+
+.flyer-fecha {
+  position: relative;
+  flex-shrink: 0;
+  width: 120px;
+  height: 150px;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 70% 25%, rgba(255, 31, 61, 0.9), rgba(255, 31, 61, 0.2) 35%, transparent 70%),
+    linear-gradient(180deg, #2a0008 0%, #050003 100%);
+}
+
+.flyer-dia {
+  position: absolute;
+  top: 74px;
+  left: 14px;
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 1.2;
+}
+
+.flyer-mes {
+  position: absolute;
+  top: 124px;
+  left: 16px;
+  color: var(--color-texto-secundario);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tarjeta-orden-info {
+  display: grid;
+  flex: 1;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tarjeta-orden-info h3 {
+  font-size: 30px;
+}
+
+.tarjeta-orden-info p {
+  margin: 0;
+  color: var(--color-texto-secundario);
+  font-size: 13px;
+}
+
+.badge-pagada {
+  justify-content: center;
+  min-width: 110px;
+  border-color: var(--color-exito);
+  background: var(--color-exito-tinte);
+  color: var(--color-exito);
+}
+
+.tarjeta-orden-total {
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Modal de carrito vencido (Web 12). */
+.modal-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(8, 8, 10, 0.8);
+}
+
+.modal-reserva {
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  width: min(100%, 520px);
+  padding: 44px 44px 40px;
+  border: 1px solid var(--color-acento);
+  border-radius: 28px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(232, 17, 45, 0.25), transparent 60%),
+    var(--color-surface);
+  box-shadow: 0 30px 100px rgba(232, 17, 45, 0.3);
+  text-align: center;
+}
+
+.modal-reserva h2 {
+  font-size: clamp(2rem, 7vw, 44px);
+}
+
+.modal-reserva p {
+  margin: 0;
+  color: var(--color-texto-secundario);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.modal-icono {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  border: 2px solid var(--color-acento);
+  border-radius: var(--radio-pill);
+  background: var(--color-acento-tinte);
+}
+
+.resumen-descartado {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-alt);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.resumen-descartado strong {
+  color: var(--color-acento-hover);
+  font-weight: 600;
+}
+
+.modal-acciones {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  padding-top: 8px;
+}
+
+.modal-acciones .boton {
+  padding-block: 16px;
+  font-size: 15px;
+}
+
+.modal-acciones .boton-secundario {
+  border-color: var(--color-border-fuerte);
+  background: transparent;
+}
+
+@media (max-width: 900px) {
+  .checkout {
+    grid-template-columns: 1fr;
+  }
+
+  .resumen-compra {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .fila-datos {
+    grid-template-columns: 1fr;
+  }
+
+  .fila-entrada,
+  .tarjeta-orden {
+    flex-wrap: wrap;
+  }
+
+  .fila-entrada-selector {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .tarjeta-orden {
+    gap: 16px;
+    padding: 16px;
+  }
+
+  /* Flyer + datos en la primera fila; estado, total y acción debajo. */
+  .tarjeta-orden-info {
+    flex-basis: calc(100% - 84px - 16px);
+  }
+
+  .tarjeta-orden .badge-pagada {
+    margin-right: auto;
+  }
+
+  .flyer-fecha {
+    width: 84px;
+    height: 105px;
+  }
+
+  .flyer-dia {
+    top: 44px;
+    left: 10px;
+    font-size: 30px;
+  }
+
+  .flyer-mes {
+    top: 84px;
+    left: 11px;
+  }
+
+  .tarjeta-orden-info h3 {
+    font-size: 22px;
+  }
+
+  .modal-reserva {
+    padding: 32px 20px 24px;
   }
 }

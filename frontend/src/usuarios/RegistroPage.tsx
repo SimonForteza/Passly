@@ -80,7 +80,7 @@ export function RegistroPage() {
             role="alert"
             style={{
               color: 'var(--color-texto)',
-              background: 'rgba(232, 18, 58, 0.12)',
+              background: 'rgba(232, 17, 45, 0.12)',
               border: '1px solid var(--color-acento)',
               borderRadius: 'var(--radio-input)',
               padding: '0.6rem 0.85rem',
