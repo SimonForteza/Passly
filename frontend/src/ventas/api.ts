@@ -9,8 +9,9 @@ export function agregarItemAlCarrito(request: AgregarItemRequest): Promise<Carri
   return httpClient.post<CarritoDTO>('/api/ventas/carrito/items', request);
 }
 
-export function vaciarCarrito(): Promise<void> {
-  return httpClient.delete<void>('/api/ventas/carrito');
+// 200 con la foto del carrito tomada antes de invalidar la sesion (VentaController.abandonarCarrito).
+export function vaciarCarrito(): Promise<CarritoDTO> {
+  return httpClient.delete<CarritoDTO>('/api/ventas/carrito');
 }
 
 export function confirmarCompra(): Promise<OrdenDTO> {

@@ -8,6 +8,7 @@ import { RegistroPage } from './usuarios/RegistroPage';
 import { PerfilPage } from './usuarios/PerfilPage';
 import { CarritoPage } from './ventas/CarritoPage';
 import { MisOrdenesPage } from './ventas/MisOrdenesPage';
+import { DetalleOrdenPage } from './ventas/DetalleOrdenPage';
 import { BackofficePage } from './productoras/BackofficePage';
 import { ProductorasPage } from './productoras/ProductorasPage';
 import { CrearEventoPage } from './eventos/CrearEventoPage';
@@ -45,6 +46,14 @@ export const router = createBrowserRouter([
         element: (
           <RutaPrivada>
             <MisOrdenesPage />
+          </RutaPrivada>
+        ),
+      },
+      {
+        path: '/mis-ordenes/:id',
+        element: (
+          <RutaPrivada>
+            <DetalleOrdenPage />
           </RutaPrivada>
         ),
       },

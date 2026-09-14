@@ -45,6 +45,21 @@ export const estilos: Record<string, CSSProperties> = {
     opacity: 0.6,
     cursor: 'progress',
   },
+  contenedorAuth: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tarjetaAuth: {
+    width: '100%',
+    maxWidth: '420px',
+    padding: '2rem 2rem 2.5rem',
+    background: 'var(--color-surface)',
+    border: '1px solid var(--color-border)',
+    borderRadius: 'var(--radio-card)',
+    boxShadow: '0 24px 48px -16px rgba(0, 0, 0, 0.55)',
+  },
 };
 
 interface CampoTextoProps {
@@ -79,6 +94,14 @@ export function CampoTexto({
       />
       {error && <span style={estilos.errorCampo}>{error}</span>}
     </label>
+  );
+}
+
+export function PantallaAuth({ children }: { children: ReactNode }) {
+  return (
+    <div style={estilos.contenedorAuth}>
+      <section style={estilos.tarjetaAuth}>{children}</section>
+    </div>
   );
 }
 
