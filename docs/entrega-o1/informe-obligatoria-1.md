@@ -8,7 +8,7 @@
 
 **Equipo:** Federico Torcini, Simon Forteza, Juan Segundo Addamo y Lucio Dillon
 
-**Version de trabajo:** corte verificable del 14/09/2026 (`main` 8b096ef)
+**Version de trabajo:** corte verificable del 14/09/2026 (`main` e0e81a9)
 
 > Este documento diferencia lo implementado de lo planificado y declara de forma explicita las deudas tecnicas que permanecen abiertas.
 
@@ -16,7 +16,7 @@
 
 Passly es una plataforma para vender y validar entradas de eventos. El backend adopta un monolito modular: una sola aplicacion desplegable, dividida en componentes de negocio con contratos explicitos y fronteras verificadas mediante Spring Modulith.
 
-Al corte de este informe estan integrados Usuarios, Productoras, Eventos, Seguridad, Ventas y Pagos. Ventas implementa el componente stateful y el patron Facade; Pagos implementa el patron Adapter REST. La app web ya cubre identidad, alta y padron de productoras, cartelera y backoffice de eventos. Permanecen pendientes la emision de tickets, las pantallas de carrito y ordenes, y el cableado de Ventas con el Adapter real de Pagos.
+Al corte de este informe estan integrados Usuarios, Productoras, Eventos, Seguridad, Ventas y Pagos. Ventas implementa el componente stateful y el patron Facade; Pagos implementa el patron Adapter REST. La app web ya cubre identidad, alta y padron de productoras, cartelera y backoffice de eventos, y tambien el flujo completo de compra: seleccion de entradas, carrito con cuenta regresiva, checkout y mis ordenes. Permanecen pendientes la emision de tickets y el cableado de Ventas con el Adapter real de Pagos.
 
 <!-- PAGEBREAK -->
 
@@ -138,7 +138,7 @@ Esta frontera evita mantener una conexion de base abierta durante una llamada ex
 
 ## 5.1 Evidencia automatica
 
-`EstructuraDeModulosTest` verifica ausencia de violaciones, Usuarios como raiz, el grafo aciclico con Ventas en la cima y la generacion de documentacion desde el codigo. El workflow `modulith-boundaries.yml` ejecuta esta verificacion en GitHub Actions; el commit de corte `8b096ef` finalizo correctamente.
+`EstructuraDeModulosTest` verifica ausencia de violaciones, Usuarios como raiz, el grafo aciclico con Ventas en la cima y la generacion de documentacion desde el codigo. El workflow `modulith-boundaries.yml` ejecuta esta verificacion en GitHub Actions; el commit de corte `e0e81a9` finalizo correctamente.
 
 La suite completa requiere PostgreSQL. En esta revision local no se certifica una corrida integral contra la base porque Docker no estaba disponible; esta limitacion se declara para no confundir compilacion o CI de fronteras con una prueba end-to-end.
 
@@ -148,7 +148,7 @@ La suite completa requiere PostgreSQL. En esta revision local no se certifica un
 - **PAS-15:** registro, login, perfil, logout y alta administrativa de roles privilegiados.
 - **PAS-16:** alta y listado de productoras, backoffice y padron de miembros.
 - **PAS-17:** cartelera y detalle publicos, alta, listado y publicacion de eventos por productora.
-- **Pendiente:** pantallas de carrito y mis ordenes.
+- **PAS-18:** seleccion de entradas, carrito con cuenta regresiva de vencimiento, checkout, confirmacion de compra y mis ordenes (pestanas Proximas/Pasadas).
 
 ## 5.3 Guion de demostracion
 
@@ -157,14 +157,13 @@ La suite completa requiere PostgreSQL. En esta revision local no se certifica un
 3. Demostrar registro/login, perfil, alta de productora y gestion de su padron.
 4. Crear y publicar un evento; verificar cartelera completa, filtro y detalle.
 5. Ejecutar los casos HTTP de 401, 403 y aislamiento entre productoras.
-6. Probar carrito y confirmacion por API, verificando su sesion y vencimiento.
+6. Comprar entradas desde la app web: agregar al carrito, ver la cuenta regresiva, confirmar en el checkout y revisar el detalle en mis ordenes.
 7. Ejecutar la suite completa con PostgreSQL disponible y conservar el resultado.
 
 ## 5.4 Pendientes para cerrar el producto
 
 - Cablear Ventas con el Adapter real de Pagos y probar la compensacion.
 - Implementar Tickets y su emision posterior a la compra.
-- Completar carrito y mis ordenes en la app web.
 - Ejecutar y registrar la demo integral en la maquina de la defensa.
 - Realizar una revision cruzada para que cada integrante pueda explicar cualquier componente.
 
@@ -199,7 +198,7 @@ La declaracion tiene fines de transparencia y no implica por si misma una penali
 
 El monolito modular equilibra separacion y simplicidad: conserva contratos claros, transacciones locales y una demostracion reproducible sin asumir prematuramente los costos de un sistema distribuido. El esquema PostgreSQL por componente refleja la misma propiedad de datos.
 
-El corte ya demuestra seis modulos backend, autenticacion y autorizacion, un componente stateful y los patrones DAO, Facade y Adapter. El frontend ofrece recorridos reales de identidad, productoras y eventos. Las deudas se mantienen visibles: integrar Ventas con Pagos, emitir tickets, completar las pantallas de compra y ejecutar la verificacion integral con PostgreSQL antes de la defensa.
+El corte ya demuestra seis modulos backend, autenticacion y autorizacion, un componente stateful y los patrones DAO, Facade y Adapter. El frontend ofrece recorridos reales de identidad, productoras, eventos y compra completa (carrito, checkout y mis ordenes). Las deudas se mantienen visibles: integrar Ventas con Pagos, emitir tickets y ejecutar la verificacion integral con PostgreSQL antes de la defensa.
 
 ## Referencias
 
