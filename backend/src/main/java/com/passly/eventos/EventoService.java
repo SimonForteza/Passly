@@ -1,8 +1,12 @@
 package com.passly.eventos;
 
+import com.passly.eventos.dto.AmpliarCupoRequest;
 import com.passly.eventos.dto.CrearEventoRequest;
+import com.passly.eventos.dto.CrearTipoEntradaRequest;
 import com.passly.eventos.dto.DescontarCupoRequest;
 import com.passly.eventos.dto.DisponibilidadDTO;
+import com.passly.eventos.dto.EditarEventoRequest;
+import com.passly.eventos.dto.EditarTipoEntradaRequest;
 import com.passly.eventos.dto.EventoDTO;
 
 import java.util.List;
@@ -118,4 +122,63 @@ public interface EventoService {
      * @throws CupoInsuficienteException        si alguna linea pide mas de lo disponible
      */
     void descontarCupo(List<DescontarCupoRequest> lineas);
+
+    /**
+     * Edita los datos propios de un evento (nombre, descripcion, fecha/hora, lugar).
+     *
+     * <p>Solo valida mientras el evento esta en {@link EstadoEvento#BORRADOR}: publicado, esos
+     * datos ya son la cartelera que alguien vio o compro (PAS-19).
+     *
+     * @param idUsuarioActuante quien opera; tiene que poder gestionar la productora dueña del evento
+     * @throws EventoNoEncontradoException si no existe
+     * @throws ProductoraNoGestionableException si el evento es de una productora que no gestiona
+     * @throws EdicionDeEventoInvalidaException si el evento no esta en BORRADOR
+     */
+    EventoDTO editarEvento(Long idEvento, EditarEventoRequest solicitud, Long idUsuarioActuante);
+
+    /**
+     * Agrega un tipo de entrada nuevo a un evento existente, con todo su cupo libre.
+     *
+     * <p>A diferencia de {@link #editarEvento}, esto se admite tanto en {@code BORRADOR} como en
+     * {@code PUBLICADO}: sumar una opcion nueva no perjudica a nadie que ya compro (PAS-19).
+     *
+     * @param idUsuarioActuante quien opera; tiene que poder gestionar la productora dueña del evento
+     * @throws EventoNoEncontradoException si no existe
+     * @throws ProductoraNoGestionableException si el evento es de una productora que no gestiona
+     * @throws EdicionDeEventoInvalidaException si el evento esta CANCELADO, o si ya existe un tipo
+     *         de entrada con ese nombre en el evento
+     */
+    EventoDTO agregarTipoEntrada(Long idEvento, CrearTipoEntradaRequest solicitud, Long idUsuarioActuante);
+
+    /**
+     * Edita nombre, precio y cupo total de un tipo de entrada existente.
+     *
+     * <p>Solo valida con el evento en {@link EstadoEvento#BORRADOR}, igual que
+     * {@link #editarEvento} — publicado, para sumar cupo esta {@link #ampliarCupo}, que si admite
+     * ese estado (PAS-19). Bajar el cupo total por debajo de lo ya vendido es invalido.
+     *
+     * @param idUsuarioActuante quien opera; tiene que poder gestionar la productora dueña del evento
+     * @throws EventoNoEncontradoException si el evento no existe
+     * @throws TipoEntradaNoEncontradoException si el tipo de entrada no es de ese evento
+     * @throws ProductoraNoGestionableException si el evento es de una productora que no gestiona
+     * @throws EdicionDeEventoInvalidaException si el evento no esta en BORRADOR, si el nuevo cupo
+     *         total es menor a lo ya vendido, o si el nombre ya lo usa otro tipo de entrada del
+     *         mismo evento
+     */
+    EventoDTO editarTipoEntrada(
+            Long idEvento, Long idTipoEntrada, EditarTipoEntradaRequest solicitud, Long idUsuarioActuante);
+
+    /**
+     * Suma cupo a un tipo de entrada existente: accion de negocio, no una escritura de campo —
+     * por eso tiene endpoint propio en vez de ser un caso mas de {@link #editarTipoEntrada}
+     * (PAS-19). Se admite con el evento en {@code BORRADOR} o {@code PUBLICADO}.
+     *
+     * @param idUsuarioActuante quien opera; tiene que poder gestionar la productora dueña del evento
+     * @throws EventoNoEncontradoException si el evento no existe
+     * @throws TipoEntradaNoEncontradoException si el tipo de entrada no es de ese evento
+     * @throws ProductoraNoGestionableException si el evento es de una productora que no gestiona
+     * @throws EdicionDeEventoInvalidaException si el evento esta CANCELADO
+     */
+    EventoDTO ampliarCupo(
+            Long idEvento, Long idTipoEntrada, AmpliarCupoRequest solicitud, Long idUsuarioActuante);
 }

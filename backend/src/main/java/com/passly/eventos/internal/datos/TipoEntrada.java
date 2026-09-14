@@ -1,6 +1,7 @@
 package com.passly.eventos.internal.datos;
 
 import com.passly.eventos.CupoInsuficienteException;
+import com.passly.eventos.EdicionDeEventoInvalidaException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -53,10 +54,13 @@ public class TipoEntrada {
     private Integer cupoDisponible;
 
     /**
-     * Bloqueo optimista. Hoy no lo usa nadie: se agrega ahora porque
-     * {@code ServicioDeVentas} va a decrementar {@code cupoDisponible} con concurrencia real, y
-     * sumar la columna con la tabla vacia cuesta cero mientras que hacerlo con datos cargados es
-     * una migracion. Es una decision declarada, no un descuido.
+     * Bloqueo optimista. Se agrego porque {@code ServicioDeVentas} decrementa
+     * {@code cupoDisponible} con concurrencia real, y sumar la columna con la tabla vacia cuesta
+     * cero mientras que hacerlo con datos cargados es una migracion. Es una decision declarada, no
+     * un descuido. Desde PAS-19 tambien protege la carrera entre un organizador editando o
+     * ampliando el cupo (esta clase) y una compra confirmandose al mismo tiempo
+     * ({@code EventoService.descontarCupo}): la segunda escritura sobre la misma fila falla con
+     * {@code ObjectOptimisticLockingFailureException} en vez de perderse en silencio.
      */
     @Version
     private Long version;
@@ -97,6 +101,44 @@ public class TipoEntrada {
             throw new CupoInsuficienteException(id, nombre, cantidad, cupoDisponible);
         }
         this.cupoDisponible -= cantidad;
+    }
+
+    /** Cuanto ya se vendio de este tipo de entrada: la diferencia entre el total y lo disponible. */
+    public int vendidas() {
+        return cupoTotal - cupoDisponible;
+    }
+
+    /**
+     * Edita nombre, precio y cupo total (PAS-19). Package-private, igual que {@link #descontar}:
+     * entra por la raiz del agregado ({@link Evento#editarTipoEntrada}), nunca directo.
+     *
+     * <p>El nuevo {@code cupoDisponible} se recalcula contra lo ya vendido, no se reemplaza a
+     * ciegas: si el cupo total sube o baja, lo vendido sigue siendo lo vendido y solo cambia lo que
+     * queda libre.
+     *
+     * @throws EdicionDeEventoInvalidaException si {@code nuevoCupoTotal} es menor a lo ya vendido
+     */
+    void editar(String nombre, BigDecimal precio, int nuevoCupoTotal) {
+        int vendidas = vendidas();
+        if (nuevoCupoTotal < vendidas) {
+            throw new EdicionDeEventoInvalidaException(
+                    "El nuevo cupo total (" + nuevoCupoTotal + ") de \"" + this.nombre
+                            + "\" (id " + id + ") no puede ser menor a lo ya vendido (" + vendidas + ")");
+        }
+        this.nombre = nombre;
+        this.precio = precio;
+        this.cupoTotal = nuevoCupoTotal;
+        this.cupoDisponible = nuevoCupoTotal - vendidas;
+    }
+
+    /**
+     * Suma {@code cantidad} tanto al cupo total como al disponible (PAS-19). Package-private,
+     * igual que {@link #descontar} y {@link #editar}: entra por la raiz del agregado
+     * ({@link Evento#ampliarCupo}).
+     */
+    void ampliarCupo(int cantidad) {
+        this.cupoTotal += cantidad;
+        this.cupoDisponible += cantidad;
     }
 
     public Long getId() {

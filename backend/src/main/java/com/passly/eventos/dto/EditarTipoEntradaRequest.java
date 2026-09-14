@@ -9,16 +9,15 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 
 /**
- * Un tipo de entrada, ya sea anidado en la solicitud de creacion de un evento o, desde PAS-19,
- * como cuerpo de {@code POST /api/eventos/{id}/tipos-entrada} para agregar uno a un evento
- * existente. En los dos casos nace con {@code cupoDisponible == cupoTotal}: es consecuencia de
- * que {@code Evento} sea la raiz del agregado — un tipo de entrada no tiene ciclo de vida propio
- * fuera de el.
+ * Solicitud de edicion de un tipo de entrada ya existente (PAS-19): nombre, precio y cupo total.
  *
- * <p>{@code BigDecimal} y no {@code double}: es dinero, y el punto flotante binario no puede
- * representar exactamente valores decimales.
+ * <p>Solo valida mientras el evento esta en {@code BORRADOR} — publicado, bajar el cupo o cambiar
+ * el precio afectaria a quien ya compro o ya vio la cartelera; para sumar cupo con el evento
+ * publicado esta {@code AmpliarCupoRequest}, una accion de negocio aparte, no una escritura de
+ * campo. Bajar {@code cupoTotal} por debajo de lo ya vendido ({@code cupoTotal - cupoDisponible})
+ * es invalido: esa regla vive en {@code TipoEntrada.editar}, no aca.
  */
-public record CrearTipoEntradaRequest(
+public record EditarTipoEntradaRequest(
 
         @NotBlank(message = "el nombre del tipo de entrada es obligatorio")
         @Size(max = 80, message = "el nombre no puede superar los 80 caracteres")

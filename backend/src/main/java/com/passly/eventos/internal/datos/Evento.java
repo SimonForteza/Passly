@@ -1,5 +1,6 @@
 package com.passly.eventos.internal.datos;
 
+import com.passly.eventos.EdicionDeEventoInvalidaException;
 import com.passly.eventos.EstadoEvento;
 import com.passly.eventos.TipoEntradaNoEncontradoException;
 import com.passly.eventos.TransicionDeEstadoInvalidaException;
@@ -14,6 +15,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -146,11 +148,106 @@ public class Evento {
      * @throws com.passly.eventos.CupoInsuficienteException si no queda cupo para {@code cantidad}
      */
     public void descontarCupo(Long idTipoEntrada, int cantidad) {
-        TipoEntrada tipoEntrada = tiposEntrada.stream()
+        buscarTipoEntrada(idTipoEntrada).descontar(cantidad);
+    }
+
+    /**
+     * Edita nombre, descripcion, fecha/hora y lugar del evento (PAS-19).
+     *
+     * <p>Solo valida en {@link EstadoEvento#BORRADOR}: publicado, esos datos ya son la cartelera
+     * que alguien vio o compro — cambiarlos por debajo seria alterar lo que ya se le mostro o
+     * vendio a un comprador.
+     *
+     * @throws EdicionDeEventoInvalidaException si el evento no esta en BORRADOR
+     */
+    public void editarDatos(String nombre, String descripcion, OffsetDateTime fechaHora, String lugar) {
+        exigirBorrador("editar los datos");
+        this.nombre = nombre;
+        this.descripcion = descripcion;
+        this.fechaHora = fechaHora;
+        this.lugar = lugar;
+    }
+
+    /**
+     * Agrega un tipo de entrada nuevo, con todo su cupo libre (PAS-19).
+     *
+     * <p>A diferencia de {@link #editarDatos}, se admite tanto en {@code BORRADOR} como en
+     * {@code PUBLICADO}: sumar una opcion nueva no perjudica a nadie que ya compro. Reusa
+     * {@link #agregarTipoEntrada(TipoEntrada)}, el mismo metodo que arma el agregado al crear el
+     * evento.
+     *
+     * @throws EdicionDeEventoInvalidaException si el evento esta {@code CANCELADO}, o si ya existe
+     *         un tipo de entrada con ese nombre en este evento
+     */
+    public void sumarTipoEntrada(String nombre, BigDecimal precio, Integer cupoTotal) {
+        exigirNoCancelado("agregar un tipo de entrada");
+        exigirNombreLibre(nombre, null);
+        agregarTipoEntrada(new TipoEntrada(nombre, precio, cupoTotal));
+    }
+
+    /**
+     * Edita nombre, precio y cupo total de un tipo de entrada existente (PAS-19).
+     *
+     * <p>Solo valida en {@link EstadoEvento#BORRADOR}, igual que {@link #editarDatos} — publicado,
+     * para sumar cupo esta {@link #ampliarCupo}, que si admite ese estado.
+     *
+     * @throws TipoEntradaNoEncontradoException si el tipo de entrada no es de este evento
+     * @throws EdicionDeEventoInvalidaException si el evento no esta en BORRADOR, si el nuevo cupo
+     *         total es menor a lo ya vendido, o si el nombre ya lo usa otro tipo de entrada de este
+     *         evento
+     */
+    public void editarTipoEntrada(Long idTipoEntrada, String nombre, BigDecimal precio, Integer cupoTotal) {
+        exigirBorrador("editar un tipo de entrada");
+        // Se busca el tipo de entrada antes de validar el nombre: si idTipoEntrada no es de este
+        // evento, el error tiene que ser "no existe" (404) y no "nombre repetido" (409), aunque el
+        // nombre pedido coincida con el de otro tipo de entrada real de este evento.
+        TipoEntrada tipoEntrada = buscarTipoEntrada(idTipoEntrada);
+        exigirNombreLibre(nombre, idTipoEntrada);
+        tipoEntrada.editar(nombre, precio, cupoTotal);
+    }
+
+    /**
+     * Suma cupo a un tipo de entrada existente (PAS-19). Se admite en {@code BORRADOR} o
+     * {@code PUBLICADO} — es la unica edicion de tipo de entrada que un evento publicado admite.
+     *
+     * @throws TipoEntradaNoEncontradoException si el tipo de entrada no es de este evento
+     * @throws EdicionDeEventoInvalidaException si el evento esta {@code CANCELADO}
+     */
+    public void ampliarCupo(Long idTipoEntrada, int cantidad) {
+        exigirNoCancelado("ampliar el cupo de un tipo de entrada");
+        buscarTipoEntrada(idTipoEntrada).ampliarCupo(cantidad);
+    }
+
+    private TipoEntrada buscarTipoEntrada(Long idTipoEntrada) {
+        return tiposEntrada.stream()
                 .filter(t -> t.getId().equals(idTipoEntrada))
                 .findFirst()
                 .orElseThrow(() -> new TipoEntradaNoEncontradoException(idTipoEntrada));
-        tipoEntrada.descontar(cantidad);
+    }
+
+    /** @throws EdicionDeEventoInvalidaException si el nombre ya lo usa otro tipo de entrada del evento */
+    private void exigirNombreLibre(String nombre, Long idAExcluir) {
+        boolean repetido = tiposEntrada.stream()
+                .anyMatch(t -> !t.getId().equals(idAExcluir) && t.getNombre().equalsIgnoreCase(nombre));
+        if (repetido) {
+            throw new EdicionDeEventoInvalidaException(
+                    "El evento " + id + " ya tiene un tipo de entrada llamado \"" + nombre + "\"");
+        }
+    }
+
+    private void exigirBorrador(String accion) {
+        if (estado != EstadoEvento.BORRADOR) {
+            throw new EdicionDeEventoInvalidaException(
+                    "No se puede " + accion + " del evento " + id + " porque esta en estado "
+                            + estado + " y solo se admite en BORRADOR");
+        }
+    }
+
+    private void exigirNoCancelado(String accion) {
+        if (estado == EstadoEvento.CANCELADO) {
+            throw new EdicionDeEventoInvalidaException(
+                    "No se puede " + accion + " del evento " + id + " porque esta CANCELADO");
+        }
     }
 
     /**
