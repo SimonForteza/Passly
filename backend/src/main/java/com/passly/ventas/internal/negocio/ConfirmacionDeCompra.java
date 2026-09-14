@@ -2,6 +2,9 @@ package com.passly.ventas.internal.negocio;
 
 import com.passly.eventos.EventoService;
 import com.passly.eventos.dto.DescontarCupoRequest;
+import com.passly.tickets.TicketService;
+import com.passly.tickets.dto.EmitirTicketsRequest;
+import com.passly.tickets.dto.LineaDeEmisionDTO;
 import com.passly.ventas.dto.ItemDeCarritoDTO;
 import com.passly.ventas.internal.datos.ItemOrden;
 import com.passly.ventas.internal.datos.Orden;
@@ -41,10 +44,16 @@ class ConfirmacionDeCompra {
 
     private final EventoService eventoService;
     private final OrdenRepository ordenRepository;
+    private final TicketService ticketService;
 
-    ConfirmacionDeCompra(EventoService eventoService, OrdenRepository ordenRepository) {
+    ConfirmacionDeCompra(
+            EventoService eventoService,
+            OrdenRepository ordenRepository,
+            TicketService ticketService
+    ) {
         this.eventoService = eventoService;
         this.ordenRepository = ordenRepository;
+        this.ticketService = ticketService;
     }
 
     @Transactional
@@ -65,6 +74,21 @@ class ConfirmacionDeCompra {
                     item.idTipoEntrada(), item.idEvento(), item.nombreTipoEntrada(),
                     item.precioUnitario(), item.cantidad()));
         }
-        return ordenRepository.save(orden);
+        // El id de la orden forma parte de cada ticket. saveAndFlush fuerza el INSERT antes de
+        // emitirlos, pero todo sigue dentro de esta misma transaccion y se revierte en conjunto.
+        orden = ordenRepository.saveAndFlush(orden);
+
+        ticketService.emitirTickets(new EmitirTicketsRequest(
+                orden.getId(),
+                idComprador,
+                items.stream()
+                        .map(item -> new LineaDeEmisionDTO(
+                                item.idEvento(),
+                                item.idTipoEntrada(),
+                                item.nombreTipoEntrada(),
+                                item.cantidad()))
+                        .toList()));
+
+        return orden;
     }
 }

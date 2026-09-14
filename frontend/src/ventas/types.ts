@@ -40,3 +40,17 @@ export interface OrdenDTO {
   total: number;
   creadaEn: string;
 }
+
+export type EstadoTicket = 'EMITIDO' | 'USADO';
+
+export interface TicketDTO {
+  id: number;
+  codigo: string;
+  idOrden: number;
+  idEvento: number;
+  idTipoEntrada: number;
+  nombreTipoEntrada: string;
+  estado: EstadoTicket;
+  emitidoEn: string;
+  qrBase64: string;
+}

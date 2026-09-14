@@ -17,5 +17,6 @@
 @org.springframework.modulith.ApplicationModule(
         allowedDependencies = {
                 "eventos", "eventos :: dto",
-                "usuarios", "usuarios :: dto"})
+                "usuarios", "usuarios :: dto",
+                "tickets", "tickets :: dto"})
 package com.passly.ventas;

@@ -256,7 +256,7 @@ públicos; que alcancen para operar todo el sistema prueba que esos contratos es
 completos.
 
 **Aspiracional — todavía no existen** (se crean rebanada por rebanada, §4.1):
-`tickets/`, `accesos/`, `notificaciones/`, `facturacion/`.
+`accesos/`, `notificaciones/`, `facturacion/`.
 
 **Reglas duras:**
 
@@ -359,7 +359,7 @@ presentación (Controller + DTO) → negocio (Service) → datos (Repository + E
 | `ServicioDeEventos` / `EventoService` | Alta, edición y publicación de eventos. Tipos de entrada, precios y cupos | stateless |
 | **`ServicioDeVentas` / `VentaService`** | Orquesta la compra. Mantiene el **carrito (~5 min)** mientras el comprador paga. Es el **Facade** — **implementado (PAS-8)** | **stateful** |
 | `ServicioDePagos` / `PagoService` | Adapter REST hacia la pasarela de pago | stateless |
-| `ServicioDeTickets` / `TicketService` | Emite tickets con QR firmado. Custodia el estado de uso | stateless |
+| **`ServicioDeTickets` / `TicketService`** | Emite un ticket por unidad con QR firmado y permite consultarlos por orden — **implementado (PAS-20)** | **stateless** |
 | `ServicioDeAccesos` / `AccesoService` | Valida el QR en puerta y garantiza el uso único | stateless |
 | `ServicioDeNotificaciones` / `NotificacionService` | Envío multicanal: ticket, recordatorios, cancelaciones | stateless |
 | `ServicioDeFacturacion` / `FacturacionService` | Adapter SOAP hacia AFIP, con reintento ante rechazo | stateless |
@@ -371,7 +371,7 @@ presentación (Controller + DTO) → negocio (Service) → datos (Repository + E
 | **Ventas** | **Eventos** | **Síncrona, implementada** — disponibilidad, descuento de cupo |
 | **Ventas** | **Usuarios** | **Síncrona, implementada** — datos del comprador en la orden |
 | Ventas | Pagos | Síncrona — cobro. Hoy resuelto **adentro** de Ventas con un Port/Adapter propio (`PasarelaDePago` / `PasarelaDePagoSimulada`, §4.9). `ServicioDePagos` (PAS-7) ya existe como módulo, pero todavía no está cableado: falta escribir el adapter real y declarar la dependencia en el `package-info` de `ventas` — sin tocar el resto de `VentaServiceImpl` |
-| Ventas | Tickets | Síncrona — emisión dentro de la transacción |
+| **Ventas** | **Tickets** | **Síncrona, implementada** — emisión dentro de la transacción |
 | Ventas | Facturación | **Asincrónica** — cola P2P `orden.pagada` |
 | Tickets | Notificaciones, Accesos | **Asincrónica** — tópico `ticket.emitido` |
 | Accesos | Tickets | Síncrona — verificación de firma y marcado |
@@ -379,9 +379,10 @@ presentación (Controller + DTO) → negocio (Service) → datos (Repository + E
 | **Productoras** | **Usuarios** | Síncrona — identidad y rol global al incorporar un miembro |
 | **Usuarios** | — | **Sin dependencias salientes** |
 
-**`ServicioDeUsuarios` es la raíz del grafo.** El grafo de negocio implementado ya **no es
-una cadena**: es un grafo acíclico con `ventas` en la cima, que llega a `usuarios` por dos
-caminos — directo, y vía `eventos → productoras → usuarios` —, declarado en los
+**`ServicioDeUsuarios` y `ServicioDeTickets` son las raíces del grafo.** Ninguno tiene
+dependencias salientes. El grafo de negocio implementado ya **no es una cadena**: es un grafo
+acíclico con `ventas` en la cima, que llega a `usuarios` por dos caminos — directo, y vía
+`eventos → productoras → usuarios` — y también depende de Tickets, declarado en los
 `package-info` y verificado en cada build (§4.4).
 
 > **Corrección (post-14/09):** el informe del 31/08 decía que *Eventos* era la raíz
@@ -1014,9 +1015,11 @@ que exista ese `flush` (la transacción recién confirma, y flushea, al volver d
 solución es la misma que ya usaba `descontarCupo` por el motivo espejado: un `eventoRepository.flush()`
 después de `sumarTipoEntrada`. Quedó cubierto en el test (`vip.id()` no nulo) para que no vuelva.
 
-**Próximo paso inmediato:** **`ServicioDeTickets`** — firma criptográfica del QR. Es el seam
-que `ConfirmacionDeCompra` ya dejó preparado (hoy no emite ningún ticket; la emisión está
-fuera del alcance de PAS-8) y lo que necesita `ServicioDeAccesos` para validar en la puerta.
+**ServicioDeTickets implementado (PAS-20):** `ConfirmacionDeCompra` emite un ticket por unidad
+después de persistir la orden y dentro de la misma transacción local. Cada ticket recibe un UUID,
+un contenido firmado con HMAC-SHA256 y una imagen QR generada con ZXing. La app web los consulta
+por orden, los muestra individualmente y permite descargar el PNG. El próximo paso es
+`ServicioDeAccesos`, que reutilizará la verificación de firma para validar en la puerta.
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 
@@ -1027,7 +1030,7 @@ fuera del alcance de PAS-8) y lo que necesita `ServicioDeAccesos` para validar e
 5. ~~`ServicioDePagos` (PAS-7) — Adapter REST hacia la pasarela de pago, sin dependencias,
    desarrollado en paralelo~~ ✅ hecho
 6. ~~`ServicioDeVentas` — el stateful, con callbacks de ciclo de vida~~ ✅ hecho
-7. `ServicioDeTickets` — firma criptográfica del QR
+7. ~~`ServicioDeTickets` — firma criptográfica del QR~~ ✅ hecho
 8. El resto, según lo que pida cada entrega
 
 ---

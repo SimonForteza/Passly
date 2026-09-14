@@ -7,6 +7,7 @@ import com.passly.eventos.dto.DisponibilidadDTO;
 import com.passly.eventos.dto.EventoDTO;
 import com.passly.productoras.ProductoraService;
 import com.passly.productoras.dto.CrearProductoraRequest;
+import com.passly.tickets.TicketService;
 import com.passly.usuarios.Rol;
 import com.passly.usuarios.UsuarioService;
 import com.passly.usuarios.dto.CrearUsuarioRequest;
@@ -69,6 +70,9 @@ class ConfirmarCompraTest {
 
     @Autowired
     private EventoService eventoService;
+
+    @Autowired
+    private TicketService ticketService;
 
     private MockMvc mockMvc;
 
@@ -135,6 +139,29 @@ class ConfirmarCompraTest {
 
         mockMvc.perform(get("/api/ventas/ordenes/" + idOrden).with(actuanteA))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void confirmarCompraEmiteUnTicketPorCadaUnidad() throws Exception {
+        UsuarioDTO comprador = registrarComprador();
+        EventoDTO evento = crearEventoConDosTiposDeEntrada(10, 10);
+        Long idTipoEntrada = evento.tiposEntrada().get(0).id();
+
+        MockHttpSession sesion = new MockHttpSession();
+        var actuante = user(String.valueOf(comprador.id())).roles("COMPRADOR");
+        agregarAlCarrito(sesion, actuante, idTipoEntrada, 3);
+
+        String respuesta = mockMvc.perform(post("/api/ventas/ordenes").with(actuante).session(sesion))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Long idOrden = extraerId(respuesta);
+
+        assertThat(ticketService.listarTicketsDeOrden(idOrden, comprador.id()))
+                .hasSize(3)
+                .allSatisfy(ticket -> {
+                    assertThat(ticket.idOrden()).isEqualTo(idOrden);
+                    assertThat(ticket.qrBase64()).isNotBlank();
+                });
     }
 
     /** Dos sesiones distintas del mismo comprador no comparten carrito: cada una es su propia instancia. */

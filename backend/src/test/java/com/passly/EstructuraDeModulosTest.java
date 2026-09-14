@@ -30,10 +30,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * este mismo archivo. Es la diferencia entre lo que Modulith impone (las aristas permitidas) y lo
  * que sigue dependiendo del criterio del equipo (que la documentacion describa el grafo real).
  *
- * <p>La raiz sigue siendo <b>Usuarios</b>, y su {@code package-info} lo declara con
- * {@code allowedDependencies = {}} — que en Modulith significa <i>ninguna</i>, no "sin
- * restricciones". Asi la afirmacion la sostienen dos mecanismos independientes: la anotacion, que la
- * impone, y {@link #usuariosEsLaRaizDelGrafoDeDependencias()}, que la explicita.
+ * <p>Usuarios y Tickets son las dos raices actuales: no tienen dependencias salientes. Sus
+ * {@code package-info} declaran {@code allowedDependencies = {}}, que en Modulith significa
+ * <i>ninguna</i>, no "sin restricciones". Ventas depende de ambas y tambien de Eventos.
  *
  * <p>Lo que Modulith <b>no</b> verifica: nada sobre las capas dentro de un modulo (que presentacion
  * no llame a datos, que la implementacion sea package-private). Solo vigila las fronteras
@@ -49,20 +48,21 @@ class EstructuraDeModulosTest {
     }
 
     /**
-     * La identidad es lo unico que el resto del sistema necesita sin tener nada que pedir a cambio.
-     * Si Usuarios llegara a depender de otro componente, seria senal de que ese componente esta mal
-     * ubicado.
+     * Usuarios custodia identidad y Tickets recibe snapshots completos al emitir. Ninguno necesita
+     * consultar otro componente para cumplir su responsabilidad.
      */
     @Test
-    void usuariosEsLaRaizDelGrafoDeDependencias() {
+    void usuariosYTicketsSonRaicesDelGrafoDeDependencias() {
         var usuarios = MODULOS.getModuleByName("usuarios").orElseThrow();
+        var tickets = MODULOS.getModuleByName("tickets").orElseThrow();
         assertThat(usuarios.getAllDependencies(MODULOS).isEmpty()).isTrue();
+        assertThat(tickets.getAllDependencies(MODULOS).isEmpty()).isTrue();
     }
 
     /**
      * El grafo de negocio ya no es una cadena: es un grafo aciclico con {@code ventas} en la
      * cima, que llega a Usuarios por <b>dos caminos</b> — directo, y via
-     * {@code eventos -> productoras -> usuarios}.
+     * {@code eventos -> productoras -> usuarios} — y ademas depende de Tickets.
      *
      * <p>Que ninguno de estos modulos toque los {@code internal} de otro, o importe algo que su
      * {@code package-info} no declare, no hace falta afirmarlo aca: lo garantiza
@@ -71,16 +71,18 @@ class EstructuraDeModulosTest {
      * decida por escrito.
      */
     @Test
-    void ventasEsLaCimaDelGrafoYUsuariosLaRaiz() {
+    void ventasEsLaCimaDelGrafo() {
         var usuarios = MODULOS.getModuleByName("usuarios").orElseThrow();
         var productoras = MODULOS.getModuleByName("productoras").orElseThrow();
         var eventos = MODULOS.getModuleByName("eventos").orElseThrow();
         var ventas = MODULOS.getModuleByName("ventas").orElseThrow();
+        var tickets = MODULOS.getModuleByName("tickets").orElseThrow();
 
         assertThat(productoras.getAllDependencies(MODULOS).contains(usuarios)).isTrue();
         assertThat(eventos.getAllDependencies(MODULOS).contains(productoras)).isTrue();
         assertThat(ventas.getAllDependencies(MODULOS).contains(eventos)).isTrue();
         assertThat(ventas.getAllDependencies(MODULOS).contains(usuarios)).isTrue();
+        assertThat(ventas.getAllDependencies(MODULOS).contains(tickets)).isTrue();
     }
 
     @Test

@@ -1,5 +1,5 @@
 import { httpClient } from '../lib/http/httpClient';
-import type { AgregarItemRequest, CarritoDTO, OrdenDTO } from './types';
+import type { AgregarItemRequest, CarritoDTO, OrdenDTO, TicketDTO } from './types';
 
 export function obtenerCarrito(): Promise<CarritoDTO> {
   return httpClient.get<CarritoDTO>('/api/ventas/carrito');
@@ -20,6 +20,10 @@ export function confirmarCompra(): Promise<OrdenDTO> {
 
 export function obtenerOrden(id: number): Promise<OrdenDTO> {
   return httpClient.get<OrdenDTO>(`/api/ventas/ordenes/${id}`);
+}
+
+export function obtenerTicketsDeOrden(idOrden: number): Promise<TicketDTO[]> {
+  return httpClient.get<TicketDTO[]>(`/api/tickets/ordenes/${idOrden}`);
 }
 
 export function listarOrdenesDeComprador(idComprador: number): Promise<OrdenDTO[]> {

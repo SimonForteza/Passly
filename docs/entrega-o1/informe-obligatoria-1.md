@@ -16,7 +16,7 @@
 
 Passly es una plataforma para vender y validar entradas de eventos. El backend adopta un monolito modular: una sola aplicacion desplegable, dividida en componentes de negocio con contratos explicitos y fronteras verificadas mediante Spring Modulith.
 
-Al corte de este informe estan integrados Usuarios, Productoras, Eventos, Seguridad, Ventas y Pagos. Ventas implementa el componente stateful y el patron Facade; Pagos implementa el patron Adapter REST. La app web ya cubre identidad, alta y padron de productoras, cartelera y backoffice de eventos, y tambien el flujo completo de compra: seleccion de entradas, carrito con cuenta regresiva, checkout y mis ordenes. Permanecen pendientes la emision de tickets y el cableado de Ventas con el Adapter real de Pagos.
+Al corte de este informe estan integrados Usuarios, Productoras, Eventos, Seguridad, Ventas, Pagos y Tickets. Ventas implementa el componente stateful y el patron Facade; Pagos implementa el patron Adapter REST; Tickets emite un QR unico y firmado por cada unidad comprada. La app web ya cubre identidad, alta y padron de productoras, cartelera y backoffice de eventos, y tambien el flujo completo de compra: seleccion de entradas, carrito con cuenta regresiva, checkout, mis ordenes y visualizacion de tickets. Permanece pendiente el cableado de Ventas con el Adapter real de Pagos.
 
 <!-- PAGEBREAK -->
 
@@ -72,7 +72,7 @@ Pagos expone `PagoService` como contrato estable del dominio y adapta las solici
 
 ## 2.5 Componentes posteriores
 
-Tickets emitira entradas con QR; Accesos validara su uso unico; Notificaciones enviara mensajes; Facturacion adaptara una integracion SOAP. No estan implementados en este corte y no se contabilizan como requisitos cumplidos.
+Tickets ya emite entradas individuales con QR firmado. Accesos validara su uso unico; Notificaciones enviara mensajes; Facturacion adaptara una integracion SOAP. Estos ultimos tres no estan implementados en este corte y no se contabilizan como requisitos cumplidos.
 
 <!-- PAGEBREAK -->
 
@@ -102,7 +102,7 @@ Los repositorios Spring Data separan la logica de negocio del acceso a PostgreSQ
 
 ### Facade
 
-`VentaService` concentra las operaciones de carrito y compra, y oculta al cliente la coordinacion de disponibilidad, identidad, cobro y orden. La emision de tickets se incorporara detras de esta misma frontera.
+`VentaService` concentra las operaciones de carrito y compra, y oculta al cliente la coordinacion de disponibilidad, identidad, cobro, orden y emision de tickets.
 
 ### Adapter
 
@@ -122,7 +122,7 @@ La autorizacion combina dos ejes: rol global y alcance dentro de una productora.
 
 La confirmacion cobra primero mediante el puerto de la pasarela y luego abre la transaccion local en `ConfirmacionDeCompra`. Dentro de ella se descuenta el cupo y se persiste la orden. Si falla la parte local, se ejecuta una compensacion de cobro de mejor esfuerzo.
 
-Esta frontera evita mantener una conexion de base abierta durante una llamada externa. No se afirma atomicidad distribuida: la compensacion puede fallar y requiere tratamiento posterior. La emision de tickets aun no forma parte de la transaccion porque ese componente no esta implementado.
+Esta frontera evita mantener una conexion de base abierta durante una llamada externa. No se afirma atomicidad distribuida: la compensacion puede fallar y requiere tratamiento posterior. La emision de tickets forma parte de la transaccion local que descuenta cupo y registra la orden.
 
 ## 4.3 Integraciones
 
@@ -163,7 +163,7 @@ La suite completa requiere PostgreSQL. En esta revision local no se certifica un
 ## 5.4 Pendientes para cerrar el producto
 
 - Cablear Ventas con el Adapter real de Pagos y probar la compensacion.
-- Implementar Tickets y su emision posterior a la compra.
+- Implementar Accesos para validar la firma del QR y garantizar el uso unico.
 - Ejecutar y registrar la demo integral en la maquina de la defensa.
 - Realizar una revision cruzada para que cada integrante pueda explicar cualquier componente.
 
@@ -198,7 +198,7 @@ La declaracion tiene fines de transparencia y no implica por si misma una penali
 
 El monolito modular equilibra separacion y simplicidad: conserva contratos claros, transacciones locales y una demostracion reproducible sin asumir prematuramente los costos de un sistema distribuido. El esquema PostgreSQL por componente refleja la misma propiedad de datos.
 
-El corte ya demuestra seis modulos backend, autenticacion y autorizacion, un componente stateful y los patrones DAO, Facade y Adapter. El frontend ofrece recorridos reales de identidad, productoras, eventos y compra completa (carrito, checkout y mis ordenes). Las deudas se mantienen visibles: integrar Ventas con Pagos, emitir tickets y ejecutar la verificacion integral con PostgreSQL antes de la defensa.
+El corte ya demuestra siete modulos backend, autenticacion y autorizacion, un componente stateful y los patrones DAO, Facade y Adapter. El frontend ofrece recorridos reales de identidad, productoras, eventos y compra completa (carrito, checkout, mis ordenes y QR individuales). Las deudas se mantienen visibles: integrar Ventas con Pagos, implementar Accesos y ejecutar la verificacion integral con PostgreSQL antes de la defensa.
 
 ## Referencias
 

@@ -12,7 +12,7 @@ independiente: se abre, aparece un link `Send Request` arriba de cada `###`, y s
 | [05-productoras.http](05-productoras.http) | alta de productoras, padron de miembros y el cruce de los dos ejes de rol |
 | [06-aislamiento.http](06-aislamiento.http) | **el guion central: una productora no toca las fiestas de otra** |
 | [07-seguridad.http](07-seguridad.http) | matriz de autorizacion por rol (PAS-6): 401 / 403 / 201-200, y `GET /api/usuarios/me`, el "quien soy" del login (PAS-15) |
-| [08-ventas.http](08-ventas.http) | carrito stateful que crece y funde cantidades, confirmar compra, y **el rollback: dos lineas, la segunda sin cupo -> 409, la primera vuelve a su cupo original** |
+| [08-ventas.http](08-ventas.http) | carrito stateful, confirmar compra, **un ticket con QR por unidad**, y el rollback: dos lineas, la segunda sin cupo -> 409, la primera vuelve a su cupo original |
 | [09-pagos.http](09-pagos.http) | Adapter REST hacia la pasarela de pago (PAS-7): cobro aprobado, **rechazado (402)**, **pasarela caida (503)**, 401, validacion |
 | [10-edicion-eventos.http](10-edicion-eventos.http) | edicion de evento y tipos de entrada (PAS-19): editar en BORRADOR, **bajar cupo bajo lo vendido -> 409**, editar en PUBLICADO -> 409, agregar tipo y ampliar cupo en PUBLICADO -> 200/201, nombre repetido -> 409, aislamiento -> 403, sin identidad -> 401 |
 
