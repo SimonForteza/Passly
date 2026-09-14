@@ -108,14 +108,17 @@ class ProductoraServiceImpl implements ProductoraService {
         if (!productora.puedeGestionarMiembros(idUsuarioSolicitante)) {
             throw new NoEsMiembroDeLaProductoraException(idProductora, idUsuarioSolicitante);
         }
-        if (productora.tieneMiembro(solicitud.idUsuario())) {
-            throw new YaEsMiembroDeLaProductoraException(idProductora, solicitud.idUsuario());
-        }
 
-        UsuarioDTO invitado = usuarioService.consultarUsuario(solicitud.idUsuario());
+        // El id sale de resolver el email, asi que esta consulta tiene que ir antes que el
+        // chequeo de duplicado (a diferencia de cuando el request traia el id directo).
+        UsuarioDTO invitado = usuarioService.consultarUsuarioPorEmail(solicitud.email());
+
+        if (productora.tieneMiembro(invitado.id())) {
+            throw new YaEsMiembroDeLaProductoraException(idProductora, invitado.id());
+        }
         exigirRolGlobalCompatible(invitado, solicitud.rolEnProductora());
 
-        Miembro miembro = new Miembro(solicitud.idUsuario(), solicitud.rolEnProductora());
+        Miembro miembro = new Miembro(invitado.id(), solicitud.rolEnProductora());
         productora.incorporar(miembro);
 
         return mapper.aDTO(miembro, invitado);

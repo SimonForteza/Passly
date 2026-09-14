@@ -90,7 +90,7 @@ class CargaDeDatosDemo implements ApplicationRunner {
         // Vera es miembro de Aurora pero NO puede gestionar sus eventos: separa los dos ejes.
         productoraService.agregarMiembro(
                 aurora.id(),
-                new AgregarMiembroRequest(vera.id(), RolEnProductora.VALIDADOR),
+                new AgregarMiembroRequest(vera.email(), RolEnProductora.VALIDADOR),
                 omar.id());
 
         ProductoraDTO nocturna = productoraService.crearProductora(new CrearProductoraRequest(
