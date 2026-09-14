@@ -135,16 +135,26 @@ export function EventosDeProductoraPage() {
                       <td>{evento.lugar}</td>
                       <td><span className={claseBadgeEstado(evento.estado)}>{evento.estado}</span></td>
                       <td>
-                        {evento.estado === 'BORRADOR' ? (
-                          <button
-                            className="boton boton-secundario"
-                            type="button"
-                            onClick={() => publicar(evento.id)}
-                            disabled={publicando === evento.id}
-                          >
-                            {publicando === evento.id ? 'Publicando...' : 'Publicar'}
-                          </button>
-                        ) : null}
+                        <div className="acciones-fila">
+                          {evento.estado !== 'CANCELADO' ? (
+                            <Link
+                              className="boton boton-secundario"
+                              to={`/productoras/${idProductora}/eventos/${evento.id}/editar`}
+                            >
+                              Editar
+                            </Link>
+                          ) : null}
+                          {evento.estado === 'BORRADOR' ? (
+                            <button
+                              className="boton boton-secundario"
+                              type="button"
+                              onClick={() => publicar(evento.id)}
+                              disabled={publicando === evento.id}
+                            >
+                              {publicando === evento.id ? 'Publicando...' : 'Publicar'}
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                     {erroresPorFila[evento.id] ? (

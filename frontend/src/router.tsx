@@ -12,6 +12,7 @@ import { DetalleOrdenPage } from './ventas/DetalleOrdenPage';
 import { BackofficePage } from './productoras/BackofficePage';
 import { ProductorasPage } from './productoras/ProductorasPage';
 import { CrearEventoPage } from './eventos/CrearEventoPage';
+import { EditarEventoPage } from './eventos/EditarEventoPage';
 import { EventosDeProductoraPage } from './eventos/EventosDeProductoraPage';
 
 export const router = createBrowserRouter([
@@ -86,6 +87,14 @@ export const router = createBrowserRouter([
         element: (
           <RutaPrivada>
             <CrearEventoPage />
+          </RutaPrivada>
+        ),
+      },
+      {
+        path: '/productoras/:id/eventos/:idEvento/editar',
+        element: (
+          <RutaPrivada>
+            <EditarEventoPage />
           </RutaPrivada>
         ),
       },
