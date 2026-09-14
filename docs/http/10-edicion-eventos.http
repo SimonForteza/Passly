@@ -1,0 +1,167 @@
+@baseUrl = http://localhost:8080
+
+# Credenciales de demo (perfil demo). Editar y ampliar cupo exigen ORGANIZADOR que ademas
+# pueda gestionar la productora dueña del evento (PAS-13), igual que crear/publicar.
+# omar es DUENIO de Aurora; olga es DUENIO de Nocturna -- ver docs/http/06-aislamiento.http.
+@omar = organizador@passly.test
+@olga = organizador2@passly.test
+@comprador = comprador@passly.test
+@clave = passly1234
+
+# Id de la productora a nombre de la que se publica, con la base recien creada
+# (docker compose down -v && up -d). Si no coincide, sale de GET /api/productoras.
+@aurora = 1
+
+# Este archivo depende de cookies para el paso 3 (el carrito vive en un bean @SessionScope,
+# CLAUDE.md 4.7): la extension REST Client mantiene el JSESSIONID entre requests del mismo
+# archivo por defecto. Con curl a mano hace falta -b/-c en cada llamada, arrancando de una
+# cookie vacia -- ver el comentario largo en 08-ventas.http.
+
+### 1. Crear un evento nuevo en BORRADOR, para editarlo en los pasos siguientes
+# @name crearEvento
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+Authorization: Basic {{omar}} {{clave}}
+
+{
+  "idProductora": {{aurora}},
+  "nombre": "Show para editar",
+  "descripcion": "Nace con datos provisorios",
+  "fechaHora": "2027-04-10T21:00:00-03:00",
+  "lugar": "Lugar provisorio",
+  "tiposEntrada": [
+    { "nombre": "General", "precio": 10000, "cupoTotal": 50 }
+  ]
+}
+
+### 2. Editar los datos del evento en BORRADOR -> 200, todo cambia
+PUT {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}
+Content-Type: application/json
+Authorization: Basic {{omar}} {{clave}}
+
+{
+  "nombre": "Show editado",
+  "descripcion": "Datos definitivos",
+  "fechaHora": "2027-04-15T22:00:00-03:00",
+  "lugar": "Teatro Gran Rex"
+}
+
+### 3. Editar el tipo de entrada en BORRADOR -> 200, sube el cupo total (todavia sin ventas)
+PUT {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/tipos-entrada/{{crearEvento.response.body.$.tiposEntrada[0].id}}
+Content-Type: application/json
+Authorization: Basic {{omar}} {{clave}}
+
+{
+  "nombre": "General",
+  "precio": 12000,
+  "cupoTotal": 80
+}
+
+### 4. El comprador agrega 5 entradas al carrito y confirma -> hace falta vender algo de verdad
+# para poder probar el 409 del paso siguiente (bajar el cupo por debajo de lo vendido).
+POST {{baseUrl}}/api/ventas/carrito/items
+Content-Type: application/json
+Authorization: Basic {{comprador}} {{clave}}
+
+{
+  "idTipoEntrada": {{crearEvento.response.body.$.tiposEntrada[0].id}},
+  "cantidad": 5
+}
+
+### 5. Confirmar la compra -> 201, quedan 5 entradas vendidas de este tipo
+POST {{baseUrl}}/api/ventas/ordenes
+Authorization: Basic {{comprador}} {{clave}}
+
+### 6. Bajar el cupo total por debajo de lo ya vendido (5) -> 409
+PUT {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/tipos-entrada/{{crearEvento.response.body.$.tiposEntrada[0].id}}
+Content-Type: application/json
+Authorization: Basic {{omar}} {{clave}}
+
+{
+  "nombre": "General",
+  "precio": 12000,
+  "cupoTotal": 3
+}
+
+### 7. Publicar el evento
+POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
+Authorization: Basic {{omar}} {{clave}}
+
+### 8. Editar los datos de un evento ya PUBLICADO -> 409
+PUT {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}
+Content-Type: application/json
+Authorization: Basic {{omar}} {{clave}}
+
+{
+  "nombre": "Otro nombre",
+  "descripcion": "No deberia poder",
+  "fechaHora": "2027-05-01T20:00:00-03:00",
+  "lugar": "Otro lugar"
+}
+
+### 9. Editar un tipo de entrada de un evento ya PUBLICADO -> 409
+# Publicado, solo se admite ampliar (paso 11), no editar nombre/precio/cupo directamente.
+PUT {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/tipos-entrada/{{crearEvento.response.body.$.tiposEntrada[0].id}}
+Content-Type: application/json
+Authorization: Basic {{omar}} {{clave}}
+
+{
+  "nombre": "General",
+  "precio": 12000,
+  "cupoTotal": 100
+}
+
+### 10. Agregar un tipo de entrada nuevo a un evento PUBLICADO -> 201: si se admite ampliar
+POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/tipos-entrada
+Content-Type: application/json
+Authorization: Basic {{omar}} {{clave}}
+
+{
+  "nombre": "VIP",
+  "precio": 25000,
+  "cupoTotal": 20
+}
+
+### 11. Ampliar el cupo del tipo de entrada original, ya PUBLICADO -> 200: tambien se admite
+POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/tipos-entrada/{{crearEvento.response.body.$.tiposEntrada[0].id}}/ampliacion-de-cupo
+Content-Type: application/json
+Authorization: Basic {{omar}} {{clave}}
+
+{
+  "cantidad": 30
+}
+
+### 12. Agregar un tipo de entrada con nombre repetido ("VIP", ya creado en el paso 10) -> 409
+POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/tipos-entrada
+Content-Type: application/json
+Authorization: Basic {{omar}} {{clave}}
+
+{
+  "nombre": "VIP",
+  "precio": 30000,
+  "cupoTotal": 5
+}
+
+### 13. Editar el evento de otra productora -> 403 (aislamiento, igual que crear/publicar)
+# Olga es DUENIO de Nocturna, no de Aurora: el evento creado en el paso 1 no es suyo.
+PUT {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}
+Content-Type: application/json
+Authorization: Basic {{olga}} {{clave}}
+
+{
+  "nombre": "Intento ajeno",
+  "descripcion": "no deberia poder",
+  "fechaHora": "2027-05-01T20:00:00-03:00",
+  "lugar": "otro lugar"
+}
+
+### 14. Editar sin credenciales -> 401, no 400
+PUT {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}
+Content-Type: application/json
+
+{
+  "nombre": "Anonimo",
+  "descripcion": "no deberia poder",
+  "fechaHora": "2027-05-01T20:00:00-03:00",
+  "lugar": "otro lugar"
+}
