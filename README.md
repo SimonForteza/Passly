@@ -8,19 +8,21 @@ arquitectura completa, el stack y las decisiones de diseno.
 Passly es **multi-productora**: un comprador elige entre fiestas de distintos organizadores y
 cada productora publica y gestiona solo las suyas.
 
-Cuatro componentes implementados, cada uno con las tres capas (presentacion / negocio / datos)
-separadas: `ServicioDeUsuarios`, `ServicioDeProductoras`, `ServicioDeEventos` y el modulo
-`seguridad`. Spring Modulith verifica las fronteras en el build y las dependencias estan
-**declaradas** modulo por modulo: el grafo es la cadena `eventos -> productoras -> usuarios`.
+Seis modulos backend implementados: `usuarios`, `productoras`, `eventos`, `seguridad`, `ventas`
+y `pagos`. Spring Modulith verifica sus fronteras en el build y las dependencias estan
+**declaradas** modulo por modulo. El grafo de negocio es aciclico: `ventas` depende directamente
+de `eventos` y `usuarios`; `eventos -> productoras -> usuarios`; `pagos` no depende de otro
+modulo. Ventas todavia cobra con una pasarela simulada: integrarlo con `PagoService` es una deuda
+explicita, al igual que la emision de tickets.
 
 La identidad de quien opera la resuelve **Spring Security** (HTTP Basic, sesion STATELESS):
 ningun endpoint depende de un header propio para saber quien esta operando. La autorizacion
 por rol es declarativa con `@PreAuthorize` en los controllers (ver [CLAUDE.md](CLAUDE.md) 4.11).
 
-La app web (`frontend/`) ya tiene las **pantallas de identidad** —registro, login, perfil propio
-y, para `ADMIN`, alta de roles privilegiados (PAS-15)— sobre el cliente HTTP centralizado de
-PAS-14. El login no usa un endpoint de "login" (Basic no lo tiene): valida email + password
-contra `GET /api/usuarios/me`, que devuelve el `UsuarioDTO` del autenticado.
+La app web (`frontend/`) integra el esqueleto y cliente HTTP de PAS-14, identidad de PAS-15,
+alta/padron de productoras de PAS-16 y cartelera/backoffice de eventos de PAS-17. El login no usa
+un endpoint de "login" (Basic no lo tiene): valida email + password contra
+`GET /api/usuarios/me`. Carrito y mis ordenes conservan placeholders para sus issues de frontend.
 
 ## Levantar el entorno
 
