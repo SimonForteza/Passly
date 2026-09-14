@@ -45,8 +45,13 @@ Authorization: Basic {{comprador}} {{clave}}
   "cantidad": 1
 }
 
-### 5. Confirmar la compra -> 201, con la orden y el total ya cobrado (pasarela simulada)
+# @name confirmarCompra
+### 5. Confirmar la compra -> 201, con la orden, el total cobrado y 3 tickets emitidos
 POST {{baseUrl}}/api/ventas/ordenes
+Authorization: Basic {{comprador}} {{clave}}
+
+### 5b. Un ticket individual por unidad, cada uno con UUID y QR Base64 diferentes
+GET {{baseUrl}}/api/tickets/ordenes/{{confirmarCompra.response.body.$.id}}
 Authorization: Basic {{comprador}} {{clave}}
 
 ### 6. El cupo bajo de verdad (era 200, ahora 197)

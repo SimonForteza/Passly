@@ -769,6 +769,27 @@ th {
   font-size: 30px;
 }
 
+.ticket-qr {
+  justify-self: center;
+  max-width: calc(100% - 40px);
+  height: auto;
+  padding: 8px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.ticket-codigo {
+  overflow-wrap: anywhere;
+  padding: 0 20px;
+  color: var(--color-texto-terciario);
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.tarjeta-entrada > .boton {
+  justify-self: center;
+}
+
 .acciones {
   display: flex;
   flex-wrap: wrap;

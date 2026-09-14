@@ -2,18 +2,17 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { EstadoCarga } from '../layout/EstadoCarga';
 import { EstadoError } from '../layout/EstadoError';
-import { obtenerOrden } from './api';
+import { obtenerOrden, obtenerTicketsDeOrden } from './api';
 import { formatearFechaEvento, formatearFechaOrden, formatearPrecio, pluralEntradas } from './formato';
 import iconoCheckOk from './iconos/check-ok.svg';
-import type { OrdenDTO } from './types';
+import type { OrdenDTO, TicketDTO } from './types';
 import { nombreDeEvento, useEventos } from './useEventos';
 
 /**
  * Compra confirmada / detalle de una orden (Figma Web 04).
  *
- * El diseño muestra una entrada con QR por persona y un botón de descarga: eso depende de
- * ServicioDeTickets, que todavía no existe. En su lugar va una tarjeta por línea de la orden con
- * lo que el backend sí devuelve, en vez de un QR de mentira.
+ * Una tarjeta por ticket individual emitido por ServicioDeTickets. Una linea de orden con
+ * cantidad mayor a uno se muestra como varios QR distintos, uno por acceso.
  */
 export function DetalleOrdenPage() {
   const { id } = useParams();
@@ -22,6 +21,7 @@ export function DetalleOrdenPage() {
   const idOrden = Number(id);
   const idValido = Number.isInteger(idOrden) && idOrden > 0;
   const [orden, setOrden] = useState<OrdenDTO | null>(null);
+  const [tickets, setTickets] = useState<TicketDTO[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const eventos = useEventos(orden?.items.map((item) => item.idEvento) ?? []);
@@ -32,9 +32,12 @@ export function DetalleOrdenPage() {
 
     // 404 si la orden no existe o no es de quien pregunta: el backend no distingue los dos casos
     // a propósito, para no confirmar que una orden ajena existe.
-    obtenerOrden(idOrden)
-      .then((resultado) => {
-        if (vigente) setOrden(resultado);
+    Promise.all([obtenerOrden(idOrden), obtenerTicketsDeOrden(idOrden)])
+      .then(([ordenObtenida, ticketsObtenidos]) => {
+        if (vigente) {
+          setOrden(ordenObtenida);
+          setTickets(ticketsObtenidos);
+        }
       })
       .catch((causa: unknown) => {
         if (vigente) setError(causa);
@@ -89,27 +92,44 @@ export function DetalleOrdenPage() {
         </p>
 
         <div className="grilla-entradas">
-          {orden.items.map((item) => {
-            const evento = eventos.get(item.idEvento);
+          {tickets.map((ticket) => {
+            const evento = eventos.get(ticket.idEvento);
+            const item = orden.items.find((linea) => linea.idTipoEntrada === ticket.idTipoEntrada);
             return (
-              <article className="tarjeta-entrada" key={item.idTipoEntrada}>
+              <article className="tarjeta-entrada" key={ticket.id}>
                 <div className="banda-evento">
-                  <h3>{nombreDeEvento(eventos, item.idEvento)}</h3>
+                  <h3>{nombreDeEvento(eventos, ticket.idEvento)}</h3>
                   {evento ? (
                     <p>{formatearFechaEvento(evento.fechaHora)} · {evento.lugar}</p>
                   ) : null}
                 </div>
-                <span className="tarjeta-entrada-tipo">
-                  {item.nombreTipoEntrada} · {pluralEntradas(item.cantidad)}
+                <span className="tarjeta-entrada-tipo">{ticket.nombreTipoEntrada}</span>
+                <img
+                  className="ticket-qr"
+                  src={`data:image/png;base64,${ticket.qrBase64}`}
+                  width={220}
+                  height={220}
+                  alt={`QR de la entrada ${ticket.codigo}`}
+                />
+                <span className="tarjeta-entrada-precio">
+                  {item ? formatearPrecio(item.precioUnitario) : 'Entrada emitida'}
                 </span>
-                <span className="tarjeta-entrada-precio">{formatearPrecio(item.precioUnitario * item.cantidad)}</span>
-                <span className="texto-terciario">{formatearPrecio(item.precioUnitario)} c/u</span>
+                <span className="ticket-codigo">Código {ticket.codigo}</span>
+                <a
+                  className="boton boton-secundario"
+                  href={`data:image/png;base64,${ticket.qrBase64}`}
+                  download={`passly-${ticket.codigo}.png`}
+                >
+                  Descargar QR
+                </a>
               </article>
             );
           })}
         </div>
 
-        <p className="texto-terciario">Los QR de acceso se emiten con ServicioDeTickets (próxima entrega).</p>
+        {tickets.length === 0 ? (
+          <p className="texto-terciario">Esta orden no tiene tickets emitidos.</p>
+        ) : null}
 
         <div className="acciones">
           <Link className="boton boton-primario boton-sombra" to="/">Seguir comprando</Link>

@@ -53,6 +53,10 @@ server:
         same-site: lax
 
 passly:
+  tickets:
+    # Secreto usado para firmar el contenido de los QR. El valor por defecto solo facilita la
+    # demo local; en un ambiente real se reemplaza por una variable segura y estable.
+    secreto-qr: ${PASSLY_QR_SECRET:passly-dev-secret-cambiar-en-produccion-2026}
   pagos:
     pasarela:
       # URL de la pasarela de pago externa. Hoy apunta al mock que corre en este mismo proceso

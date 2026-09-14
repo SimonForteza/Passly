@@ -53,6 +53,14 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Generacion de las imagenes QR de los tickets. La firma del contenido usa
+			 HmacSHA256 del JDK; ZXing solo se ocupa de codificarlo como imagen. -->
+		<dependency>
+			<groupId>com.google.zxing</groupId>
+			<artifactId>javase</artifactId>
+			<version>3.5.4</version>
+		</dependency>
+
 		<!-- ============ Seguridad (PAS-6) ============ -->
 		<!--
 		Starter completo de Spring Security: filter chain, HTTP Basic, method security
