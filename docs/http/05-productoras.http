@@ -68,7 +68,7 @@ Content-Type: application/json
 Authorization: Basic {{omar}} {{clave}}
 
 {
-  "idUsuario": 1,
+  "email": "{{carla}}",
   "rolEnProductora": "STAFF"
 }
 
@@ -78,7 +78,7 @@ Content-Type: application/json
 Authorization: Basic {{omar}} {{clave}}
 
 {
-  "idUsuario": 5,
+  "email": "{{vera}}",
   "rolEnProductora": "VALIDADOR"
 }
 
@@ -88,7 +88,7 @@ Content-Type: application/json
 Authorization: Basic {{vera}} {{clave}}
 
 {
-  "idUsuario": 4,
+  "email": "{{vera}}",
   "rolEnProductora": "STAFF"
 }
 

@@ -23,6 +23,6 @@ export interface MiembroDTO {
 }
 
 export interface AgregarMiembroRequest {
-  idUsuario: number;
+  email: string;
   rolEnProductora: RolEnProductora;
 }

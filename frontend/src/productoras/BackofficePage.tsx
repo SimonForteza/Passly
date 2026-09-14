@@ -17,7 +17,7 @@ export function BackofficePage() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [mensaje, setMensaje] = useState('');
-  const [idUsuario, setIdUsuario] = useState('');
+  const [email, setEmail] = useState('');
   const [rol, setRol] = useState<RolEnProductora>('STAFF');
 
   useEffect(() => {
@@ -51,11 +51,11 @@ export function BackofficePage() {
 
     try {
       const nuevo = await agregarMiembro(idProductora, {
-        idUsuario: Number(idUsuario),
+        email,
         rolEnProductora: rol,
       });
       setMiembros((actuales) => [...actuales, nuevo].sort((a, b) => a.nombre.localeCompare(b.nombre)));
-      setIdUsuario('');
+      setEmail('');
       setRol('STAFF');
       setMensaje(`${nuevo.nombre} fue incorporado al padrón.`);
     } catch (causa: unknown) {
@@ -144,14 +144,12 @@ export function BackofficePage() {
           </div>
 
           <label>
-            ID del usuario
+            Email del usuario
             <input
               required
-              type="number"
-              min={1}
-              step={1}
-              value={idUsuario}
-              onChange={(evento) => setIdUsuario(evento.target.value)}
+              type="email"
+              value={email}
+              onChange={(evento) => setEmail(evento.target.value)}
             />
           </label>
 
