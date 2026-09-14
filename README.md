@@ -3,6 +3,11 @@
 Plataforma de venta y validacion de entradas para eventos. Ver [CLAUDE.md](CLAUDE.md) para la
 arquitectura completa, el stack y las decisiones de diseno.
 
+Para preparar la exposicion oral, ver la
+[guia de justificacion de tecnologias y diseno](docs/defensa/guia-justificacion-tecnologias-y-diseno.md),
+que relaciona las decisiones del proyecto con las unidades de la materia y propone preguntas de
+defensa.
+
 ## Estado actual
 
 Passly es **multi-productora**: un comprador elige entre fiestas de distintos organizadores y
