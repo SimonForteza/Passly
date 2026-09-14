@@ -1,5 +1,13 @@
 import { httpClient } from '../lib/http/httpClient';
-import type { CrearEventoRequest, DisponibilidadDTO, EventoDTO } from './types';
+import type {
+  AmpliarCupoRequest,
+  CrearEventoRequest,
+  CrearTipoEntradaRequest,
+  DisponibilidadDTO,
+  EditarEventoRequest,
+  EditarTipoEntradaRequest,
+  EventoDTO,
+} from './types';
 
 export function listarEventos(idProductora?: number): Promise<EventoDTO[]> {
   const query = idProductora ? `?productora=${idProductora}` : '';
@@ -24,4 +32,34 @@ export function listarEventosDeProductora(idProductora: number): Promise<EventoD
 
 export function consultarDisponibilidad(idTipoEntrada: number): Promise<DisponibilidadDTO> {
   return httpClient.get<DisponibilidadDTO>(`/api/tipos-entrada/${idTipoEntrada}/disponibilidad`);
+}
+
+export function editarEvento(id: number, request: EditarEventoRequest): Promise<EventoDTO> {
+  return httpClient.put<EventoDTO>(`/api/eventos/${id}`, request);
+}
+
+export function agregarTipoEntrada(
+  idEvento: number,
+  request: CrearTipoEntradaRequest,
+): Promise<EventoDTO> {
+  return httpClient.post<EventoDTO>(`/api/eventos/${idEvento}/tipos-entrada`, request);
+}
+
+export function editarTipoEntrada(
+  idEvento: number,
+  idTipo: number,
+  request: EditarTipoEntradaRequest,
+): Promise<EventoDTO> {
+  return httpClient.put<EventoDTO>(`/api/eventos/${idEvento}/tipos-entrada/${idTipo}`, request);
+}
+
+export function ampliarCupo(
+  idEvento: number,
+  idTipo: number,
+  request: AmpliarCupoRequest,
+): Promise<EventoDTO> {
+  return httpClient.post<EventoDTO>(
+    `/api/eventos/${idEvento}/tipos-entrada/${idTipo}/ampliacion-de-cupo`,
+    request,
+  );
 }

@@ -592,7 +592,12 @@ cambio de contrato de `UsuarioDTO` en esta entrega.
   1. **Eventos:** solo `ORGANIZADOR` crea (`POST /api/eventos`) y publica
      (`POST /api/eventos/{id}/publicacion`) — **y, por debajo, solo si además puede gestionar
      la productora dueña del evento** (`ProductoraService.puedeGestionarEventos`, PAS-13): el rol
-     es el filtro grueso en el controller, la membresía es el filtro fino en el servicio.
+     es el filtro grueso en el controller, la membresía es el filtro fino en el servicio. Los
+     cuatro endpoints de edición de PAS-19 (`PUT /api/eventos/{id}`,
+     `POST/PUT /api/eventos/{id}/tipos-entrada[/{idTipo}]`,
+     `POST /api/eventos/{id}/tipos-entrada/{idTipo}/ampliacion-de-cupo`) llevan el mismo
+     `@PreAuthorize("hasRole('ORGANIZADOR')")` + `exigirGestionSobre` en el servicio — ninguna
+     regla de autorización nueva, solo más operaciones detrás de la ya existente.
   2. **Usuarios:** el alta pública (`POST /api/usuarios`) solo crea `COMPRADOR`;
      `ORGANIZADOR`/`VALIDADOR`/`ADMIN` los da de alta un `ADMIN` autenticado
      (`#solicitud.rol == COMPRADOR or hasRole('ADMIN')`). Cierra el pendiente de PAS-5: el
@@ -974,6 +979,40 @@ Lo que el Figma muestra y el backend todavía no tiene (datos de facturación, v
 pago, cargo por servicio, QR y descarga de entradas, envío por mail) **no se simuló**: la
 pantalla muestra lo real y dice qué componente lo va a traer. Mismo criterio con el copy "tus
 entradas están reservadas": el carrito no reserva cupo (§4.7), así que dice "tu carrito vence en".
+
+**`ServicioDeEventos` gana edición (PAS-19):** hasta acá un evento nacía y solo podía
+publicarse — ni sus datos, ni sus tipos de entrada, ni el cupo eran editables después de
+`crearEvento`. Cuatro operaciones nuevas en el contrato, todas con la misma autorización que
+crear/publicar (rol `ORGANIZADOR` + membresía sobre la productora, §4.11), y la matriz que
+decide qué se admite según el estado del evento:
+
+| Edición | BORRADOR | PUBLICADO | CANCELADO |
+|---|---|---|---|
+| Datos del evento (`PUT /api/eventos/{id}`) | ✅ | ❌ 409 | ❌ 409 |
+| Editar un tipo de entrada (`PUT .../tipos-entrada/{id}`) | ✅ (cupo nunca < vendidas) | ❌ 409 | ❌ 409 |
+| Agregar un tipo de entrada (`POST .../tipos-entrada`) | ✅ | ✅ | ❌ 409 |
+| Ampliar cupo (`POST .../tipos-entrada/{id}/ampliacion-de-cupo`) | ✅ | ✅ | ❌ 409 |
+
+La regla que vale la pena defender en el oral: **publicado, solo se admite ampliar** — nada que
+pueda perjudicar a quien ya compró o ya vio la cartelera (bajar un precio, sacar cupo, cambiar la
+fecha). Por eso "sumar cupo" es una acción de negocio con endpoint propio
+(`POST .../ampliacion-de-cupo`, mismo criterio que `POST .../publicacion`, §4.5) y no un caso más
+del `PUT` del tipo de entrada, que solo vale en borrador. Las reglas viven en el agregado
+(`Evento.editarDatos` / `sumarTipoEntrada` / `editarTipoEntrada` / `ampliarCupo`, y
+`TipoEntrada.editar` / `ampliarCupo`), con una excepción nueva y propia
+(`EdicionDeEventoInvalidaException` → 409) separada de `TransicionDeEstadoInvalidaException`
+porque no hay ninguna transición de estado de por medio. **Eliminar un tipo de entrada quedó
+fuera de alcance** (para "sacar" en borrador se baja el cupo); no eliminar tampoco fue elegido a
+propósito, para no reabrir la duda de qué pasa con un tipo de entrada que ya tuvo ventas.
+
+**Un bug real, encontrado probando el endpoint en el navegador y no en `EdicionDeEventoTest`:**
+`agregarTipoEntrada` devolvía el tipo de entrada nuevo con `id: null` en la misma respuesta 201.
+A diferencia de `crearEvento`, que llama `eventoRepository.save(evento)` y por eso el `INSERT` con
+`GenerationType.IDENTITY` sale en el acto, acá `evento` ya es una entidad administrada: Hibernate
+solo cascadea el alta del hijo nuevo al hacer `flush`, y sin uno explícito el DTO se arma antes de
+que exista ese `flush` (la transacción recién confirma, y flushea, al volver del método). La
+solución es la misma que ya usaba `descontarCupo` por el motivo espejado: un `eventoRepository.flush()`
+después de `sumarTipoEntrada`. Quedó cubierto en el test (`vip.id()` no nulo) para que no vuelva.
 
 **Próximo paso inmediato:** **`ServicioDeTickets`** — firma criptográfica del QR. Es el seam
 que `ConfirmacionDeCompra` ya dejó preparado (hoy no emite ningún ticket; la emisión está

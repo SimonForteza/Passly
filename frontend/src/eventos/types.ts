@@ -39,6 +39,24 @@ export interface CrearEventoRequest {
   tiposEntrada: CrearTipoEntradaRequest[];
 }
 
+// Sin idProductora: un evento no cambia de dueño (PAS-19).
+export interface EditarEventoRequest {
+  nombre: string;
+  descripcion: string;
+  fechaHora: string;
+  lugar: string;
+}
+
+export interface EditarTipoEntradaRequest {
+  nombre: string;
+  precio: number;
+  cupoTotal: number;
+}
+
+export interface AmpliarCupoRequest {
+  cantidad: number;
+}
+
 export interface DisponibilidadDTO {
   idTipoEntrada: number;
   idEvento: number;
