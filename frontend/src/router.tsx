@@ -9,6 +9,8 @@ import { CarritoPage } from './ventas/CarritoPage';
 import { MisOrdenesPage } from './ventas/MisOrdenesPage';
 import { BackofficePage } from './productoras/BackofficePage';
 import { ProductorasPage } from './productoras/ProductorasPage';
+import { CrearEventoPage } from './eventos/CrearEventoPage';
+import { EventosDeProductoraPage } from './eventos/EventosDeProductoraPage';
 
 export const router = createBrowserRouter([
   {
@@ -50,6 +52,22 @@ export const router = createBrowserRouter([
         element: (
           <RutaPrivada>
             <BackofficePage />
+          </RutaPrivada>
+        ),
+      },
+      {
+        path: '/productoras/:id/eventos',
+        element: (
+          <RutaPrivada>
+            <EventosDeProductoraPage />
+          </RutaPrivada>
+        ),
+      },
+      {
+        path: '/productoras/:id/eventos/nuevo',
+        element: (
+          <RutaPrivada>
+            <CrearEventoPage />
           </RutaPrivada>
         ),
       },

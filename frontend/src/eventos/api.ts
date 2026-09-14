@@ -1,8 +1,9 @@
 import { httpClient } from '../lib/http/httpClient';
 import type { CrearEventoRequest, DisponibilidadDTO, EventoDTO } from './types';
 
-export function listarEventos(): Promise<EventoDTO[]> {
-  return httpClient.get<EventoDTO[]>('/api/eventos');
+export function listarEventos(idProductora?: number): Promise<EventoDTO[]> {
+  const query = idProductora ? `?productora=${idProductora}` : '';
+  return httpClient.get<EventoDTO[]>(`/api/eventos${query}`);
 }
 
 export function obtenerEvento(id: number): Promise<EventoDTO> {
