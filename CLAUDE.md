@@ -895,8 +895,8 @@ archivo — mismo criterio de "rebanada vertical" que el resto del sistema. Rout
 (`react-router-dom`) con rutas públicas (cartelera, detalle de evento, login, registro) y
 privadas (carrito, mis órdenes, backoffice de productora) detrás de un guard que redirige a
 `/login`. Sobre ese esqueleto ya se integraron **PAS-15** (identidad), **PAS-16** (alta y padrón
-de productoras) y **PAS-17** (cartelera y backoffice de eventos). Solo carrito y mis órdenes
-conservan placeholders.
+de productoras), **PAS-17** (cartelera y backoffice de eventos) y **PAS-18** (carrito, checkout
+y mis órdenes) — ver más abajo. Ninguna ruta conserva placeholder.
 
 El cliente HTTP (`lib/http/httpClient.ts`) centraliza tres cosas que, si no, cada módulo
 reimplementaría: el header `Authorization: Basic` armado a partir de lo que haya en
@@ -945,11 +945,39 @@ detalle son públicos; un organizador puede listar los eventos de su productora,
 y publicarlos. La UI reutiliza los contratos REST existentes y muestra disponibilidad y precios
 sin duplicar reglas de negocio del backend.
 
+**`frontend/ventas/` — flujo de compra implementado (PAS-18):** selección con stepper en el
+detalle de evento, checkout (`/carrito`) con cuenta regresiva del carrito, compra confirmada /
+detalle de orden (`/mis-ordenes/:id`) y mis órdenes con pestañas Próximas/Pasadas, sobre los
+frames Web 02/03/04/06/12 del Figma. Los tokens de `theme.css` pasaron a ser los del Figma
+(antes estaban relevados a ojo). Tres decisiones, cada una verificada en un navegador real y no
+solo en el REST Client, que valen para el oral:
+
+- **Cola serial de requests autenticados en `httpClient`.** Spring Security rota el `JSESSIONID`
+  en cada request autenticado (§4.7) y Tomcat descarta el id viejo en el acto: dos requests
+  autenticados en paralelo con la misma cookie hacen que el segundo llegue con un id muerto, y si
+  toca el carrito el contenedor le crea una sesión nueva, vacía. Encolados, cada uno sale con la
+  cookie que dejó el anterior. **Límite honesto:** recargar la página (F5) con un request
+  autenticado en vuelo pierde el carrito igual — el servidor ya rotó el id y la respuesta con la
+  cookie nueva nunca llega. Reproducido 3/3; la navegación dentro de la SPA no lo sufre. Lo
+  resolvería el backend dejando de rotar el id (`sessionFixation().none()`, que bajo `STATELESS` +
+  el chequeo de dueño del carrito no abre ningún riesgo), decisión pendiente del equipo.
+- **El reloj del carrito no se reinicia al vaciarlo.** `expiraEn` se fija al crear el bean
+  `@SessionScope`: después de comprar, el siguiente carrito de la misma sesión nacería vencido.
+  Por eso el front hace `DELETE /api/ventas/carrito` (invalida la sesión) al confirmar y antes de
+  agregar a un carrito ya vencido.
+- **Salir abandona el carrito antes de borrar las credenciales.** La cookie es http-only y
+  sobrevive al logout; si otra persona entra en el mismo navegador, el backend le responde 409
+  (`CarritoDeOtroCompradorException`) incluso en el `DELETE`, sin salida hasta que venza la
+  sesión.
+
+Lo que el Figma muestra y el backend todavía no tiene (datos de facturación, varios medios de
+pago, cargo por servicio, QR y descarga de entradas, envío por mail) **no se simuló**: la
+pantalla muestra lo real y dice qué componente lo va a traer. Mismo criterio con el copy "tus
+entradas están reservadas": el carrito no reserva cupo (§4.7), así que dice "tu carrito vence en".
+
 **Próximo paso inmediato:** **`ServicioDeTickets`** — firma criptográfica del QR. Es el seam
 que `ConfirmacionDeCompra` ya dejó preparado (hoy no emite ningún ticket; la emisión está
 fuera del alcance de PAS-8) y lo que necesita `ServicioDeAccesos` para validar en la puerta.
-En paralelo quedan por implementar las pantallas de carrito y mis órdenes sobre el esqueleto de
-PAS-14 y los endpoints de Ventas ya disponibles.
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 

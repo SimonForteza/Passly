@@ -1,17 +1,24 @@
 package com.passly.seguridad.internal;
 
+import tools.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -47,13 +54,26 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  * es la contraparte obligatoria de exponer la API a un cliente que corre en otro puerto. El
  * origen permitido sale de {@code passly.web.origen} (mismo patron de externalizacion que
  * {@code passly.pagos.pasarela.base-url}), con default al puerto de Vite en desarrollo.
+ *
+ * <p><b>Sin desafio {@code WWW-Authenticate} en el 401 (app web, PAS-15/16).</b> El
+ * {@link org.springframework.security.web.authentication.www.BasicAuthenticationEntryPoint} por
+ * defecto de {@code httpBasic()} manda {@code WWW-Authenticate: Basic} en cada 401 -- correcto
+ * para un cliente HTTP puro (curl, Postman), pero el navegador intercepta ese header incluso en
+ * una llamada {@code fetch} y muestra su propio popup nativo de usuario/contrasena <i>antes</i> de
+ * que el JS de la SPA vea la respuesta. Como la app web ya resuelve el 401 con su propia pantalla
+ * de login (mensaje "Email o contraseña inválidos."), {@link #puntoDeEntradaNoAutenticado} devuelve
+ * el mismo 401 sin ese header, para que el navegador no interfiera.
  */
 @Configuration
 @EnableMethodSecurity
 class ConfiguracionDeSeguridad {
 
     @Bean
-    SecurityFilterChain filtros(HttpSecurity http, CorsConfigurationSource fuenteDeConfiguracionCors) throws Exception {
+    SecurityFilterChain filtros(
+            HttpSecurity http,
+            CorsConfigurationSource fuenteDeConfiguracionCors,
+            AuthenticationEntryPoint puntoDeEntradaNoAutenticado
+    ) throws Exception {
         http
                 // Ver Javadoc de la clase: sin esto el navegador bloquea las llamadas de la app
                 // web (otro origen) antes de que lleguen a authorizeHttpRequests.
@@ -80,9 +100,21 @@ class ConfiguracionDeSeguridad {
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         // Todo lo demas exige, al menos, estar autenticado.
                         .anyRequest().authenticated())
-                .httpBasic(Customizer.withDefaults());
+                .httpBasic(basic -> basic.authenticationEntryPoint(puntoDeEntradaNoAutenticado));
 
         return http.build();
+    }
+
+    /** Ver Javadoc de la clase: mismo 401 que el entry point por defecto, sin {@code WWW-Authenticate}. */
+    @Bean
+    AuthenticationEntryPoint puntoDeEntradaNoAutenticado(ObjectMapper mapper) {
+        return (HttpServletRequest request, HttpServletResponse response, AuthenticationException ex) -> {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+            ProblemDetail detalle = ProblemDetail.forStatusAndDetail(
+                    HttpStatus.UNAUTHORIZED, "Credenciales invalidas o ausentes.");
+            mapper.writeValue(response.getWriter(), detalle);
+        };
     }
 
     /**

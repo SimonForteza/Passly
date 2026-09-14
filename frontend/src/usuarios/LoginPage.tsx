@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError } from '../lib/http/ApiError';
 import { useAuth } from '../lib/auth/AuthContext';
 import { obtenerUsuarioActual } from './api';
-import { BotonPrimario, CampoTexto, estilos } from './componentes';
+import { BotonPrimario, CampoTexto, PantallaAuth, estilos } from './componentes';
 
 export function LoginPage() {
   const { iniciarSesion } = useAuth();
@@ -42,7 +42,7 @@ export function LoginPage() {
   }
 
   return (
-    <section>
+    <PantallaAuth>
       <h2>Ingresar</h2>
       <form onSubmit={enviar} style={estilos.formulario}>
         <CampoTexto
@@ -67,7 +67,7 @@ export function LoginPage() {
             role="alert"
             style={{
               color: 'var(--color-texto)',
-              background: 'rgba(232, 18, 58, 0.12)',
+              background: 'rgba(232, 17, 45, 0.12)',
               border: '1px solid var(--color-acento)',
               borderRadius: 'var(--radio-input)',
               padding: '0.6rem 0.85rem',
@@ -84,6 +84,6 @@ export function LoginPage() {
       <p style={{ color: 'var(--color-texto-secundario)', marginTop: '1.5rem' }}>
         ¿No tenés cuenta? <Link to="/registro">Crear una</Link>
       </p>
-    </section>
+    </PantallaAuth>
   );
 }
