@@ -11,7 +11,7 @@ independiente: se abre, aparece un link `Send Request` arriba de cada `###`, y s
 | [04-errores.http](04-errores.http) | 404, 400 por campo, **401 sin identidad**, 403 por productora inexistente |
 | [05-productoras.http](05-productoras.http) | alta de productoras, padron de miembros y el cruce de los dos ejes de rol |
 | [06-aislamiento.http](06-aislamiento.http) | **el guion central: una productora no toca las fiestas de otra** |
-| [07-seguridad.http](07-seguridad.http) | matriz de autorizacion por rol (PAS-6): 401 / 403 / 201-200 |
+| [07-seguridad.http](07-seguridad.http) | matriz de autorizacion por rol (PAS-6): 401 / 403 / 201-200, y `GET /api/usuarios/me`, el "quien soy" del login (PAS-15) |
 | [08-ventas.http](08-ventas.http) | carrito stateful que crece y funde cantidades, confirmar compra, y **el rollback: dos lineas, la segunda sin cupo -> 409, la primera vuelve a su cupo original** |
 | [09-pagos.http](09-pagos.http) | Adapter REST hacia la pasarela de pago (PAS-7): cobro aprobado, **rechazado (402)**, **pasarela caida (503)**, 401, validacion |
 
@@ -64,6 +64,11 @@ nunca dentro del request.
 
 La lectura publica (cartelera, ficha de productora) no pide identidad, que es justamente el
 punto de un marketplace.
+
+Usuarios expone ademas `GET /api/usuarios/me` (PAS-15): con el mismo mecanismo
+(`Authentication#getName()` = id) devuelve el `UsuarioDTO` del autenticado, rol incluido. Es lo
+que usa el login de la app web para validar email + password y traer el rol, ya que HTTP Basic
+no tiene un endpoint de login propio.
 
 ## El carrito de Ventas necesita cookies (08-ventas.http)
 

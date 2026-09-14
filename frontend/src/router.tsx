@@ -5,6 +5,7 @@ import { CarteleraPage } from './eventos/CarteleraPage';
 import { DetalleEventoPage } from './eventos/DetalleEventoPage';
 import { LoginPage } from './usuarios/LoginPage';
 import { RegistroPage } from './usuarios/RegistroPage';
+import { PerfilPage } from './usuarios/PerfilPage';
 import { CarritoPage } from './ventas/CarritoPage';
 import { MisOrdenesPage } from './ventas/MisOrdenesPage';
 import { BackofficePage } from './productoras/BackofficePage';
@@ -20,6 +21,14 @@ export const router = createBrowserRouter([
       { path: '/registro', element: <RegistroPage /> },
 
       // Privadas
+      {
+        path: '/perfil',
+        element: (
+          <RutaPrivada>
+            <PerfilPage />
+          </RutaPrivada>
+        ),
+      },
       {
         path: '/carrito',
         element: (

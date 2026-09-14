@@ -554,7 +554,9 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
   de quien opera con un tipo de Spring Security — sin depender de `usuarios` para resolver
   email → id. Esto no es un detalle menor: `eventos` tiene declarado en su `package-info` que
   **no puede depender de `usuarios`** (§4.6), así que la resolución tiene que pasar por acá, una
-  sola vez, dentro de `seguridad` (que sí depende de `usuarios` legítimamente).
+  sola vez, dentro de `seguridad` (que sí depende de `usuarios` legítimamente). El mismo
+  mecanismo habilita `GET /api/usuarios/me` (PAS-15): lee el id del propio principal y devuelve
+  el `UsuarioDTO` del autenticado — el "quién soy" sobre el que se arma el login del frontend.
 
 **Los dos ejes de la autorización** (implementado). Rol y alcance responden preguntas
 distintas y por eso son dos enums, no uno:
@@ -892,8 +894,9 @@ React + TypeScript, con carpetas por módulo de negocio (`usuarios/`, `productor
 archivo — mismo criterio de "rebanada vertical" que el resto del sistema. Router
 (`react-router-dom`) con rutas públicas (cartelera, detalle de evento, login, registro) y
 privadas (carrito, mis órdenes, backoffice de productora) detrás de un guard que redirige a
-`/login`. No incluye ninguna pantalla de negocio real — cada ruta hoy es un placeholder — eso
-lo resuelven las cuatro issues de frontend que dependen de esta.
+`/login`. Al mergear PAS-14 cada ruta era un placeholder; las pantallas reales las agregan las
+issues de frontend que dependen de esta — la primera, **PAS-15** (usuarios: registro, login,
+perfil propio y alta de roles para `ADMIN`), ya está implementada (ver §9).
 
 El cliente HTTP (`lib/http/httpClient.ts`) centraliza tres cosas que, si no, cada módulo
 reimplementaría: el header `Authorization: Basic` armado a partir de lo que haya en
@@ -912,13 +915,25 @@ agregan los `@RestControllerAdvice` en validaciones 400) en una `ApiError` tipad
   contraparte obligatoria de exponer un API REST a un cliente que corre en otro origen
   (`localhost:5173` en desarrollo) y que además necesita mandar la cookie de sesión del
   carrito.
-- **Deuda declarada, no escondida: no hay forma de pedir "quién soy" tras un login real.**
-  El login es HTTP Basic puro (email + password); el backend no expone un endpoint que
-  devuelva el `UsuarioDTO` (con su `rol`) a partir de esas credenciales sin conocer de
-  antemano el `id`. El `AuthContext` del frontend queda diseñado para guardar un `UsuarioDTO`
-  una vez que se consiga (hoy la única vía es la respuesta de `POST /api/usuarios` al
-  registrarse) — la pantalla de login, en otra issue, decide cómo resolverlo, con o sin un
-  endpoint nuevo del lado del backend.
+- **La deuda del "quién soy" tras un login real quedó declarada acá y la resolvió PAS-15.**
+  PAS-14 dejó el `AuthContext` listo para guardar un `UsuarioDTO`, pero con HTTP Basic puro
+  (email + password) el backend no tenía cómo devolverlo sin conocer el `id` de antemano.
+  PAS-15 agregó `GET /api/usuarios/me` y montó el login sobre eso (detalle en el párrafo de
+  PAS-15 más abajo). Sigue sin haber JWT ni sesión de auth propia: sólo un "quién soy" sobre
+  el mismo Basic.
+
+**`frontend/usuarios/` — pantallas de identidad implementadas (PAS-15):** registro, login,
+perfil propio y logout, sobre el esqueleto de PAS-14. El **registro** (`POST /api/usuarios`)
+siempre crea `COMPRADOR` —el formulario no ofrece elegir rol— y auto-inicia la sesión con el
+`UsuarioDTO` que devuelve el alta. El **login** valida email + password contra
+`GET /api/usuarios/me`: un **401** es "credenciales inválidas", distinto del **403** "no tenés
+permiso" de las ops sensibles (§4.11). El **perfil** muestra los datos del autenticado y, sólo
+si el rol es `ADMIN`, un alta de `ORGANIZADOR`/`VALIDADOR`/`ADMIN` (bonus, mismo
+`POST /api/usuarios` con rol). Del lado del **backend**, la única adición es
+`GET /api/usuarios/me` en `UsuarioController`: lee el id del principal
+(`Authentication#getName()`, §4.11) y devuelve su `UsuarioDTO`; queda protegido por el filter
+chain (no está en `permitAll` → anónimo = 401) y cierra la deuda del "quién soy" que PAS-14
+había dejado declarada.
 
 **Próximo paso inmediato:** **`ServicioDeTickets`** — firma criptográfica del QR. Es el seam
 que `ConfirmacionDeCompra` ya dejó preparado (hoy no emite ningún ticket; la emisión está
@@ -978,9 +993,10 @@ PAS-14.
   al cobro (`comprobante_cobro`, `cobrada_en`), no su registro. Crear una tabla de
   pagos hoy, antes de que `ServicioDePagos` (PAS-7) exista como módulo propio, sería
   crear algo que después habría que borrar o duplicar en el esquema de ese módulo.
-- **No hay endpoint "quién soy" (PAS-14).** El login del frontend es HTTP Basic puro
-  (email + password); no existe un `GET /api/usuarios/me` ni equivalente que devuelva el
-  `UsuarioDTO` propio a partir de esas credenciales. Hoy el único momento en que el
-  frontend conoce su `UsuarioDTO` completo es la respuesta de `POST /api/usuarios` al
-  registrarse — un login de un usuario ya existente no tiene de dónde sacar el `rol` sin
-  ese endpoint. Queda para cuando se implemente la pantalla de login.
+- **Endpoint "quién soy" — deuda de PAS-14, saldada en PAS-15.** El login del frontend es
+  HTTP Basic puro (email + password) y hasta PAS-14 no existía forma de obtener el `UsuarioDTO`
+  propio (con su `rol`) a partir de esas credenciales sin conocer el `id` de antemano. PAS-15
+  agregó `GET /api/usuarios/me` (lee el id del principal, `Authentication#getName()`, §4.11) y
+  el login se arma sobre él: valida las credenciales y, con la respuesta 200, obtiene el `rol`
+  de un usuario ya existente. El registro sigue auto-iniciando la sesión con el `UsuarioDTO`
+  que devuelve `POST /api/usuarios`.

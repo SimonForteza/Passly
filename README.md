@@ -17,6 +17,11 @@ La identidad de quien opera la resuelve **Spring Security** (HTTP Basic, sesion 
 ningun endpoint depende de un header propio para saber quien esta operando. La autorizacion
 por rol es declarativa con `@PreAuthorize` en los controllers (ver [CLAUDE.md](CLAUDE.md) 4.11).
 
+La app web (`frontend/`) ya tiene las **pantallas de identidad** —registro, login, perfil propio
+y, para `ADMIN`, alta de roles privilegiados (PAS-15)— sobre el cliente HTTP centralizado de
+PAS-14. El login no usa un endpoint de "login" (Basic no lo tiene): valida email + password
+contra `GET /api/usuarios/me`, que devuelve el `UsuarioDTO` del autenticado.
+
 ## Levantar el entorno
 
 Requisitos: Java 21, Maven (o el wrapper `./mvnw` incluido), Docker.

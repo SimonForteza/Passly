@@ -72,3 +72,19 @@ Authorization: Basic comprador@passly.test {{clave}}
 ### ADMIN -> 200
 GET {{baseUrl}}/api/usuarios
 Authorization: Basic admin@passly.test {{clave}}
+
+# ============ "Quien soy": GET /api/usuarios/me (login del frontend, PAS-15) ============
+# No hay endpoint de "login" con Basic; el frontend valida email+clave pidiendo el propio
+# usuario. No esta en permitAll, asi que un anonimo recibe 401 (= credenciales invalidas para
+# la UI). Autenticado devuelve el UsuarioDTO propio, con el rol -- lo que el login necesita.
+
+### Anonimo -> 401 (credenciales invalidas desde la vista del login)
+GET {{baseUrl}}/api/usuarios/me
+
+### COMPRADOR autenticado -> 200 con su propio UsuarioDTO
+GET {{baseUrl}}/api/usuarios/me
+Authorization: Basic comprador@passly.test {{clave}}
+
+### ADMIN autenticado -> 200 con su propio UsuarioDTO
+GET {{baseUrl}}/api/usuarios/me
+Authorization: Basic admin@passly.test {{clave}}

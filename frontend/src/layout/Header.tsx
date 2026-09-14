@@ -20,9 +20,9 @@ export function Header() {
 
       {estaAutenticado && usuario ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span style={{ color: 'var(--color-texto-secundario)' }}>
+          <Link to="/perfil" style={{ color: 'var(--color-texto-secundario)', textDecoration: 'none' }}>
             {usuario.nombre} · {usuario.rol}
-          </span>
+          </Link>
           <button
             type="button"
             onClick={cerrarSesion}

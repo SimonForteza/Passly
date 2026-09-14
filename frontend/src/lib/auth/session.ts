@@ -32,6 +32,11 @@ export function limpiarSesion(): void {
 export function getHeaderAutorizacion(): string | null {
   const sesion = getSesion();
   if (!sesion) return null;
-  const credenciales = btoa(`${sesion.usuario.email}:${sesion.password}`);
-  return `Basic ${credenciales}`;
+  return construirHeaderBasic(sesion.usuario.email, sesion.password);
+}
+
+// Arma el header Basic a partir de credenciales sueltas, sin tocar sessionStorage. Lo usa el
+// login para validar email+clave contra /api/usuarios/me antes de que exista una sesion guardada.
+export function construirHeaderBasic(email: string, password: string): string {
+  return `Basic ${btoa(`${email}:${password}`)}`;
 }
