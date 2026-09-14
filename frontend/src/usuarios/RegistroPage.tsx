@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ApiError } from '../lib/http/ApiError';
 import { useAuth } from '../lib/auth/AuthContext';
 import { crearUsuario } from './api';
-import { BotonPrimario, CampoTexto, estilos } from './componentes';
+import { BotonPrimario, CampoTexto, PantallaAuth, estilos } from './componentes';
 
 export function RegistroPage() {
   const { iniciarSesion } = useAuth();
@@ -45,7 +45,7 @@ export function RegistroPage() {
   }
 
   return (
-    <section>
+    <PantallaAuth>
       <h2>Crear cuenta</h2>
       <form onSubmit={enviar} style={estilos.formulario}>
         <CampoTexto
@@ -97,6 +97,6 @@ export function RegistroPage() {
       <p style={{ color: 'var(--color-texto-secundario)', marginTop: '1.5rem' }}>
         ¿Ya tenés cuenta? <Link to="/login">Ingresar</Link>
       </p>
-    </section>
+    </PantallaAuth>
   );
 }
