@@ -12,6 +12,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -41,6 +42,15 @@ class AutorizacionPorRolTest {
             }
             """;
 
+    // Sin idProductora: EditarEventoRequest no lo pide (PAS-19), un evento no cambia de dueño.
+    private static final String EDICION_VALIDA = """
+            {
+              "nombre": "Festival editado",
+              "fechaHora": "2030-01-01T20:00:00Z",
+              "lugar": "Parque Centenario, CABA"
+            }
+            """;
+
     @Autowired
     private WebApplicationContext context;
 
@@ -59,6 +69,16 @@ class AutorizacionPorRolTest {
         mockMvc.perform(post("/api/eventos")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(EVENTO_VALIDO))
+                .andExpect(status().isForbidden());
+    }
+
+    /** Mismo blindaje que crear, ahora sobre la edicion de un evento existente (PAS-19). */
+    @Test
+    @WithMockUser(roles = "COMPRADOR")
+    void unCompradorAutenticadoNoPuedeEditarUnEvento() throws Exception {
+        mockMvc.perform(put("/api/eventos/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(EDICION_VALIDA))
                 .andExpect(status().isForbidden());
     }
 }

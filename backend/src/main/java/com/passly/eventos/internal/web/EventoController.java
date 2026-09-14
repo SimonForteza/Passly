@@ -1,8 +1,12 @@
 package com.passly.eventos.internal.web;
 
 import com.passly.eventos.EventoService;
+import com.passly.eventos.dto.AmpliarCupoRequest;
 import com.passly.eventos.dto.CrearEventoRequest;
+import com.passly.eventos.dto.CrearTipoEntradaRequest;
 import com.passly.eventos.dto.DisponibilidadDTO;
+import com.passly.eventos.dto.EditarEventoRequest;
+import com.passly.eventos.dto.EditarTipoEntradaRequest;
 import com.passly.eventos.dto.EventoDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -109,6 +114,68 @@ class EventoController {
     @GetMapping("/api/tipos-entrada/{id}/disponibilidad")
     DisponibilidadDTO consultarDisponibilidad(@PathVariable("id") Long id) {
         return eventoService.consultarDisponibilidad(id);
+    }
+
+    /**
+     * Edita los datos propios del evento. Solo vale con el evento en BORRADOR — el servicio
+     * responde 409 si no (PAS-19).
+     */
+    @PutMapping("/api/eventos/{id}")
+    @PreAuthorize("hasRole('ORGANIZADOR')")
+    EventoDTO editarEvento(
+            @PathVariable("id") Long id,
+            Authentication authentication,
+            @Valid @RequestBody EditarEventoRequest solicitud
+    ) {
+        return eventoService.editarEvento(id, solicitud, idDelActuante(authentication));
+    }
+
+    /**
+     * Agrega un tipo de entrada nuevo al evento. A diferencia de {@link #editarEvento}, tambien
+     * vale con el evento PUBLICADO (PAS-19).
+     */
+    @PostMapping("/api/eventos/{id}/tipos-entrada")
+    @PreAuthorize("hasRole('ORGANIZADOR')")
+    ResponseEntity<EventoDTO> agregarTipoEntrada(
+            @PathVariable("id") Long id,
+            Authentication authentication,
+            @Valid @RequestBody CrearTipoEntradaRequest solicitud
+    ) {
+        EventoDTO actualizado = eventoService.agregarTipoEntrada(id, solicitud, idDelActuante(authentication));
+        return ResponseEntity.created(URI.create("/api/eventos/" + id)).body(actualizado);
+    }
+
+    /**
+     * Edita nombre, precio y cupo total de un tipo de entrada existente. Solo vale con el evento en
+     * BORRADOR; para sumar cupo con el evento PUBLICADO esta
+     * {@link #ampliarCupo(Long, Long, Authentication, AmpliarCupoRequest)} (PAS-19).
+     */
+    @PutMapping("/api/eventos/{id}/tipos-entrada/{idTipo}")
+    @PreAuthorize("hasRole('ORGANIZADOR')")
+    EventoDTO editarTipoEntrada(
+            @PathVariable("id") Long id,
+            @PathVariable("idTipo") Long idTipo,
+            Authentication authentication,
+            @Valid @RequestBody EditarTipoEntradaRequest solicitud
+    ) {
+        return eventoService.editarTipoEntrada(id, idTipo, solicitud, idDelActuante(authentication));
+    }
+
+    /**
+     * Suma cupo a un tipo de entrada existente: una accion de negocio (como
+     * {@link #publicarEvento}), no la escritura de un campo — por eso {@code POST
+     * .../ampliacion-de-cupo} en vez de un caso mas del PUT de arriba. Vale con el evento en
+     * BORRADOR o PUBLICADO (PAS-19).
+     */
+    @PostMapping("/api/eventos/{id}/tipos-entrada/{idTipo}/ampliacion-de-cupo")
+    @PreAuthorize("hasRole('ORGANIZADOR')")
+    EventoDTO ampliarCupo(
+            @PathVariable("id") Long id,
+            @PathVariable("idTipo") Long idTipo,
+            Authentication authentication,
+            @Valid @RequestBody AmpliarCupoRequest solicitud
+    ) {
+        return eventoService.ampliarCupo(id, idTipo, solicitud, idDelActuante(authentication));
     }
 
     /**

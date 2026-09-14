@@ -5,10 +5,13 @@ import com.passly.eventos.EventoNoEncontradoException;
 import com.passly.eventos.EventoService;
 import com.passly.eventos.ProductoraNoGestionableException;
 import com.passly.eventos.TipoEntradaNoEncontradoException;
+import com.passly.eventos.dto.AmpliarCupoRequest;
 import com.passly.eventos.dto.CrearEventoRequest;
 import com.passly.eventos.dto.CrearTipoEntradaRequest;
 import com.passly.eventos.dto.DescontarCupoRequest;
 import com.passly.eventos.dto.DisponibilidadDTO;
+import com.passly.eventos.dto.EditarEventoRequest;
+import com.passly.eventos.dto.EditarTipoEntradaRequest;
 import com.passly.eventos.dto.EventoDTO;
 import com.passly.eventos.dto.OrganizadorDeEventoDTO;
 import com.passly.eventos.internal.datos.Evento;
@@ -160,6 +163,51 @@ class EventoServiceImpl implements EventoService {
             // emitido el UPDATE, y "el rollback devolvio el cupo" seria una demo vacia.
             eventoRepository.flush();
         }
+    }
+
+    @Override
+    public EventoDTO editarEvento(Long idEvento, EditarEventoRequest solicitud, Long idUsuarioActuante) {
+        Evento evento = buscarEvento(idEvento);
+        exigirGestionSobre(evento, idUsuarioActuante);
+
+        evento.editarDatos(solicitud.nombre(), solicitud.descripcion(), solicitud.fechaHora(), solicitud.lugar());
+        return conOrganizador(evento);
+    }
+
+    @Override
+    public EventoDTO agregarTipoEntrada(
+            Long idEvento, CrearTipoEntradaRequest solicitud, Long idUsuarioActuante) {
+        Evento evento = buscarEvento(idEvento);
+        exigirGestionSobre(evento, idUsuarioActuante);
+
+        evento.sumarTipoEntrada(solicitud.nombre(), solicitud.precio(), solicitud.cupoTotal());
+        // A diferencia de crearEvento, aca no hay un save() que dispare el INSERT del tipo de
+        // entrada nuevo: evento ya es una entidad administrada, y Hibernate solo cascadea el
+        // alta de un hijo nuevo al hacer flush. Sin este flush explicito, el DTO se arma con el
+        // id todavia en null (la transaccion recien confirma, y flushea, al volver de este
+        // metodo) y el 201 saldria con un tipo de entrada sin id utilizable.
+        eventoRepository.flush();
+        return conOrganizador(evento);
+    }
+
+    @Override
+    public EventoDTO editarTipoEntrada(
+            Long idEvento, Long idTipoEntrada, EditarTipoEntradaRequest solicitud, Long idUsuarioActuante) {
+        Evento evento = buscarEvento(idEvento);
+        exigirGestionSobre(evento, idUsuarioActuante);
+
+        evento.editarTipoEntrada(idTipoEntrada, solicitud.nombre(), solicitud.precio(), solicitud.cupoTotal());
+        return conOrganizador(evento);
+    }
+
+    @Override
+    public EventoDTO ampliarCupo(
+            Long idEvento, Long idTipoEntrada, AmpliarCupoRequest solicitud, Long idUsuarioActuante) {
+        Evento evento = buscarEvento(idEvento);
+        exigirGestionSobre(evento, idUsuarioActuante);
+
+        evento.ampliarCupo(idTipoEntrada, solicitud.cantidad());
+        return conOrganizador(evento);
     }
 
     private Evento buscarEvento(Long idEvento) {

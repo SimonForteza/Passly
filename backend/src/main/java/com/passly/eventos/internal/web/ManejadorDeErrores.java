@@ -1,5 +1,6 @@
 package com.passly.eventos.internal.web;
 
+import com.passly.eventos.EdicionDeEventoInvalidaException;
 import com.passly.eventos.EventoNoEncontradoException;
 import com.passly.eventos.ProductoraNoGestionableException;
 import com.passly.eventos.TipoEntradaNoEncontradoException;
@@ -37,6 +38,16 @@ class ManejadorDeErrores {
     /** El recurso existe pero su estado no admite la operacion: 409, no 404. */
     @ExceptionHandler(TransicionDeEstadoInvalidaException.class)
     ProblemDetail transicionInvalida(TransicionDeEstadoInvalidaException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    /**
+     * Una edicion (datos del evento, tipo de entrada, o su cupo) no es valida dado el estado o los
+     * datos actuales: 409, misma familia que {@link #transicionInvalida} pero sin que haya una
+     * transicion de estado de por medio (PAS-19).
+     */
+    @ExceptionHandler(EdicionDeEventoInvalidaException.class)
+    ProblemDetail edicionInvalida(EdicionDeEventoInvalidaException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
     }
 
