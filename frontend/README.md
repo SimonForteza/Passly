@@ -22,5 +22,9 @@ npm run dev
   login (`/login`, valida email + password contra `GET /api/usuarios/me`), perfil propio
   (`/perfil`) y logout. El perfil incluye un alta de roles privilegiados
   (`ORGANIZADOR`/`VALIDADOR`/`ADMIN`) visible sólo para `ADMIN`.
-- El resto de las rutas (cartelera, detalle de evento, carrito, mis órdenes, backoffice) siguen
-  siendo placeholders hasta sus respectivas issues.
+- **Productoras (PAS-16):** alta, listado de las productoras del usuario y padrón de miembros,
+  con gestión de roles internos en `/productoras` y `/productoras/:id/backoffice`.
+- **Eventos (PAS-17):** cartelera pública, detalle, alta, listado de una productora y publicación
+  de borradores desde el backoffice.
+- **Pendientes:** `/carrito` y `/mis-ordenes` siguen siendo placeholders hasta sus respectivas
+  issues de frontend.

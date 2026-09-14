@@ -2,6 +2,7 @@
 
 - Estado: Aceptado
 - Fecha: 2026-09-11
+- Ultima revision: 2026-09-14
 - Responsables: Equipo Passly
 - Alcance: Backend de Passly
 
@@ -9,7 +10,7 @@
 
 Passly debe resolver un flujo de venta y validacion de entradas que atraviesa varios componentes: usuarios, eventos, ventas, pagos, tickets, accesos, notificaciones y facturacion. La consigna academica exige interfaces explicitas, transacciones declarativas, integraciones sincronicas y asincronicas, seguridad por rol y una demostracion en vivo.
 
-El equipo necesita fronteras claras entre componentes, pero dispone de un equipo pequeno, un cronograma corto y un unico producto. En particular, la confirmacion de una compra debe coordinar el descuento de cupo, el registro del pago y la emision de tickets dentro de una transaccion consistente.
+El equipo necesita fronteras claras entre componentes, pero dispone de un equipo pequeno, un cronograma corto y un unico producto. En el corte actual, Ventas cobra mediante una pasarela simulada antes de abrir la transaccion local; `ConfirmacionDeCompra` coordina dentro de esa transaccion el descuento de cupo y la persistencia de la orden. La emision de tickets y el cableado con el Adapter real de Pagos siguen pendientes y no se presentan como atomicos ni implementados.
 
 ## Fuerzas y restricciones
 
@@ -62,9 +63,10 @@ Spring Modulith verifica que no existan accesos indebidos ni ciclos entre modulo
 ## Evidencia en el repositorio
 
 - `backend/src/test/java/com/passly/EstructuraDeModulosTest.java` verifica las fronteras.
-- `com.passly.eventos` y `com.passly.usuarios` exponen contratos y encapsulan su implementacion bajo `internal`.
+- Usuarios, Productoras, Eventos, Seguridad, Ventas y Pagos exponen contratos y encapsulan sus implementaciones bajo `internal`.
 - Los DTO compartibles se publican mediante `@NamedInterface("dto")`.
-- El build genera documentacion de modulos en `target/spring-modulith-docs/`.
+- Cada `package-info.java` declara sus dependencias permitidas y `EstructuraDeModulosTest` comprueba el grafo aciclico actual, con Ventas en la cima y Usuarios como raiz.
+- El build genera documentacion de modulos y el workflow `modulith-boundaries.yml` ejecuta la verificacion de fronteras en GitHub Actions.
 
 ## Criterio de revision
 

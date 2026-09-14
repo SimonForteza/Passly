@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Verifica las fronteras entre modulos y genera su documentacion desde el codigo.
  *
- * <p><b>Que demuestra hoy.</b> Con cinco modulos y dependencias declaradas, {@code verify()} dejo
+ * <p><b>Que demuestra hoy.</b> Con los modulos actuales y dependencias declaradas, {@code verify()} dejo
  * de ser tautologico: comprueba que nadie acceda a los {@code internal} de otro, que no haya ciclos,
  * y — lo mas importante — que <b>cada modulo solo dependa de lo que su {@code package-info} declara
  * como permitido</b>. Eventos no puede importar Usuarios ni aunque alguien lo intente por descuido:

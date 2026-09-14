@@ -894,9 +894,9 @@ React + TypeScript, con carpetas por módulo de negocio (`usuarios/`, `productor
 archivo — mismo criterio de "rebanada vertical" que el resto del sistema. Router
 (`react-router-dom`) con rutas públicas (cartelera, detalle de evento, login, registro) y
 privadas (carrito, mis órdenes, backoffice de productora) detrás de un guard que redirige a
-`/login`. Al mergear PAS-14 cada ruta era un placeholder; las pantallas reales las agregan las
-issues de frontend que dependen de esta — la primera, **PAS-15** (usuarios: registro, login,
-perfil propio y alta de roles para `ADMIN`), ya está implementada (ver §9).
+`/login`. Sobre ese esqueleto ya se integraron **PAS-15** (identidad), **PAS-16** (alta y padrón
+de productoras) y **PAS-17** (cartelera y backoffice de eventos). Solo carrito y mis órdenes
+conservan placeholders.
 
 El cliente HTTP (`lib/http/httpClient.ts`) centraliza tres cosas que, si no, cada módulo
 reimplementaría: el header `Authorization: Basic` armado a partir de lo que haya en
@@ -935,11 +935,21 @@ si el rol es `ADMIN`, un alta de `ORGANIZADOR`/`VALIDADOR`/`ADMIN` (bonus, mismo
 chain (no está en `permitAll` → anónimo = 401) y cierra la deuda del "quién soy" que PAS-14
 había dejado declarada.
 
+**`frontend/productoras/` — alta y padrón implementados (PAS-16):** el usuario autenticado lista
+sus productoras, crea una nueva y accede al backoffice. El dueño puede consultar el padrón y
+agregar miembros con rol interno; la autorización efectiva permanece en el backend y la UI
+solo adapta las acciones visibles al rol recibido.
+
+**`frontend/eventos/` — cartelera y backoffice implementados (PAS-17):** la cartelera y el
+detalle son públicos; un organizador puede listar los eventos de su productora, crear borradores
+y publicarlos. La UI reutiliza los contratos REST existentes y muestra disponibilidad y precios
+sin duplicar reglas de negocio del backend.
+
 **Próximo paso inmediato:** **`ServicioDeTickets`** — firma criptográfica del QR. Es el seam
 que `ConfirmacionDeCompra` ya dejó preparado (hoy no emite ningún ticket; la emisión está
 fuera del alcance de PAS-8) y lo que necesita `ServicioDeAccesos` para validar en la puerta.
-En paralelo, las otras 4 issues de frontend construyen pantallas reales sobre el esqueleto de
-PAS-14.
+En paralelo quedan por implementar las pantallas de carrito y mis órdenes sobre el esqueleto de
+PAS-14 y los endpoints de Ventas ya disponibles.
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 
