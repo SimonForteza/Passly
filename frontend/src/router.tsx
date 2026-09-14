@@ -8,6 +8,7 @@ import { RegistroPage } from './usuarios/RegistroPage';
 import { CarritoPage } from './ventas/CarritoPage';
 import { MisOrdenesPage } from './ventas/MisOrdenesPage';
 import { BackofficePage } from './productoras/BackofficePage';
+import { ProductorasPage } from './productoras/ProductorasPage';
 
 export const router = createBrowserRouter([
   {
@@ -33,6 +34,14 @@ export const router = createBrowserRouter([
         element: (
           <RutaPrivada>
             <MisOrdenesPage />
+          </RutaPrivada>
+        ),
+      },
+      {
+        path: '/productoras',
+        element: (
+          <RutaPrivada>
+            <ProductorasPage />
           </RutaPrivada>
         ),
       },
