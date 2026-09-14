@@ -15,3 +15,12 @@ npm run dev
 - `npm run dev` — servidor de desarrollo (puerto 5173)
 - `npm run build` — chequeo de tipos + build de producción
 - `npm run lint` — Oxlint
+
+## Pantallas
+
+- **Usuarios (PAS-15):** registro (`/registro`, siempre crea `COMPRADOR`, sin selector de rol),
+  login (`/login`, valida email + password contra `GET /api/usuarios/me`), perfil propio
+  (`/perfil`) y logout. El perfil incluye un alta de roles privilegiados
+  (`ORGANIZADOR`/`VALIDADOR`/`ADMIN`) visible sólo para `ADMIN`.
+- El resto de las rutas (cartelera, detalle de evento, carrito, mis órdenes, backoffice) siguen
+  siendo placeholders hasta sus respectivas issues.

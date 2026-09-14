@@ -8,8 +8,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   headers.set('Accept', 'application/json');
   if (init.body) headers.set('Content-Type', 'application/json');
 
-  const autorizacion = getHeaderAutorizacion();
-  if (autorizacion) headers.set('Authorization', autorizacion);
+  // El header explicito gana: el login valida credenciales pegandole a /api/usuarios/me con un
+  // Basic armado a mano (todavia no hay sesion guardada), y no queremos que la sesion actual —
+  // si la hubiera — lo pise.
+  if (!headers.has('Authorization')) {
+    const autorizacion = getHeaderAutorizacion();
+    if (autorizacion) headers.set('Authorization', autorizacion);
+  }
 
   const respuesta = await fetch(`${BASE_URL}${path}`, {
     ...init,
@@ -35,8 +40,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const httpClient = {
-  get<T>(path: string): Promise<T> {
-    return request<T>(path, { method: 'GET' });
+  get<T>(path: string, init: RequestInit = {}): Promise<T> {
+    return request<T>(path, { ...init, method: 'GET' });
   },
   post<T>(path: string, body?: unknown): Promise<T> {
     return request<T>(path, { method: 'POST', body: body !== undefined ? JSON.stringify(body) : undefined });

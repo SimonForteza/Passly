@@ -26,9 +26,9 @@ export function Header() {
               Mis productoras
             </Link>
           ) : null}
-          <span style={{ color: 'var(--color-texto-secundario)' }}>
+          <Link to="/perfil" style={{ color: 'var(--color-texto-secundario)', textDecoration: 'none' }}>
             {usuario.nombre} · {usuario.rol}
-          </span>
+          </Link>
           <button
             type="button"
             onClick={cerrarSesion}
