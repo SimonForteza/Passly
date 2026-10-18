@@ -601,6 +601,23 @@ th {
   font-size: 12px;
 }
 
+/* Formulario de tarjeta del checkout (PAS-30): mismo criterio que .formulario (label en negrita,
+   gap entre campos), separado porque vive dentro de .checkout-columna, no de un <form> propio. */
+.formulario-tarjeta {
+  display: grid;
+  gap: 14px;
+}
+
+.formulario-tarjeta label {
+  font-weight: 700;
+}
+
+.ayuda-campo-error {
+  color: var(--color-acento);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
 /* Filas de tipo de entrada con stepper (Web 02, "Tipo de entrada"). */
 .fila-entrada {
   display: flex;

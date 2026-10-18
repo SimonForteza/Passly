@@ -50,7 +50,7 @@ prioridad.
 | 1. Crear y publicar | ✅ backend + web | ~~Botón "copiar link" en el backoffice~~ ✅ PAS-25 | ~~PAS-25~~ |
 | 2. Llegar por link | ✅ backend + web | ~~`GET /api/eventos/{id}` devuelve también borradores~~ ✅ PAS-25 (borrador → 404 salvo para quien lo gestiona); ~~el registro no vuelve al evento de origen~~ ✅ PAS-25; ~~no hay página pública de la productora~~ ✅ PAS-26 (`/productoras/{id}`) | ~~PAS-25~~, ~~PAS-26~~ |
 | 3. Cartelera | ✅ backend + web | ~~Búsqueda/filtro por productora en la UI~~ ✅ PAS-26 (búsqueda por nombre o lugar; filtro `?productora=` en la URL) | ~~PAS-26~~ |
-| 4. Pago integrado + QR | ⚠️ parcial | Backend resuelto (PAS-29): Ventas cobra con `PagoService` real y revierte el cobro si la confirmación falla. El QR ya se emite (PAS-20). Falta el formulario de tarjeta en el checkout de la web (depende de PAS-29) | ~~PAS-29~~, PAS-30, [6/8] |
+| 4. Pago integrado + QR | ✅ | Backend resuelto (PAS-29): Ventas cobra con `PagoService` real y revierte el cobro si la confirmación falla. El checkout web pide tarjeta, maneja rechazo (402) y pasarela caída (503) (PAS-30). El QR ya se emite (PAS-20) | ~~PAS-29~~, ~~PAS-30~~ |
 | 5. Validación | ❌ | `ServicioDeAccesos` no existe; no hay pantalla del validador | PAS-31 |
 
 Para el Checkpoint 2 además: diagrama SOA (PAS-27), doc funcional + manual + Figma (PAS-28) y
@@ -1034,10 +1034,12 @@ solo en el REST Client, que valen para el oral:
   (`CarritoDeOtroCompradorException`) incluso en el `DELETE`, sin salida hasta que venza la
   sesión.
 
-Lo que el Figma muestra y el backend todavía no tiene (datos de facturación, varios medios de
-pago, cargo por servicio, QR y descarga de entradas, envío por mail) **no se simuló**: la
-pantalla muestra lo real y dice qué componente lo va a traer. Mismo criterio con el copy "tus
-entradas están reservadas": el carrito no reserva cupo (§4.7), así que dice "tu carrito vence en".
+Lo que el Figma muestra y el backend todavía no tiene (datos de facturación, otros medios de
+pago además de tarjeta, cargo por servicio, descarga de entradas, envío por mail) **no se
+simuló**: la pantalla muestra lo real y dice qué componente lo va a traer. El pago con tarjeta
+en sí **ya dejó de estar en esa lista**: desde PAS-29/PAS-30 el checkout cobra de verdad contra
+`PagoService`. Mismo criterio con el copy "tus entradas están reservadas": el carrito no
+reserva cupo (§4.7), así que dice "tu carrito vence en".
 
 **`ServicioDeEventos` gana edición (PAS-19):** hasta acá un evento nacía y solo podía
 publicarse — ni sus datos, ni sus tipos de entrada, ni el cupo eran editables después de
@@ -1169,6 +1171,32 @@ que la llamada saliente de verdad golpeara un servidor — y ahí apareció. Se 
 `permitAll` explícito sobre `POST /mock/pasarela-pago/**` en `ConfiguracionDeSeguridad`: un
 proveedor de pago real tiene su propio esquema de autenticación, nunca las credenciales de
 Passly, así que el mock que lo simula tampoco debería exigirlas.
+
+**Checkout con tarjeta (PAS-30):** `frontend/src/ventas/CarritoPage.tsx` pasa a pedir los datos
+de tarjeta en el paso "Datos y pago" (`FormularioTarjeta.tsx`, nuevo) y mandarlos en el body de
+`POST /api/ventas/ordenes`, con validación de cliente espejo de `DatosDeTarjetaDTO` (`tarjeta.ts`)
+que evita una llamada de red para un dato que ya se sabe inválido — el backend sigue siendo la
+autoridad: si de todos modos devuelve 400, sus mensajes por campo pisan a los del cliente.
+
+**La tarjeta nunca se persiste, a propósito.** Vive solo en el `useState` de `CarritoPage` (nunca
+en `sessionStorage`/`localStorage`, que es donde vive el resto del estado de sesión del front,
+ver `lib/auth/session.ts`) y se resetea al confirmar la compra, antes de navegar a la orden —
+ningún dato de tarjeta sobrevive más allá de la pantalla de pago, ni siquiera en memoria. Mismo
+criterio que ya aplican `pagos.internal.datos.Pago` y `pagos.dto.DatosDeTarjetaDTO` del lado del
+backend (CLAUDE.md §9, PAS-7): un dato sensible no sale, ni dura, más allá de donde hace falta.
+
+**Anti-doble-clic sin código nuevo.** El botón de pago ya quedaba deshabilitado mientras
+`procesando` desde PAS-18 (evitar un segundo clic mientras la primera confirmación está en
+vuelo); PAS-30 no necesitó tocar esa lógica, solo sumarle la validación de tarjeta antes de
+llegar a ese estado.
+
+**Un detalle de contrato que solo apareció probando contra el backend real, no leyendo el
+código:** el 400 de validación de `POST /api/ventas/ordenes` devuelve las claves de `errores`
+con el prefijo del campo contenedor (`tarjeta.numero`, no `numero`) — porque `tarjeta` es un
+`@Valid` anidado dentro de `ConfirmarCompraRequest`, y así es como Spring nombra los errores de
+binding de un objeto anidado. `tarjeta.ts` expone `quitarPrefijoTarjeta` para esto; sin ella, un
+400 real no habría coloreado ningún campo a pesar de que el payload de error ya traía el mensaje
+correcto.
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { EstadoCarga } from '../layout/EstadoCarga';
 import { EstadoError } from '../layout/EstadoError';
+import { ApiError } from '../lib/http/ApiError';
 import { useAuth } from '../lib/auth/AuthContext';
 import { confirmarCompra, obtenerCarrito, vaciarCarrito } from './api';
+import { FormularioTarjeta } from './FormularioTarjeta';
 import { formatearFechaEvento, formatearPrecio } from './formato';
 import iconoCandado from './iconos/candado.svg';
 import iconoCheckPaso from './iconos/check-paso.svg';
@@ -11,9 +13,18 @@ import iconoRadio from './iconos/radio-seleccionado.svg';
 import iconoReloj from './iconos/reloj.svg';
 import iconoTarjeta from './iconos/tarjeta.svg';
 import { ModalCarritoVencido } from './ModalCarritoVencido';
+import { digitosDeNumero, quitarPrefijoTarjeta, TARJETA_VACIA, validarTarjeta } from './tarjeta';
 import type { CarritoDTO } from './types';
 import { useCuentaRegresiva } from './useCuentaRegresiva';
 import { nombreDeEvento, useEventos } from './useEventos';
+
+/** Copy especifico para los dos casos de pago que el issue pide distinguir del resto de errores. */
+function mensajeDePago(causa: unknown): string | null {
+  if (!(causa instanceof ApiError)) return null;
+  if (causa.status === 402) return 'Tu pago fue rechazado. Probá con otra tarjeta.';
+  if (causa.status === 503) return 'El medio de pago no está disponible. Intentá de nuevo en unos minutos.';
+  return null;
+}
 
 export function CarritoPage() {
   const { usuario } = useAuth();
@@ -24,6 +35,8 @@ export function CarritoPage() {
   const [errorDeCarga, setErrorDeCarga] = useState<unknown>(null);
   const [errorDeCompra, setErrorDeCompra] = useState<unknown>(null);
   const [procesando, setProcesando] = useState(false);
+  const [tarjeta, setTarjeta] = useState(TARJETA_VACIA);
+  const [erroresTarjeta, setErroresTarjeta] = useState<Record<string, string>>({});
   const montado = useRef(true);
 
   const recibir = useCallback((nuevo: CarritoDTO) => {
@@ -81,20 +94,38 @@ export function CarritoPage() {
   }
 
   async function pagar() {
+    // Validacion de cliente antes de pegarle a la red: espejo de DatosDeTarjetaDTO en el
+    // backend (ver tarjeta.ts). Si falla, ni se deshabilita el boton ni se toca errorDeCompra —
+    // el error es de formulario, no de la compra.
+    const erroresDeValidacion = validarTarjeta(tarjeta);
+    if (Object.keys(erroresDeValidacion).length > 0) {
+      setErroresTarjeta(erroresDeValidacion);
+      return;
+    }
+
+    setErroresTarjeta({});
     setProcesando(true);
     setErrorDeCompra(null);
     try {
-      const orden = await confirmarCompra();
+      const orden = await confirmarCompra({ ...tarjeta, numero: digitosDeNumero(tarjeta.numero) });
+      // La tarjeta no sobrevive a la navegacion, ni siquiera en memoria.
+      setTarjeta(TARJETA_VACIA);
       // La compra ya se confirmó: el DELETE solo reinicia el reloj del carrito para la próxima
       // compra de esta sesión (expiraEn no se reinicia al vaciar). Si falla, no hay nada que
       // mostrar — la orden existe igual.
       await vaciarCarrito().catch(() => undefined);
       navigate(`/mis-ordenes/${orden.id}`, { state: { recienConfirmada: true } });
     } catch (causa) {
-      // 409 (cupo insuficiente, carrito vencido, bloqueo optimista), 402 (pago rechazado) o 422
-      // (vacío). En todos los casos el backend NO vació el carrito: se vuelve a pedir para mostrar
-      // el estado real y dejar reintentar sin perder la selección.
-      setErrorDeCompra(causa);
+      // 400: el backend tambien valida la tarjeta (es la autoridad); si encuentra algo que el
+      // cliente dejo pasar, sus mensajes por campo pisan a los de arriba. 409 (cupo insuficiente,
+      // carrito vencido, bloqueo optimista), 402 (pago rechazado) o 503 (pasarela caida) van al
+      // banner general. En todos los casos el backend NO vació el carrito: se vuelve a pedir
+      // para mostrar el estado real y dejar reintentar sin perder la selección.
+      if (causa instanceof ApiError && causa.status === 400 && causa.errores) {
+        setErroresTarjeta(quitarPrefijoTarjeta(causa.errores));
+      } else {
+        setErrorDeCompra(causa);
+      }
       await obtenerCarrito().then(recibir).catch(() => undefined);
       if (montado.current) setProcesando(false);
     }
@@ -156,9 +187,21 @@ export function CarritoPage() {
             <img className="icono" src={iconoTarjeta} width={22} height={22} alt="" />
             <div>
               <p className="opcion-pago-titulo">Tarjeta de crédito / débito</p>
-              <p className="opcion-pago-detalle">Pasarela simulada: el cobro se aprueba sin pedir datos de tarjeta</p>
+              <p className="opcion-pago-detalle">
+                Pasarela de prueba: <strong>4242 4242 4242 4242</strong> aprueba,{' '}
+                <strong>4000 0000 0000 0002</strong> rechaza, <strong>4000 0000 0000 0119</strong>{' '}
+                simula que la pasarela no responde.
+              </p>
             </div>
           </div>
+
+          <FormularioTarjeta
+            tarjeta={tarjeta}
+            onCambio={setTarjeta}
+            erroresCampo={erroresTarjeta}
+            deshabilitado={procesando}
+          />
+
           <p className="aviso-pasarela">
             <img className="icono" src={iconoCandado} width={14} height={14} alt="" />
             El pago se procesa con una pasarela externa (integración REST).
@@ -193,7 +236,15 @@ export function CarritoPage() {
             <span>Total</span>
             <span>{formatearPrecio(carrito.total)}</span>
           </div>
-          {errorDeCompra ? <EstadoError error={errorDeCompra} /> : null}
+          {errorDeCompra ? (
+            mensajeDePago(errorDeCompra) ? (
+              <p className="mensaje-error" role="alert">
+                {mensajeDePago(errorDeCompra)}
+              </p>
+            ) : (
+              <EstadoError error={errorDeCompra} />
+            )
+          ) : null}
           <button
             className="boton boton-primario boton-ancho boton-sombra"
             type="button"

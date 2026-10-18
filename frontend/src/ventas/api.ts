@@ -1,5 +1,5 @@
 import { httpClient } from '../lib/http/httpClient';
-import type { AgregarItemRequest, CarritoDTO, OrdenDTO, TicketDTO } from './types';
+import type { AgregarItemRequest, CarritoDTO, DatosDeTarjetaDTO, OrdenDTO, TicketDTO } from './types';
 
 export function obtenerCarrito(): Promise<CarritoDTO> {
   return httpClient.get<CarritoDTO>('/api/ventas/carrito');
@@ -14,8 +14,8 @@ export function vaciarCarrito(): Promise<CarritoDTO> {
   return httpClient.delete<CarritoDTO>('/api/ventas/carrito');
 }
 
-export function confirmarCompra(): Promise<OrdenDTO> {
-  return httpClient.post<OrdenDTO>('/api/ventas/ordenes');
+export function confirmarCompra(tarjeta: DatosDeTarjetaDTO): Promise<OrdenDTO> {
+  return httpClient.post<OrdenDTO>('/api/ventas/ordenes', { tarjeta });
 }
 
 export function obtenerOrden(id: number): Promise<OrdenDTO> {
