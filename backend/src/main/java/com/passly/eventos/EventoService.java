@@ -49,11 +49,34 @@ public interface EventoService {
     EventoDTO crearEvento(CrearEventoRequest solicitud, Long idUsuarioActuante);
 
     /**
-     * Devuelve un evento por id, cualquiera sea su estado.
+     * Detalle de un evento para quien llega sin identidad: el link compartible (PAS-25).
      *
-     * @throws EventoNoEncontradoException si no existe
+     * <p>Un {@link EstadoEvento#BORRADOR} se responde como si no existiera: es una fiesta que
+     * todavia no se anuncio, y devolver "existe pero no podes verlo" ya filtraria que esta en
+     * preparacion. Es el mismo criterio que las ordenes ajenas en Ventas (404 y no 403).
+     *
+     * <p>Lo que se oculta es solo el borrador, no "todo lo que no este publicado":
+     * {@link EstadoEvento#CANCELADO} sigue visible porque ya fue publico — alguien pudo haber
+     * comprado y tiene que poder ver el evento de su orden — y porque quien abre el link de una
+     * fiesta cancelada necesita enterarse de eso, no leer "no existe". Un evento ya pasado tambien
+     * sigue visible: la fecha no cambia el estado.
+     *
+     * @throws EventoNoEncontradoException si no existe o si esta en BORRADOR
      */
-    EventoDTO consultarEvento(Long idEvento);
+    EventoDTO consultarEventoPublico(Long idEvento);
+
+    /**
+     * Detalle de un evento para un usuario autenticado. Igual que {@link #consultarEventoPublico},
+     * salvo que un {@link EstadoEvento#BORRADOR} si se devuelve cuando quien pregunta puede
+     * gestionar la productora dueña — es lo que necesita el backoffice para editarlo.
+     *
+     * <p>Que no lo gestione no es un 403 sino el mismo 404 que ve un anonimo: para un organizador
+     * de otra productora, el borrador ajeno tampoco existe.
+     *
+     * @param idUsuarioActuante quien pregunta
+     * @throws EventoNoEncontradoException si no existe, o si es un BORRADOR que no gestiona
+     */
+    EventoDTO consultarEvento(Long idEvento, Long idUsuarioActuante);
 
     /**
      * Publica un evento: {@code BORRADOR -> PUBLICADO}.
