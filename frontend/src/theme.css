@@ -178,6 +178,29 @@ button:disabled {
   gap: 1rem;
 }
 
+/* Buscador + selector de productora de la cartelera (PAS-26): lado a lado en escritorio, uno
+   debajo del otro cuando no entran (en 375px cada uno ocupa todo el ancho). */
+.filtros-cartelera {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.filtros-cartelera label {
+  flex: 1 1 15rem;
+  min-width: 0;
+}
+
+/* El organizador en el detalle del evento es un link a su página pública (PAS-26). */
+.eyebrow a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.eyebrow a:hover {
+  text-decoration: underline;
+}
+
 .tarjeta-evento-pie {
   display: flex;
   align-items: center;

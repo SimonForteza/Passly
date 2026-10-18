@@ -48,8 +48,8 @@ prioridad.
 | Recorrido | Estado | Qué falta | Issue |
 |---|---|---|---|
 | 1. Crear y publicar | ✅ backend + web | ~~Botón "copiar link" en el backoffice~~ ✅ PAS-25 | ~~PAS-25~~ |
-| 2. Llegar por link | ⚠️ parcial | ~~`GET /api/eventos/{id}` devuelve también borradores~~ ✅ PAS-25 (borrador → 404 salvo para quien lo gestiona); ~~el registro no vuelve al evento de origen~~ ✅ PAS-25; falta: página pública de la productora | ~~PAS-25~~, PAS-26 |
-| 3. Cartelera | ✅ backend + web | Búsqueda/filtro por productora en la UI | PAS-26 |
+| 2. Llegar por link | ✅ backend + web | ~~`GET /api/eventos/{id}` devuelve también borradores~~ ✅ PAS-25 (borrador → 404 salvo para quien lo gestiona); ~~el registro no vuelve al evento de origen~~ ✅ PAS-25; ~~no hay página pública de la productora~~ ✅ PAS-26 (`/productoras/{id}`) | ~~PAS-25~~, ~~PAS-26~~ |
+| 3. Cartelera | ✅ backend + web | ~~Búsqueda/filtro por productora en la UI~~ ✅ PAS-26 (búsqueda por nombre o lugar; filtro `?productora=` en la URL) | ~~PAS-26~~ |
 | 4. Pago integrado + QR | ⚠️ parcial | Ventas cobra con `PasarelaDePagoSimulada`, no con `PagoService`; `PagoService` no expone `revertir`; el checkout no pide tarjeta. El QR ya se emite (PAS-20) | PAS-29, PAS-30 |
 | 5. Validación | ❌ | `ServicioDeAccesos` no existe; no hay pantalla del validador | PAS-31 |
 
@@ -800,8 +800,13 @@ passly/
 │       ├── layout/        ← AppLayout, Header, RutaPrivada, EstadoCarga/EstadoError
 │       ├── lib/http/       ← httpClient (fetch + Basic + credentials:'include' + ApiError)
 │       ├── lib/auth/       ← session.ts (sessionStorage) + AuthContext
-│       └── usuarios/, productoras/, eventos/, ventas/   ← un paquete por componente del
-│                            backend, cada uno con types.ts + api.ts + sus páginas
+│       ├── usuarios/, ventas/   ← un paquete por componente del backend, cada uno con
+│       │                    types.ts + api.ts + sus páginas
+│       ├── eventos/       ← CarteleraPage (búsqueda + filtro ?productora=), DetalleEventoPage,
+│       │                    alta/edición, EventosDeProductoraPage (backoffice) y
+│       │                    TarjetaEvento — la tarjeta compartida con la página de productora (PAS-26)
+│       └── productoras/   ← ProductorasPage, BackofficePage (padrón) y
+│                            PaginaProductoraPage — página PÚBLICA /productoras/:id (PAS-26)
 └── (aspiracional — todavía no existen):
     ├── docs/arquitectura.md, docs/componentes.md, docs/patrones.md,
     │   docs/integraciones.md, docs/entregas.md  ← se escriben a medida que se decide
@@ -1107,6 +1112,24 @@ de que haga falta. Un evento ya pasado tampoco se oculta: la fecha no cambia el 
 al carrito. `consultarDisponibilidad` responde para cualquier tipo de entrada, así que
 alguien que adivine el id de un tipo de entrada de un borrador podría comprarlo. Se deja
 anotado para un issue propio.
+
+**Página pública de productora (PAS-26):** `/productoras/:id` es una ruta **pública**
+(`PaginaProductoraPage`) con el nombre comercial, la descripción y la grilla de los eventos
+**publicados** de esa productora. Convive con las privadas `/productoras/:id/backoffice` y
+`/productoras/:id/eventos`, porque React Router elige la ruta por especificidad y no por orden.
+Desde el detalle de un evento, el nombre del organizador lleva a esa página, y desde el
+backoffice hay un link "Ver página pública". La cartelera suma un buscador por nombre o lugar,
+que filtra en el cliente sobre lo ya cargado y no distingue mayúsculas ni tildes; el selector
+de productora ya usaba `?productora=` en la URL, así que el filtro se puede compartir y
+sobrevive a un F5. La tarjeta de evento se extrajo a `eventos/TarjetaEvento.tsx` y la usan las
+dos grillas, sin duplicar el markup.
+
+*Para el oral, interfaces bien diseñadas:* **no hizo falta backend nuevo.** El contrato de
+Eventos ya tenía `listarEventosPublicadosDeProductora` (expuesto como
+`GET /api/eventos?productora={id}`) y Productoras ya publicaba un `ProductoraDTO` con los datos
+públicos, sin el padrón de miembros. Una funcionalidad entera de la visión de producto se armó
+solo combinando operaciones que ya estaban en los contratos. Es la prueba de que las interfaces
+se diseñaron por lo que el negocio necesita y no por la pantalla del momento.
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 
