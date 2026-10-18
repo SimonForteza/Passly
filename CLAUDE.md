@@ -47,8 +47,8 @@ prioridad.
 
 | Recorrido | Estado | Qué falta | Issue |
 |---|---|---|---|
-| 1. Crear y publicar | ✅ backend + web | Botón "copiar link" en el backoffice | PAS-25 |
-| 2. Llegar por link | ⚠️ parcial | `GET /api/eventos/{id}` es público y devuelve también **borradores**; el registro no vuelve al evento de origen; no hay página pública de la productora | PAS-25, PAS-26 |
+| 1. Crear y publicar | ✅ backend + web | ~~Botón "copiar link" en el backoffice~~ ✅ PAS-25 | ~~PAS-25~~ |
+| 2. Llegar por link | ⚠️ parcial | ~~`GET /api/eventos/{id}` devuelve también borradores~~ ✅ PAS-25 (borrador → 404 salvo para quien lo gestiona); ~~el registro no vuelve al evento de origen~~ ✅ PAS-25; falta: página pública de la productora | ~~PAS-25~~, PAS-26 |
 | 3. Cartelera | ✅ backend + web | Búsqueda/filtro por productora en la UI | PAS-26 |
 | 4. Pago integrado + QR | ⚠️ parcial | Ventas cobra con `PasarelaDePagoSimulada`, no con `PagoService`; `PagoService` no expone `revertir`; el checkout no pide tarjeta. El QR ya se emite (PAS-20) | PAS-29, PAS-30 |
 | 5. Validación | ❌ | `ServicioDeAccesos` no existe; no hay pantalla del validador | PAS-31 |
@@ -663,6 +663,17 @@ cambio de contrato de `UsuarioDTO` en esta entrega.
     en Eventos vs. Productoras): acá es **rol *o* identidad propia** —
     `hasRole('ADMIN') or #idComprador.equals(...authentication.name...)` — sin que el
     servicio conozca Spring Security.
+- **Borrador ajeno → 404, no 403 — implementado (PAS-25).** `GET /api/eventos/{id}` sigue
+  siendo `permitAll` (es el link compartible), pero un evento en `BORRADOR` solo se devuelve
+  si quien pregunta puede gestionar la productora dueña (`ProductoraService.puedeGestionarEventos`,
+  la misma regla que `exigirGestionSobre`, sin regla nueva). Para el anónimo, el comprador y el
+  organizador de **otra** productora, el borrador responde **404**, igual que un id que no
+  existe: mismo criterio que las órdenes ajenas — un borrador es una fiesta no anunciada y un
+  403 ya confirmaría que está en preparación. El contrato lo separa en
+  `consultarEventoPublico(id)` y `consultarEvento(id, idUsuarioActuante)`; el controller trata
+  como anónimo tanto `Authentication == null` como un `AnonymousAuthenticationToken` (cuyo
+  `getName()` es `"anonymousUser"` y rompería el parseo del id). `CANCELADO` **no** se oculta:
+  ya fue público y puede tener órdenes (ver §9, PAS-25).
 - **Fuera de alcance de PAS-8:** las ops sensibles de `VALIDADOR` (marcar ticket usado)
   viven en un componente que todavía no existe (`ServicioDeAccesos`). Agregará su
   `@PreAuthorize` sobre la misma infra de autenticación.
@@ -1061,6 +1072,41 @@ después de persistir la orden y dentro de la misma transacción local. Cada tic
 un contenido firmado con HMAC-SHA256 y una imagen QR generada con ZXing. La app web los consulta
 por orden, los muestra individualmente y permite descargar el PNG. El próximo paso es
 `ServicioDeAccesos`, que reutilizará la verificación de firma para validar en la puerta.
+
+**Link compartible (PAS-25):** el link de cada evento es su detalle público,
+`/eventos/{id}`. Se cerraron tres huecos. (1) **Fuga de borradores:** `GET /api/eventos/{id}`
+devolvía el evento en cualquier estado; ahora un `BORRADOR` solo lo ve quien gestiona la
+productora dueña, y para el resto responde **404**. El contrato se separó en
+`consultarEventoPublico(id)` (anónimo) y `consultarEvento(id, idUsuarioActuante)`
+(autenticado); el controller decide cuál llamar y trata como anónimo tanto un `Authentication`
+nulo como un `AnonymousAuthenticationToken`. Cubierto por `DetalleDeEventoTest` (anónimo,
+token anónimo, organizador dueño, organizador de otra productora, publicado). (2) **Copiar
+link:** el backoffice (`EventosDeProductoraPage`) tiene un botón por evento publicado; en los
+borradores aparece deshabilitado. (3) **Volver después de registrarse:** `RegistroPage` respeta
+`location.state.from` como `LoginPage`, y los links entre login y registro propagan ese
+`state`. El flujo queda: link → "Ingresá para comprar" → login → "Crear una" → alta → **mismo
+evento**. `DetalleEventoPage` muestra "no existe o todavía no está publicado" ante el 404.
+
+*Para el oral, por qué 404 y no 403:* un 403 dice "existe, pero no es para vos", y eso ya
+filtra información: que esa productora tiene una fiesta en preparación. El 404 no distingue
+entre "no existe" y "no te corresponde". Es el mismo criterio que las órdenes ajenas en
+Ventas, y el contraste es el mismo: `ProductoraNoGestionableException` sí es 403 porque la
+productora es pública, mientras que un borrador no.
+
+*Decisión sobre `CANCELADO`:* se oculta **solo el borrador**, no "todo lo que no esté
+publicado". Un evento cancelado ya fue público, pudo vender entradas, y la pantalla de "Mis
+órdenes" (`useEventos`) resuelve el nombre de cada evento contra este mismo endpoint: si se
+ocultara, un comprador dejaría de ver el evento de su propia orden. Además, quien abre el
+link de una fiesta cancelada tiene que enterarse de eso, no leer "no existe";
+`DetalleEventoPage` muestra "Este evento fue cancelado". Restringirlo a "solo quien tiene
+órdenes" exigiría que Eventos consulte a Ventas, que ya depende de Eventos: sería un ciclo.
+Hoy ninguna operación lleva un evento a `CANCELADO`, así que la decisión queda tomada antes
+de que haga falta. Un evento ya pasado tampoco se oculta: la fecha no cambia el estado.
+
+*Hallazgo fuera de alcance:* Ventas **no** verifica que el evento esté publicado al agregar
+al carrito. `consultarDisponibilidad` responde para cualquier tipo de entrada, así que
+alguien que adivine el id de un tipo de entrada de un borrador podría comprarlo. Se deja
+anotado para un issue propio.
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 
