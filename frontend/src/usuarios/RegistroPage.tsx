@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError } from '../lib/http/ApiError';
 import { useAuth } from '../lib/auth/AuthContext';
 import { crearUsuario } from './api';
@@ -8,6 +8,10 @@ import { BotonPrimario, CampoTexto, PantallaAuth, estilos } from './componentes'
 export function RegistroPage() {
   const { iniciarSesion } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Mismo criterio que LoginPage: quien llegó por el link de un evento (Comprar -> login ->
+  // "Crear una") trae ese evento en state.from y vuelve a él después del alta (PAS-25).
+  const destino = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/';
 
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
@@ -30,7 +34,7 @@ export function RegistroPage() {
       // El POST devuelve el UsuarioDTO (con id): con eso y la clave ya podemos dejar la sesion
       // iniciada sin pasar por el login.
       iniciarSesion(usuario, password);
-      navigate('/', { replace: true });
+      navigate(destino, { replace: true });
     } catch (e) {
       if (e instanceof ApiError && e.status === 400 && e.errores) {
         setErroresCampo(e.errores);
@@ -95,7 +99,7 @@ export function RegistroPage() {
       </form>
 
       <p style={{ color: 'var(--color-texto-secundario)', marginTop: '1.5rem' }}>
-        ¿Ya tenés cuenta? <Link to="/login">Ingresar</Link>
+        ¿Ya tenés cuenta? <Link to="/login" state={location.state}>Ingresar</Link>
       </p>
     </PantallaAuth>
   );
