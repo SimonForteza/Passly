@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { EstadoCarga } from '../layout/EstadoCarga';
 import { EstadoError } from '../layout/EstadoError';
 import { useAuth } from '../lib/auth/AuthContext';
+import { ApiError } from '../lib/http/ApiError';
 import { agregarAlCarrito } from '../ventas/agregarAlCarrito';
 import { formatearPrecio } from '../ventas/formato';
 import iconoCandado from '../ventas/iconos/candado.svg';
@@ -111,7 +112,16 @@ export function DetalleEventoPage() {
     <section className="stack-grande">
       <Link className="volver" to="/">← Cartelera</Link>
 
-      {error ? <EstadoError error={error} /> : null}
+      {/* 404 es tanto "no existe" como "es un borrador que no podés ver" (PAS-25): el backend no
+          distingue a propósito, y la pantalla tampoco. */}
+      {error instanceof ApiError && error.status === 404 ? (
+        <div className="panel estado-vacio">
+          <h3>Este evento no existe o todavía no está publicado</h3>
+          <p className="texto-secundario">Revisá el link o buscá el evento en la cartelera.</p>
+        </div>
+      ) : error ? (
+        <EstadoError error={error} />
+      ) : null}
 
       {evento ? (
         <>
@@ -131,7 +141,9 @@ export function DetalleEventoPage() {
           <div className="checkout">
             <div className="checkout-columna">
               <h3>Elegí tus entradas</h3>
-              {!aLaVenta ? (
+              {evento.estado === 'CANCELADO' ? (
+                <p className="texto-secundario">Este evento fue cancelado.</p>
+              ) : !aLaVenta ? (
                 <p className="texto-secundario">Este evento todavía no está a la venta.</p>
               ) : null}
               {evento.tiposEntrada.length === 0 ? (

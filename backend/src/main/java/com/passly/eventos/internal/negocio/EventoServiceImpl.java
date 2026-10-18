@@ -90,8 +90,25 @@ class EventoServiceImpl implements EventoService {
 
     @Override
     @Transactional(readOnly = true)
-    public EventoDTO consultarEvento(Long idEvento) {
-        return conOrganizador(buscarEvento(idEvento));
+    public EventoDTO consultarEventoPublico(Long idEvento) {
+        Evento evento = buscarEvento(idEvento);
+        if (evento.getEstado() == EstadoEvento.BORRADOR) {
+            throw new EventoNoEncontradoException(idEvento);
+        }
+        return conOrganizador(evento);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public EventoDTO consultarEvento(Long idEvento, Long idUsuarioActuante) {
+        Evento evento = buscarEvento(idEvento);
+        // Misma regla que exigirGestionSobre, pero el "no gestiona" se traduce en 404 y no en
+        // ProductoraNoGestionableException (403): el borrador ajeno no deberia confirmar que existe.
+        if (evento.getEstado() == EstadoEvento.BORRADOR
+                && !productoraService.puedeGestionarEventos(evento.getProductoraId(), idUsuarioActuante)) {
+            throw new EventoNoEncontradoException(idEvento);
+        }
+        return conOrganizador(evento);
     }
 
     @Override

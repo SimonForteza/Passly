@@ -11,6 +11,7 @@ import com.passly.eventos.dto.EventoDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -59,9 +60,15 @@ class EventoController {
         return ResponseEntity.created(URI.create("/api/eventos/" + creado.id())).body(creado);
     }
 
+    /**
+     * Detalle de un evento: es el destino del link compartible (PAS-25), asi que sigue siendo
+     * {@code permitAll}. Lo que cambia segun quien pregunte es si un BORRADOR se ve o da 404.
+     */
     @GetMapping("/api/eventos/{id}")
-    EventoDTO consultarEvento(@PathVariable("id") Long id) {
-        return eventoService.consultarEvento(id);
+    EventoDTO consultarEvento(@PathVariable("id") Long id, Authentication authentication) {
+        return esAnonimo(authentication)
+                ? eventoService.consultarEventoPublico(id)
+                : eventoService.consultarEvento(id, idDelActuante(authentication));
     }
 
     /**
@@ -185,5 +192,17 @@ class EventoController {
      */
     private static Long idDelActuante(Authentication authentication) {
         return Long.valueOf(authentication.getName());
+    }
+
+    /**
+     * En un endpoint {@code permitAll} el anonimo puede llegar de dos formas segun como Spring
+     * resuelva el parametro: {@code null}, o un {@link AnonymousAuthenticationToken} cuyo
+     * {@code getName()} es {@code "anonymousUser"} — que {@link #idDelActuante} no puede parsear.
+     * Las dos cuentan como anonimo.
+     */
+    static boolean esAnonimo(Authentication authentication) {
+        return authentication == null
+                || authentication instanceof AnonymousAuthenticationToken
+                || !authentication.isAuthenticated();
     }
 }

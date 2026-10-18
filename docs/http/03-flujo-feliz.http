@@ -30,8 +30,11 @@ Authorization: Basic {{organizador}} {{clave}}
   ]
 }
 
-### 2. Consultar el evento recien creado (publico, sin credenciales) -- BORRADOR, con su organizador
+### 2. Consultar el evento recien creado -- BORRADOR, con su organizador
+# Un borrador solo lo ve quien gestiona la productora (PAS-25): sin credenciales esto daria 404.
+# El caso anonimo vs organizador esta en 11-link-compartible.http.
 GET {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}
+Authorization: Basic {{organizador}} {{clave}}
 
 ### 3. Publicar el evento -- exige ORGANIZADOR que gestione Aurora
 POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion

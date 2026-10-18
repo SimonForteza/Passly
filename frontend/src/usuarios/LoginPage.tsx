@@ -82,7 +82,9 @@ export function LoginPage() {
       </form>
 
       <p style={{ color: 'var(--color-texto-secundario)', marginTop: '1.5rem' }}>
-        ¿No tenés cuenta? <Link to="/registro">Crear una</Link>
+        {/* El state viaja al registro para que quien llegó por el link de un evento vuelva a él
+            después del alta (PAS-25). */}
+        ¿No tenés cuenta? <Link to="/registro" state={location.state}>Crear una</Link>
       </p>
     </PantallaAuth>
   );
