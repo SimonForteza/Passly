@@ -31,3 +31,5 @@ El puerto ClienteAfip solo registra que falta la integracion SOAP: no existe fac
 Si falla el envio despues del commit, la orden sigue confirmada, no se devuelve el cobro y se registra ERROR con el id de orden. Puede perderse el mensaje: falta outbox y la recuperacion es manual. No se promete exactly-once de transporte.
 
 El conversor JSON de Framework 7 es JacksonJsonMessageConverter (Jackson 3). Aqui usamos JSON explicito con JsonMapper y TextMessage para evitar headers con nombres de clases y acoplar ambos modulos.
+
+Imagen oficial verificada: `apache/artemis:2.53.0-alpine` (el nombre antiguo `apache/activemq-artemis` no publica esta version). Coincide con la version de Artemis gestionada por el BOM de Boot 4.1.1.

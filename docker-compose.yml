@@ -9,7 +9,7 @@
 
 services:
   artemis:
-    image: apache/activemq-artemis:2.53.0-alpine
+    image: apache/artemis:2.53.0-alpine
     container_name: passly-artemis
     environment:
       ARTEMIS_USER: ${PASSLY_BROKER_USER:-passly}
