@@ -21,6 +21,10 @@ function claseBadgeEstado(estado: EstadoEvento): string {
   return 'badge';
 }
 
+function linkDeEvento(idEvento: number): string {
+  return `${window.location.origin}/eventos/${idEvento}`;
+}
+
 export function EventosDeProductoraPage() {
   const { id } = useParams();
   const idProductora = Number(id);
@@ -31,6 +35,8 @@ export function EventosDeProductoraPage() {
   const [error, setError] = useState<unknown>(null);
   const [publicando, setPublicando] = useState<number | null>(null);
   const [erroresPorFila, setErroresPorFila] = useState<Record<number, unknown>>({});
+  // Fila cuyo link se acaba de copiar (o falló al copiarse), para la confirmación breve.
+  const [copiado, setCopiado] = useState<{ idEvento: number; ok: boolean } | null>(null);
 
   useEffect(() => {
     let vigente = true;
@@ -71,6 +77,24 @@ export function EventosDeProductoraPage() {
       setErroresPorFila((actuales) => ({ ...actuales, [idEvento]: causa }));
     } finally {
       setPublicando(null);
+    }
+  }
+
+  // El link compartible es el detalle público del evento (PAS-25): lo abre cualquiera, con o sin
+  // sesión. navigator.clipboard solo existe en contextos seguros (https o localhost); si falla, la
+  // fila muestra el link para copiarlo a mano.
+  async function copiarLink(idEvento: number) {
+    let ok = true;
+    try {
+      await navigator.clipboard.writeText(linkDeEvento(idEvento));
+    } catch {
+      ok = false;
+    }
+    setCopiado({ idEvento, ok });
+    if (ok) {
+      window.setTimeout(() => {
+        setCopiado((actual) => (actual?.idEvento === idEvento ? null : actual));
+      }, 2000);
     }
   }
 
@@ -154,9 +178,36 @@ export function EventosDeProductoraPage() {
                               {publicando === evento.id ? 'Publicando...' : 'Publicar'}
                             </button>
                           ) : null}
+                          {evento.estado === 'PUBLICADO' ? (
+                            <button
+                              className="boton boton-secundario"
+                              type="button"
+                              onClick={() => copiarLink(evento.id)}
+                            >
+                              {copiado?.idEvento === evento.id && copiado.ok ? '¡Link copiado!' : 'Copiar link'}
+                            </button>
+                          ) : null}
+                          {evento.estado === 'BORRADOR' ? (
+                            // Un botón deshabilitado no dispara eventos de mouse en todos los
+                            // navegadores: el tooltip va en el span que lo envuelve.
+                            <span title="Publicá el evento para compartirlo">
+                              <button className="boton boton-secundario" type="button" disabled>
+                                Copiar link
+                              </button>
+                            </span>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
+                    {copiado?.idEvento === evento.id && !copiado.ok ? (
+                      <tr>
+                        <td colSpan={5}>
+                          <p className="texto-secundario" role="status">
+                            No pudimos copiarlo automáticamente. El link es: {linkDeEvento(evento.id)}
+                          </p>
+                        </td>
+                      </tr>
+                    ) : null}
                     {erroresPorFila[evento.id] ? (
                       <tr>
                         <td colSpan={5}>
