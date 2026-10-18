@@ -23,6 +23,39 @@ poder explicar cualquier parte del sistema, no solo la que programó. Un sistema
 técnicamente simple pero bien justificado rinde mejor que uno más grande con
 decisiones improvisadas.
 
+### Visión de producto (acordada por el equipo el 18/10)
+
+Esta es la definición de **qué tiene que hacer Passly terminado**. Todo issue nuevo se mide
+contra esta lista; si una tarea no acerca el sistema a alguno de estos cinco recorridos, no es
+prioridad.
+
+1. **La productora crea y publica eventos** desde su backoffice, y obtiene un **link
+   compartible** de cada evento para difundirlo (redes, WhatsApp, etc.).
+2. **Comprador que llega por el link de una productora:** abre el link, ve el evento y compra
+   ahí mismo. Si no tiene sesión, se registra o inicia sesión y **vuelve al mismo evento**, sin
+   perder dónde estaba.
+3. **Comprador que entra a la página sin link:** ve la **cartelera** con los eventos
+   disponibles de todas las productoras, elige uno y lo compra si quiere.
+4. **Compra con pasarela de pagos integrada:** el comprador paga con tarjeta en el checkout, el
+   cobro pasa por `ServicioDePagos` (Adapter REST), y la compra confirmada **genera un ticket con
+   QR firmado por cada entrada**.
+5. **Validación en el ingreso:** un validador de la productora escanea el QR en la puerta;
+   el sistema verifica la firma, que el ticket sea de un evento de esa productora y que no se
+   haya usado antes, y lo marca como usado.
+
+**Brecha entre la visión y el código (relevada el 18/10 sobre `main`):**
+
+| Recorrido | Estado | Qué falta | Issue |
+|---|---|---|---|
+| 1. Crear y publicar | ✅ backend + web | Botón "copiar link" en el backoffice | PAS-25 |
+| 2. Llegar por link | ⚠️ parcial | `GET /api/eventos/{id}` es público y devuelve también **borradores**; el registro no vuelve al evento de origen; no hay página pública de la productora | PAS-25, PAS-26 |
+| 3. Cartelera | ✅ backend + web | Búsqueda/filtro por productora en la UI | PAS-26 |
+| 4. Pago integrado + QR | ⚠️ parcial | Ventas cobra con `PasarelaDePagoSimulada`, no con `PagoService`; `PagoService` no expone `revertir`; el checkout no pide tarjeta. El QR ya se emite (PAS-20) | PAS-29, PAS-30 |
+| 5. Validación | ❌ | `ServicioDeAccesos` no existe; no hay pantalla del validador | PAS-31 |
+
+Para el Checkpoint 2 además: diagrama SOA (PAS-27), doc funcional + manual + Figma (PAS-28) y
+el proceso async real con Artemis (PAS-32). **Cada issue, al cerrarse, actualiza esta tabla y la §9.**
+
 ### Enlaces
 
 | Recurso | URL |
@@ -50,6 +83,10 @@ Passly es **un backend y dos clientes**.
   funciona. Lo visual suma, pero no es donde se juega la nota.
 - **App móvil** — solo el **validador**. Escanea QR en la puerta del evento.
   El uso de la cámara justifica naturalmente que sea mobile y no web.
+  **Para el Checkpoint 2 (19/10)** la validación se resuelve con una **pantalla web
+  responsive** dentro de `frontend/` (cámara del navegador + ingreso manual del código), que
+  consume la misma API REST que después va a usar la app móvil. La app React Native queda para
+  la Obligatoria 2 / Final; la API no cambia entre una y otra.
 
 ### Recorrido end-to-end
 
@@ -685,7 +722,7 @@ sobre la anterior. No se puede mostrar menos que en la entrega previa.
 |---|---|---|---|
 | Checkpoint 1 | **31/08** | Formativo, no obligatorio | 6+ componentes con interfaces + diagrama + stack justificado + **1 componente desplegado y corriendo** + doc 2-4 pág |
 | Obligatoria 1 | **14/09** | Obligatoria, defensa oral | 3+ componentes andando + 1 stateful/1 stateless + 3 patrones + seguridad por rol + doc 5-8 pág |
-| Checkpoint 2 | **19/10** | Formativo, no obligatorio | Diagrama SOA + 1 proceso async real + doc funcional + manual de usuario + **prototipo Figma** |
+| Checkpoint 2 | **19/10** (la comisión mencionó 20/10 — confirmar) | Formativo, no obligatorio | Diagrama SOA + 1 proceso async real + doc funcional + manual de usuario + **prototipo Figma** |
 | Obligatoria 2 | **09/11** | Obligatoria, defensa oral | 2 async (cola + tópico) + SOAP/AFIP + REST + transacciones + doc 8-12 pág con diagramas de secuencia |
 | Prueba individual | a confirmar | Verificación individual | Cada integrante responde sobre cualquier parte del sistema |
 | Final | **21/12 o 30/11** (confirmar) | Obligatoria, defensa oral | Sistema completo punta a punta + doc 10-15 pág + repo con historial de todos |
@@ -768,6 +805,10 @@ passly/
 ---
 
 ## 9. Estado actual
+
+> **Corte al 18/10:** todo lo de abajo describe `main` hasta PAS-20 inclusive. Lo que falta para
+> cumplir la visión de producto está en la tabla de brecha de §1; cada issue nuevo que se cierre
+> agrega acá su párrafo (qué se hizo, qué decisión vale para el oral) y tacha su fila en §1.
 
 **Entrega del 31/08 lista:** informe con arquitectura, 8 componentes con
 interfaces, stack justificado y diagramas.
@@ -1052,7 +1093,16 @@ por orden, los muestra individualmente y permite descargar el PNG. El próximo p
   carrito stateful, no el stock. **El argumento de "suma un componente más" ya no
   aplica:** Productoras llevó el total a 9, muy por encima del mínimo de 6. La
   decisión se juega solo en si vale la pena el diseño más limpio.
-- Confirmar que la comisión maneja las mismas fechas de checkpoints.
+- Confirmar que la comisión maneja las mismas fechas de checkpoints. **El Checkpoint 2 figura
+  el 19/10 en la consigna; en la comisión se habló del 20/10.**
+- **¿Eventos "solo con link"?** Hoy todo evento publicado aparece en la cartelera. Si una
+  productora quisiera difundir un evento únicamente por su link (sin listarlo), haría falta un
+  atributo de visibilidad (`PUBLICO` / `SOLO_CON_LINK`). No forma parte de la visión del 18/10;
+  se deja anotado por si aparece.
+- **Validador: web ahora, móvil después** (ver §2). Confirmar con la cátedra que una pantalla web
+  responsive con cámara alcanza para el Checkpoint 2.
+- **Rotación de `JSESSIONID`** (`sessionFixation().none()`, ver PAS-18 en §9): sigue pendiente de
+  decisión del equipo.
 
 ### Deuda técnica declarada
 

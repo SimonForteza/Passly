@@ -3,6 +3,14 @@
 Plataforma de venta y validacion de entradas para eventos. Ver [CLAUDE.md](CLAUDE.md) para la
 arquitectura completa, el stack y las decisiones de diseno.
 
+## Qué tiene que hacer Passly (visión de producto)
+
+Las productoras crean eventos y comparten su link; quien entra por ese link compra ahí mismo, y
+quien entra sin link elige desde la cartelera de todas las productoras. El pago pasa por la
+pasarela integrada, cada entrada sale con un QR firmado, y en la puerta un validador lo escanea y
+lo marca como usado. El detalle de los cinco recorridos y qué falta para cada uno está en
+CLAUDE.md §1 ("Visión de producto").
+
 ## Estado actual
 
 Passly es **multi-productora**: un comprador elige entre fiestas de distintos organizadores y
