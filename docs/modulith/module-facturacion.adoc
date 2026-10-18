@@ -1,0 +1,11 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Description
+|Facturacion asincrona. Sin dependencia Java de Ventas: recibe un contrato JSON por JMS.
+|Base package
+|`com.passly.facturacion`
+|Spring components
+|_Services_
+
+* `c.p.f.FacturacionService` (via `c.p.f.internal.negocio.FacturacionServiceImpl`)
+|===

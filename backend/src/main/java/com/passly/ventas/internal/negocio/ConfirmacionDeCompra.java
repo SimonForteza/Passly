@@ -45,15 +45,18 @@ class ConfirmacionDeCompra {
     private final EventoService eventoService;
     private final OrdenRepository ordenRepository;
     private final TicketService ticketService;
+    private final org.springframework.context.ApplicationEventPublisher eventos;
 
     ConfirmacionDeCompra(
             EventoService eventoService,
             OrdenRepository ordenRepository,
-            TicketService ticketService
+            TicketService ticketService,
+            org.springframework.context.ApplicationEventPublisher eventos
     ) {
         this.eventoService = eventoService;
         this.ordenRepository = ordenRepository;
         this.ticketService = ticketService;
+        this.eventos = eventos;
     }
 
     @Transactional
@@ -89,6 +92,7 @@ class ConfirmacionDeCompra {
                                 item.cantidad()))
                         .toList()));
 
+        eventos.publishEvent(new OrdenPagada(orden.getId(), idComprador, total, cobradaEn));
         return orden;
     }
 }

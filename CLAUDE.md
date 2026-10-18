@@ -293,7 +293,9 @@ públicos; que alcancen para operar todo el sistema prueba que esos contratos es
 completos.
 
 **Aspiracional — todavía no existen** (se crean rebanada por rebanada, §4.1):
-`accesos/`, `notificaciones/`, `facturacion/`.
+`accesos/`, `notificaciones/`.
+
+**Facturacion implementada parcialmente (PAS-32):** contrato publico y `internal/{web,negocio,datos}`; `allowedDependencies = {}`. Ver actualizacion PAS-32 al final.
 
 **Reglas duras:**
 
@@ -399,7 +401,7 @@ presentación (Controller + DTO) → negocio (Service) → datos (Repository + E
 | **`ServicioDeTickets` / `TicketService`** | Emite un ticket por unidad con QR firmado y permite consultarlos por orden — **implementado (PAS-20)** | **stateless** |
 | `ServicioDeAccesos` / `AccesoService` | Valida el QR en puerta y garantiza el uso único | stateless |
 | `ServicioDeNotificaciones` / `NotificacionService` | Envío multicanal: ticket, recordatorios, cancelaciones | stateless |
-| `ServicioDeFacturacion` / `FacturacionService` | Adapter SOAP hacia AFIP, con reintento ante rechazo | stateless |
+| `ServicioDeFacturacion` / `FacturacionService` | Registro JMS idempotente PENDIENTE_AFIP implementado; Adapter SOAP pendiente | stateless |
 
 **Grafo de dependencias:**
 
@@ -409,7 +411,7 @@ presentación (Controller + DTO) → negocio (Service) → datos (Repository + E
 | **Ventas** | **Usuarios** | **Síncrona, implementada** — datos del comprador en la orden |
 | Ventas | Pagos | Síncrona — cobro. Hoy resuelto **adentro** de Ventas con un Port/Adapter propio (`PasarelaDePago` / `PasarelaDePagoSimulada`, §4.9). `ServicioDePagos` (PAS-7) ya existe como módulo, pero todavía no está cableado: falta escribir el adapter real y declarar la dependencia en el `package-info` de `ventas` — sin tocar el resto de `VentaServiceImpl` |
 | **Ventas** | **Tickets** | **Síncrona, implementada** — emisión dentro de la transacción |
-| Ventas | Facturación | **Asincrónica** — cola P2P `orden.pagada` |
+| Ventas | Facturación | **Asincrónica, implementada** — cola P2P `orden.pagada` (PAS-32) |
 | Tickets | Notificaciones, Accesos | **Asincrónica** — tópico `ticket.emitido` |
 | Accesos | Tickets | Síncrona — verificación de firma y marcado |
 | **Eventos** | **Productoras** | Síncrona — quién puede gestionar, y el nombre comercial para la cartelera |
@@ -521,6 +523,7 @@ passly (base)
 ├── ventas.orden, ventas.item_orden
 ├── tickets.ticket
 ├── accesos.validacion
+├── facturacion.factura
 └── ...
 ```
 
@@ -768,7 +771,7 @@ passly/
 ├── CLAUDE.md              ← este archivo
 ├── CLAUDE.local.md        ← rutas y entorno personales (gitignored)
 ├── README.md              ← qué es Passly y cómo levantarlo
-├── docker-compose.yml     ← Postgres local de desarrollo (Artemis se suma en la Obligatoria 2)
+├── docker-compose.yml     ← Postgres y Artemis local de desarrollo (PAS-32)
 ├── db/init/               ← scripts de inicialización del contenedor (CREATE SCHEMA por componente)
 ├── .env.example           ← plantilla de variables de entorno, sin secretos
 ├── docs/
@@ -1199,3 +1202,11 @@ se diseñaron por lo que el negocio necesita y no por la pantalla del momento.
   el login se arma sobre él: valida las credenciales y, con la respuesta 200, obtiene el `rol`
   de un usuario ya existente. El registro sigue auto-iniciando la sesión con el `UsuarioDTO`
   que devuelve `POST /api/usuarios`.
+
+## Actualizacion PAS-32 — Checkpoint 2
+
+**Mensajeria asincrona implementada:** Ventas → Facturacion por cola P2P `orden.pagada` en Artemis Docker. Es el primero de los dos procesos async del checklist (el topico queda pendiente).
+`facturacion/` tiene contrato FacturacionService, `internal/{web,negocio,datos}`, esquema `facturacion.factura` y `allowedDependencies = {}`: no existe arista Java Facturacion → Ventas. Usa un record local para deserializar el contrato JSON.
+Docker Compose ya incluye broker durable, consola, redelivery y DLQ. La factura queda PENDIENTE_AFIP; el puerto ClienteAfip tiene solo un adapter que loguea, sin SOAP.
+AFTER_COMMIT evita mensajes de compras revertidas; una restriccion unica + INSERT ON CONFLICT evita duplicados bajo concurrencia. Ver docs/mensajeria.md y docs/ddl-facturacion.sql.
+**Deuda tecnica: envio post-commit sin outbox.** Si JMS falla, la compra sigue confirmada y se loguea ERROR con su id; no propagar hacia la compensacion del pago. Puede faltar factura y requiere conciliacion manual. Agregar outbox o Event Publication Registry en una entrega posterior.

@@ -1,13 +1,26 @@
 # Infraestructura de desarrollo de Passly.
 #
-# Hoy solo la base de datos. El broker ActiveMQ Artemis se agrega en la Obligatoria 2,
-# cuando existan la cola orden.pagada y el topico ticket.emitido.
+# Postgres y ActiveMQ Artemis: cola orden.pagada implementada para el Checkpoint 2.
+# El topico ticket.emitido se incorpora en la Obligatoria 2.
 #
 # El backend NO se containeriza: corre como JAR ejecutable con Tomcat embebido
 # (./mvnw spring-boot:run). El contenedor que administra el ciclo de vida de los
 # componentes es el contenedor IoC de Spring, que es lo que evalua la Unidad II.
 
 services:
+  artemis:
+    image: apache/activemq-artemis:2.53.0-alpine
+    container_name: passly-artemis
+    environment:
+      ARTEMIS_USER: ${PASSLY_BROKER_USER:-passly}
+      ARTEMIS_PASSWORD: ${PASSLY_BROKER_PASSWORD:-passly}
+      ANONYMOUS_LOGIN: "false"
+    ports:
+      - "61616:61616"
+      - "8161:8161"
+    volumes:
+      - passly-artemis-data:/var/lib/artemis-instance
+      - ./infra/artemis/broker.xml:/var/lib/artemis-instance/etc-override/broker.xml:ro
   postgres:
     image: postgres:17
     container_name: passly-db
@@ -34,4 +47,5 @@ services:
       retries: 10
 
 volumes:
+  passly-artemis-data:
   passly-pgdata:

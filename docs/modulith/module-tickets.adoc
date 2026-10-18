@@ -1,0 +1,11 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Description
+|<b>ServicioDeTickets</b>: emite un ticket individual por cada entrada comprada y genera un QR unico con contenido firmado. No consulta tablas ni componentes ajenos: Ventas le entrega un snapshot de los datos necesarios mediante su contrato publico.
+|Base package
+|`com.passly.tickets`
+|Spring components
+|_Services_
+
+* `c.p.t.TicketService` (via `c.p.t.internal.negocio.TicketServiceImpl`)
+|===

@@ -1,9 +1,17 @@
 == PasslyApplication
 plantuml::components.puml[,,format=svg]
 
+== Facturacion
+plantuml::module-facturacion.puml[,,format=svg]
+include::module-facturacion.adoc[]
+
 == Pagos
 plantuml::module-pagos.puml[,,format=svg]
 include::module-pagos.adoc[]
+
+== Tickets
+plantuml::module-tickets.puml[,,format=svg]
+include::module-tickets.adoc[]
 
 == Usuarios
 plantuml::module-usuarios.puml[,,format=svg]

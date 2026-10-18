@@ -56,7 +56,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * transaccion del test y el rollback de {@code ConfirmacionDeCompra} no se podria observar desde
  * afuera (todo se revertiria igual al final, incluso el caso exitoso).
  */
-@SpringBootTest
+@SpringBootTest(properties = "passly.facturacion.consumidor-activo=false")
 class ConfirmarCompraTest {
 
     @Autowired
@@ -74,10 +74,16 @@ class ConfirmarCompraTest {
     @Autowired
     private TicketService ticketService;
 
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    private org.springframework.jms.core.JmsTemplate jms;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.doNothing().when(jms).send(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(org.springframework.jms.core.MessageCreator.class));
+        org.mockito.Mockito.clearInvocations(jms);
         this.mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();
@@ -110,6 +116,10 @@ class ConfirmarCompraTest {
         DisponibilidadDTO sinCupo = eventoService.consultarDisponibilidad(idSinCupo);
         assertThat(conSobra.cupoDisponible()).isEqualTo(5);
         assertThat(sinCupo.cupoDisponible()).isEqualTo(2);
+
+        org.mockito.Mockito.verify(jms, org.mockito.Mockito.never()).send(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(org.springframework.jms.core.MessageCreator.class));
 
         // El carrito sobrevive: no se vacio porque la compra no se confirmo.
         mockMvc.perform(get("/api/ventas/carrito").with(actuante).session(sesion))
@@ -156,6 +166,8 @@ class ConfirmarCompraTest {
                 .andReturn().getResponse().getContentAsString();
         Long idOrden = extraerId(respuesta);
 
+        org.mockito.Mockito.verify(jms).send(org.mockito.ArgumentMatchers.eq("orden.pagada"),
+                org.mockito.ArgumentMatchers.any(org.springframework.jms.core.MessageCreator.class));
         assertThat(ticketService.listarTicketsDeOrden(idOrden, comprador.id()))
                 .hasSize(3)
                 .allSatisfy(ticket -> {

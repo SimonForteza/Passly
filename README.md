@@ -111,3 +111,12 @@ Falla con `Module 'eventos' depends on ... Allowed targets: none`.
   Java reporta el timezone del sistema como `America/Buenos_Aires`, un alias que la imagen
   oficial de Postgres no reconoce (solo tiene `America/Argentina/Buenos_Aires`), y la conexion
   JDBC fallaba con `FATAL: invalid value for parameter "TimeZone"`.
+
+## Mensajeria (PAS-32)
+
+`docker compose up -d` levanta Postgres y ActiveMQ Artemis. Consola: http://localhost:8161/console,
+usuario y clave de desarrollo `passly` (externalizables en `.env`). La cola durable `orden.pagada`
+registra una factura `PENDIENTE_AFIP` por compra confirmada; SOAP todavia no esta integrado.
+Con una base existente, crear el esquema `facturacion` antes de arrancar; no borrar el volumen.
+Guion de consumidor detenido, duplicados y DLQ: [docs/mensajeria.md](docs/mensajeria.md).
+

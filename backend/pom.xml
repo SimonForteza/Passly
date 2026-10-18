@@ -40,6 +40,12 @@
 			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
 
+        <!-- JMS nativo; el broker corre fuera de la JVM, en Docker. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-artemis</artifactId>
+        </dependency>
+
 		<!-- ============ Capa de datos ============ -->
 		<!-- Trae Hibernate 7.1, Jakarta Persistence 3.2, HikariCP y el soporte de @Transactional. -->
 		<dependency>
@@ -117,6 +123,12 @@
 		-->
 
 		<!-- ============ Tests ============ -->
+        <!-- Broker real solo en pruebas; produccion usa el contenedor externo. -->
+        <dependency>
+            <groupId>org.apache.artemis</groupId>
+            <artifactId>artemis-jakarta-server</artifactId>
+            <scope>test</scope>
+        </dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
