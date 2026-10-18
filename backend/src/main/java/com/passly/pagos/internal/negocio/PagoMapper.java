@@ -1,6 +1,7 @@
 package com.passly.pagos.internal.negocio;
 
 import com.passly.pagos.dto.ResultadoDeCobroDTO;
+import com.passly.pagos.dto.ResultadoDeReversionDTO;
 import com.passly.pagos.internal.datos.Pago;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +22,16 @@ class PagoMapper {
                 pago.getMonto(),
                 pago.getMoneda(),
                 pago.getFechaProcesamiento()
+        );
+    }
+
+    ResultadoDeReversionDTO aDTOReversion(Pago pago) {
+        return new ResultadoDeReversionDTO(
+                pago.getId(),
+                pago.getIdTransaccionExterna(),
+                pago.getIdTransaccionReversion(),
+                pago.getEstado(),
+                pago.getFechaReversion()
         );
     }
 }

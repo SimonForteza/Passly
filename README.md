@@ -19,9 +19,10 @@ cada productora publica y gestiona solo las suyas.
 Siete modulos backend implementados: `usuarios`, `productoras`, `eventos`, `seguridad`, `ventas`,
 `pagos` y `tickets`. Spring Modulith verifica sus fronteras en el build y las dependencias estan
 **declaradas** modulo por modulo. El grafo de negocio es aciclico: `ventas` depende directamente
-de `eventos`, `usuarios` y `tickets`; `eventos -> productoras -> usuarios`; `pagos` y `tickets` no dependen de otro
-modulo. Ventas todavia cobra con una pasarela simulada: integrarlo con `PagoService` es una deuda
-explicita. La compra ya emite un ticket con QR firmado por cada unidad adquirida.
+de `eventos`, `usuarios`, `tickets` y `pagos`; `eventos -> productoras -> usuarios`; `pagos` y `tickets` no dependen de otro
+modulo. Ventas cobra a traves de `PagoService` (PAS-29): el checkout manda la tarjeta, el cobro
+pasa por el Adapter REST real hacia la pasarela (mockeada), y si la confirmacion falla despues de
+cobrar, el cobro se revierte. La compra ya emite un ticket con QR firmado por cada unidad adquirida.
 
 La identidad de quien opera la resuelve **Spring Security** (HTTP Basic, sesion STATELESS):
 ningun endpoint depende de un header propio para saber quien esta operando. La autorizacion

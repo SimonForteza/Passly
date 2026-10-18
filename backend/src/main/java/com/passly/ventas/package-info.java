@@ -18,5 +18,6 @@
         allowedDependencies = {
                 "eventos", "eventos :: dto",
                 "usuarios", "usuarios :: dto",
-                "tickets", "tickets :: dto"})
+                "tickets", "tickets :: dto",
+                "pagos", "pagos :: dto"})
 package com.passly.ventas;

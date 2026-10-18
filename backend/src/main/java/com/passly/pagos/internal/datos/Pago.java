@@ -61,6 +61,14 @@ public class Pago {
     @Column(name = "fecha_procesamiento", nullable = false)
     private OffsetDateTime fechaProcesamiento;
 
+    /** Nulo hasta que el pago se revierte. Id que asigna la pasarela a esa operacion puntual. */
+    @Column(name = "id_transaccion_reversion", length = 100)
+    private String idTransaccionReversion;
+
+    /** Nulo hasta que el pago se revierte. */
+    @Column(name = "fecha_reversion")
+    private OffsetDateTime fechaReversion;
+
     /** Requerido por JPA. No usar desde el codigo de negocio. */
     protected Pago() {
     }
@@ -107,5 +115,24 @@ public class Pago {
 
     public OffsetDateTime getFechaProcesamiento() {
         return fechaProcesamiento;
+    }
+
+    public String getIdTransaccionReversion() {
+        return idTransaccionReversion;
+    }
+
+    public OffsetDateTime getFechaReversion() {
+        return fechaReversion;
+    }
+
+    /**
+     * Marca este pago como revertido. Metodo de dominio con nombre de intencion, no un setter
+     * generico -- mismo criterio que {@code TipoEntrada.descontar}/{@code ampliarCupo} en
+     * {@code eventos}: la mutacion queda acotada a la operacion de negocio que la justifica.
+     */
+    public void marcarComoRevertido(String idTransaccionReversion, OffsetDateTime fechaReversion) {
+        this.estado = EstadoDePago.REVERTIDO;
+        this.idTransaccionReversion = idTransaccionReversion;
+        this.fechaReversion = fechaReversion;
     }
 }

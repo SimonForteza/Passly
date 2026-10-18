@@ -2,6 +2,7 @@ package com.passly.ventas;
 
 import com.passly.ventas.dto.AgregarItemRequest;
 import com.passly.ventas.dto.CarritoDTO;
+import com.passly.ventas.dto.DatosDeTarjetaDTO;
 import com.passly.ventas.dto.OrdenDTO;
 
 import java.util.List;
@@ -50,7 +51,7 @@ public interface VentaService {
      * @throws PagoRechazadoException              si la pasarela rechaza el cobro
      * @throws com.passly.eventos.CupoInsuficienteException si el cupo se agoto entre el hold y la confirmacion
      */
-    OrdenDTO confirmarCompra(Long idComprador);
+    OrdenDTO confirmarCompra(Long idComprador, DatosDeTarjetaDTO tarjeta);
 
     /**
      * Una orden por id, solo si es del comprador que pregunta.

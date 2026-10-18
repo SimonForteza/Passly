@@ -77,4 +77,14 @@ class ManejadorDeErroresDeVentas {
     ProblemDetail ordenNoEncontrada(OrdenNoEncontradaException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
     }
+
+    /**
+     * 503, no un generico 500: la pasarela de pago (modulo {@code pagos}) no respondio. Ajena a
+     * este modulo, pero solo puede ocurrir durante el cobro de una compra -- mismo criterio que
+     * ya aplica a {@code CupoInsuficienteException}, de {@code eventos}.
+     */
+    @ExceptionHandler(com.passly.pagos.PasarelaDePagoNoDisponibleException.class)
+    ProblemDetail pasarelaNoDisponible(com.passly.pagos.PasarelaDePagoNoDisponibleException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+    }
 }

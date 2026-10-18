@@ -5,6 +5,10 @@ plantuml::components.puml[,,format=svg]
 plantuml::module-pagos.puml[,,format=svg]
 include::module-pagos.adoc[]
 
+== Tickets
+plantuml::module-tickets.puml[,,format=svg]
+include::module-tickets.adoc[]
+
 == Usuarios
 plantuml::module-usuarios.puml[,,format=svg]
 include::module-usuarios.adoc[]
