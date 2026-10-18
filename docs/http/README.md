@@ -15,11 +15,13 @@ independiente: se abre, aparece un link `Send Request` arriba de cada `###`, y s
 | [08-ventas.http](08-ventas.http) | carrito stateful, confirmar compra, **un ticket con QR por unidad**, y el rollback: dos lineas, la segunda sin cupo -> 409, la primera vuelve a su cupo original |
 | [09-pagos.http](09-pagos.http) | Adapter REST hacia la pasarela de pago (PAS-7): cobro aprobado, **rechazado (402)**, **pasarela caida (503)**, 401, validacion |
 | [10-edicion-eventos.http](10-edicion-eventos.http) | edicion de evento y tipos de entrada (PAS-19): editar en BORRADOR, **bajar cupo bajo lo vendido -> 409**, editar en PUBLICADO -> 409, agregar tipo y ampliar cupo en PUBLICADO -> 200/201, nombre repetido -> 409, aislamiento -> 403, sin identidad -> 401 |
+| [11-link-compartible.http](11-link-compartible.http) | el link compartible de un evento (PAS-25): publicado -> 200 para todos; **borrador -> 404 (no 403)** para anonimos, compradores y organizadores de otra productora; 200 para quien gestiona la productora dueña |
 
 ## Autenticacion (PAS-6)
 
 La API usa **HTTP Basic**. Los endpoints publicos no piden credenciales: `GET /actuator/health`,
-la cartelera (`GET /api/eventos`, `GET /api/eventos/{id}`) y el alta publica (`POST /api/usuarios`,
+la cartelera (`GET /api/eventos`, `GET /api/eventos/{id}` -- este ultimo con una salvedad: un
+borrador solo lo ve quien gestiona su productora, ver `11-link-compartible.http`) y el alta publica (`POST /api/usuarios`,
 que solo puede crear `COMPRADOR`). Todo lo demas exige estar autenticado, y las operaciones
 sensibles exigen ademas un rol (`@PreAuthorize`): crear/publicar eventos -> `ORGANIZADOR` **que
 ademas pueda gestionar la productora indicada** (PAS-13); crear usuarios privilegiados y listar

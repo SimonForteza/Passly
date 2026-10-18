@@ -1,0 +1,43 @@
+@baseUrl = http://localhost:8080
+@clave = passly1234
+
+# El link compartible de un evento (PAS-25): GET /api/eventos/{id} es publico, pero un BORRADOR
+# solo lo ve quien gestiona la productora dueña. Para todos los demas responde 404, no 403: un
+# borrador es una fiesta que todavia no se anuncio, y un 403 ya confirmaria que existe. Mismo
+# criterio que las ordenes ajenas en Ventas (CLAUDE.md 4.11).
+#
+# Ids del perfil demo con la base recien creada:
+#   usuarios     1 Carla (COMPRADOR)  3 Omar (ORGANIZADOR, DUENIO de Aurora)  4 Olga (ORGANIZADOR, DUENIO de Nocturna)
+#   eventos      1 Jazz (Aurora, PUBLICADO)  3 Recital (Aurora, BORRADOR)
+# Si ya corriste 06-aislamiento.http, el paso 8 de ese archivo publico el Recital: recrear la
+# base (docker compose down -v && up -d) antes de correr este.
+
+@omar = organizador@passly.test
+@olga = organizador2@passly.test
+@carla = comprador@passly.test
+@jazzDeAurora = 1
+@recitalDeAurora = 3
+
+### 1. Anonimo abre el link de un evento PUBLICADO -> 200
+GET {{baseUrl}}/api/eventos/{{jazzDeAurora}}
+
+### 2. Anonimo abre el link de un BORRADOR -> 404 (igual que un id que no existe)
+GET {{baseUrl}}/api/eventos/{{recitalDeAurora}}
+
+### 3. Omar gestiona Aurora -> 200, ve su borrador (es lo que usa el backoffice para editarlo)
+GET {{baseUrl}}/api/eventos/{{recitalDeAurora}}
+Authorization: Basic {{omar}} {{clave}}
+
+### 4. Olga es organizadora, pero de Nocturna -> 404, no 403
+# Para ella el borrador de Aurora tampoco existe.
+GET {{baseUrl}}/api/eventos/{{recitalDeAurora}}
+Authorization: Basic {{olga}} {{clave}}
+
+### 5. Un comprador autenticado -> 404 sobre el borrador
+GET {{baseUrl}}/api/eventos/{{recitalDeAurora}}
+Authorization: Basic {{carla}} {{clave}}
+
+### 6. Olga sobre un evento PUBLICADO de otra productora -> 200
+# Lo publicado es publico para todos: la restriccion es solo sobre borradores.
+GET {{baseUrl}}/api/eventos/{{jazzDeAurora}}
+Authorization: Basic {{olga}} {{clave}}
