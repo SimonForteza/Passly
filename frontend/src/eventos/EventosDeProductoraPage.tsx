@@ -120,9 +120,15 @@ export function EventosDeProductoraPage() {
             <h2>{productora.nombreComercial}</h2>
             <p className="texto-secundario">Eventos propios, incluidos los borradores.</p>
           </div>
-          <Link className="boton boton-primario" to={`/productoras/${idProductora}/eventos/nuevo`}>
-            Crear evento
-          </Link>
+          <div className="acciones-fila">
+            {/* Lo que ve el público: solo los publicados, sin los borradores de esta tabla (PAS-26). */}
+            <Link className="boton boton-secundario" to={`/productoras/${idProductora}`}>
+              Ver página pública
+            </Link>
+            <Link className="boton boton-primario" to={`/productoras/${idProductora}/eventos/nuevo`}>
+              Crear evento
+            </Link>
+          </div>
         </div>
       ) : null}
 

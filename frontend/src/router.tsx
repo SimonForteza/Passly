@@ -10,6 +10,7 @@ import { CarritoPage } from './ventas/CarritoPage';
 import { MisOrdenesPage } from './ventas/MisOrdenesPage';
 import { DetalleOrdenPage } from './ventas/DetalleOrdenPage';
 import { BackofficePage } from './productoras/BackofficePage';
+import { PaginaProductoraPage } from './productoras/PaginaProductoraPage';
 import { ProductorasPage } from './productoras/ProductorasPage';
 import { CrearEventoPage } from './eventos/CrearEventoPage';
 import { EditarEventoPage } from './eventos/EditarEventoPage';
@@ -24,6 +25,10 @@ export const router = createBrowserRouter([
       { path: '/eventos/:id', element: <DetalleEventoPage /> },
       { path: '/login', element: <LoginPage /> },
       { path: '/registro', element: <RegistroPage /> },
+      // Página pública de la productora (PAS-26). Convive con las privadas /productoras/:id/backoffice
+      // y /productoras/:id/eventos: React Router elige por especificidad, no por orden, así que
+      // /productoras/3 cae acá y /productoras/3/eventos sigue yendo al backoffice.
+      { path: '/productoras/:id', element: <PaginaProductoraPage /> },
 
       // Privadas
       {

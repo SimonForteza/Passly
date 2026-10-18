@@ -127,7 +127,10 @@ export function DetalleEventoPage() {
         <>
           <div className="encabezado-pagina">
             <div>
-              <p className="eyebrow">{evento.organizador.nombreComercial}</p>
+              <p className="eyebrow">
+                {/* Desde el evento se llega a todo lo que publicó su productora (PAS-26). */}
+                <Link to={`/productoras/${evento.organizador.id}`}>{evento.organizador.nombreComercial}</Link>
+              </p>
               <h2>{evento.nombre}</h2>
               <p className="texto-secundario">
                 {FORMATO_FECHA.format(new Date(evento.fechaHora))} · {evento.lugar}
