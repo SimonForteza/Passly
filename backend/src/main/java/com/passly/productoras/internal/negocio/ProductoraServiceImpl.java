@@ -151,6 +151,13 @@ class ProductoraServiceImpl implements ProductoraService {
 
     @Override
     @Transactional(readOnly = true)
+    public boolean puedeValidarEntradas(Long idProductora, Long idUsuario) {
+        return productoraRepository.findById(idProductora)
+                .map(p -> p.puedeValidarEntradas(idUsuario)).orElse(false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public boolean puedeGestionarEventos(Long idProductora, Long idUsuario) {
         // La regla de que roles califican vive en la entidad (Productora.puedeGestionarEventos):
         // usa solo datos propios del agregado. Aca solo se resuelve el agregado.

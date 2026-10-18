@@ -19,3 +19,4 @@ create schema if not exists ventas;
 create schema if not exists tickets;
 
 create schema if not exists facturacion;
+create schema if not exists accesos;

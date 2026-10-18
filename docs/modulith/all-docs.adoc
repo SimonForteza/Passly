@@ -29,6 +29,10 @@ include::module-seguridad.adoc[]
 plantuml::module-eventos.puml[,,format=svg]
 include::module-eventos.adoc[]
 
+== Accesos
+plantuml::module-accesos.puml[,,format=svg]
+include::module-accesos.adoc[]
+
 == Demo
 plantuml::module-demo.puml[,,format=svg]
 include::module-demo.adoc[]

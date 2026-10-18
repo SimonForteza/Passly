@@ -50,6 +50,11 @@ public class Ticket {
     @Column(name = "emitido_en", nullable = false, updatable = false)
     private OffsetDateTime emitidoEn;
 
+    @Column(name = "usado_en")
+    private OffsetDateTime usadoEn;
+
+    public OffsetDateTime getUsadoEn() { return usadoEn; }
+
     protected Ticket() {
     }
 

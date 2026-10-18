@@ -16,8 +16,8 @@ CLAUDE.md §1 ("Visión de producto").
 Passly es **multi-productora**: un comprador elige entre fiestas de distintos organizadores y
 cada productora publica y gestiona solo las suyas.
 
-Siete modulos backend implementados: `usuarios`, `productoras`, `eventos`, `seguridad`, `ventas`,
-`pagos` y `tickets`. Spring Modulith verifica sus fronteras en el build y las dependencias estan
+Nueve modulos backend implementados: `usuarios`, `productoras`, `eventos`, `seguridad`, `ventas`,
+`pagos`, `tickets`, `accesos` y `facturacion` (esta ultima sin SOAP todavia). Spring Modulith verifica sus fronteras en el build y las dependencias estan
 **declaradas** modulo por modulo. El grafo de negocio es aciclico: `ventas` depende directamente
 de `eventos`, `usuarios` y `tickets`; `eventos -> productoras -> usuarios`; `pagos` y `tickets` no dependen de otro
 modulo. Ventas todavia cobra con una pasarela simulada: integrarlo con `PagoService` es una deuda
@@ -120,3 +120,9 @@ registra una factura `PENDIENTE_AFIP` por compra confirmada; SOAP todavia no est
 Con una base existente, crear el esquema `facturacion` antes de arrancar; no borrar el volumen.
 Guion de consumidor detenido, duplicados y DLQ: [docs/mensajeria.md](docs/mensajeria.md).
 
+## Control de acceso (PAS-31)
+
+Los usuarios VALIDADOR y ORGANIZADOR tienen **Validar entradas** en el menu. Vera, del perfil demo,
+valida entradas de Aurora. La ruta `/validar` permite camara o ingreso manual, con uso unico bajo
+concurrencia. La camara necesita HTTPS o localhost. Guion: [docs/accesos.md](docs/accesos.md).
+En bases existentes crear `accesos` y `facturacion` antes de arrancar; no borrar datos.

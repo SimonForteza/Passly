@@ -17,6 +17,7 @@ top to bottom direction
 
 System_Boundary("PasslyApplication_boundary", "PasslyApplication", $tags="") {
   Container_Boundary("PasslyApplication.PasslyApplication_boundary", "PasslyApplication", $tags="") {
+    Component(PasslyApplication.PasslyApplication.Accesos, "Accesos", $techn="Module", $descr="", $tags="", $link="")
     Component(PasslyApplication.PasslyApplication.Demo, "Demo", $techn="Module", $descr="", $tags="", $link="")
     Component(PasslyApplication.PasslyApplication.Ventas, "Ventas", $techn="Module", $descr="", $tags="", $link="")
     Component(PasslyApplication.PasslyApplication.Tickets, "Tickets", $techn="Module", $descr="", $tags="", $link="")
@@ -28,14 +29,17 @@ System_Boundary("PasslyApplication_boundary", "PasslyApplication", $tags="") {
 
 }
 
+Rel(PasslyApplication.PasslyApplication.Accesos, PasslyApplication.PasslyApplication.Eventos, "uses", $techn="", $tags="", $link="")
+Rel(PasslyApplication.PasslyApplication.Accesos, PasslyApplication.PasslyApplication.Productoras, "uses", $techn="", $tags="", $link="")
+Rel(PasslyApplication.PasslyApplication.Accesos, PasslyApplication.PasslyApplication.Tickets, "uses", $techn="", $tags="", $link="")
 Rel(PasslyApplication.PasslyApplication.Ventas, PasslyApplication.PasslyApplication.Eventos, "uses", $techn="", $tags="", $link="")
 Rel(PasslyApplication.PasslyApplication.Ventas, PasslyApplication.PasslyApplication.Tickets, "uses", $techn="", $tags="", $link="")
 Rel(PasslyApplication.PasslyApplication.Ventas, PasslyApplication.PasslyApplication.Usuarios, "uses", $techn="", $tags="", $link="")
+Rel(PasslyApplication.PasslyApplication.Productoras, PasslyApplication.PasslyApplication.Usuarios, "uses", $techn="", $tags="", $link="")
+Rel(PasslyApplication.PasslyApplication.Seguridad, PasslyApplication.PasslyApplication.Usuarios, "uses", $techn="", $tags="", $link="")
 Rel(PasslyApplication.PasslyApplication.Demo, PasslyApplication.PasslyApplication.Usuarios, "uses", $techn="", $tags="", $link="")
 Rel(PasslyApplication.PasslyApplication.Demo, PasslyApplication.PasslyApplication.Productoras, "uses", $techn="", $tags="", $link="")
 Rel(PasslyApplication.PasslyApplication.Demo, PasslyApplication.PasslyApplication.Eventos, "uses", $techn="", $tags="", $link="")
-Rel(PasslyApplication.PasslyApplication.Productoras, PasslyApplication.PasslyApplication.Usuarios, "uses", $techn="", $tags="", $link="")
-Rel(PasslyApplication.PasslyApplication.Seguridad, PasslyApplication.PasslyApplication.Usuarios, "uses", $techn="", $tags="", $link="")
 Rel(PasslyApplication.PasslyApplication.Eventos, PasslyApplication.PasslyApplication.Productoras, "uses", $techn="", $tags="", $link="")
 
 SHOW_LEGEND(true)

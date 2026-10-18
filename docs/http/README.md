@@ -129,3 +129,5 @@ cd backend && ./mvnw test
 
 falla con `Module 'eventos' depends on ... Allowed targets: none`. La frontera entre
 componentes no es una convencion del equipo: es una condicion de compilacion.
+
+- `09-accesos.http`: compra, consulta de contenido QR, cuatro resultados de validacion y rechazo por rol/productora.

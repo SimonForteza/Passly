@@ -115,6 +115,12 @@ public class Productora {
                 .orElse(false);
     }
 
+    public boolean puedeValidarEntradas(Long idUsuario) {
+        return buscarMiembro(idUsuario).map(m -> switch (m.getRolInterno()) {
+            case DUENIO, STAFF, VALIDADOR -> true;
+        }).orElse(false);
+    }
+
     public boolean tieneMiembroConRol(Long idUsuario, RolEnProductora rol) {
         return buscarMiembro(idUsuario)
                 .map(miembro -> miembro.getRolInterno() == rol)

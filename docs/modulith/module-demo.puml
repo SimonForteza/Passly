@@ -25,10 +25,10 @@ System_Boundary("PasslyApplication_boundary", "PasslyApplication", $tags="") {
 
 }
 
+Rel(PasslyApplication.PasslyApplication.Productoras, PasslyApplication.PasslyApplication.Usuarios, "uses", $techn="", $tags="", $link="")
 Rel(PasslyApplication.PasslyApplication.Demo, PasslyApplication.PasslyApplication.Usuarios, "uses", $techn="", $tags="", $link="")
 Rel(PasslyApplication.PasslyApplication.Demo, PasslyApplication.PasslyApplication.Productoras, "uses", $techn="", $tags="", $link="")
 Rel(PasslyApplication.PasslyApplication.Demo, PasslyApplication.PasslyApplication.Eventos, "uses", $techn="", $tags="", $link="")
-Rel(PasslyApplication.PasslyApplication.Productoras, PasslyApplication.PasslyApplication.Usuarios, "uses", $techn="", $tags="", $link="")
 Rel(PasslyApplication.PasslyApplication.Eventos, PasslyApplication.PasslyApplication.Productoras, "uses", $techn="", $tags="", $link="")
 
 SHOW_LEGEND(true)

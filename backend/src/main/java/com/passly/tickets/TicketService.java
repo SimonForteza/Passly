@@ -17,4 +17,10 @@ public interface TicketService {
 
     /** Verifica que el contenido haya sido emitido por Passly y no haya sido alterado. */
     boolean esContenidoQrValido(String contenidoQr);
+
+    /**
+     * Verifica firma y evento antes de consumir. Un UPDATE condicional garantiza uso unico
+     * incluso con dos validadores concurrentes: solo una fila pasa de EMITIDO a USADO.
+     */
+    com.passly.tickets.dto.UsoTicketDTO validarYUsar(String contenidoQr, Long idEvento);
 }

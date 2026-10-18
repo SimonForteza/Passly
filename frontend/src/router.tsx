@@ -1,3 +1,4 @@
+import { ValidarPage } from './accesos/ValidarPage';
 import { createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from './layout/AppLayout';
 import { RutaPrivada } from './layout/RutaPrivada';
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
       { path: '/productoras/:id', element: <PaginaProductoraPage /> },
 
       // Privadas
+      { path: '/validar', element: <RutaPrivada><ValidarPage /></RutaPrivada> },
       {
         path: '/perfil',
         element: (

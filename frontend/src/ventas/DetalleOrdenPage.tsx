@@ -115,6 +115,10 @@ export function DetalleOrdenPage() {
                   {item ? formatearPrecio(item.precioUnitario) : 'Entrada emitida'}
                 </span>
                 <span className="ticket-codigo">Código {ticket.codigo}</span>
+                <details className="ticket-contenido">
+                  <summary>Contenido para ingreso manual</summary>
+                  <code style={{ overflowWrap: 'anywhere' }}>{ticket.contenidoQr}</code>
+                </details>
                 <a
                   className="boton boton-secundario"
                   href={`data:image/png;base64,${ticket.qrBase64}`}

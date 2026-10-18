@@ -50,6 +50,9 @@ export function Header() {
               Mis productoras
             </Link>
           ) : null}
+          {(usuario.rol === 'VALIDADOR' || usuario.rol === 'ORGANIZADOR') ? (
+            <Link className="enlace-cabecera" to="/validar">Validar entradas</Link>
+          ) : null}
           <Link to="/perfil" style={{ color: 'var(--color-texto-secundario)', textDecoration: 'none' }}>
             {usuario.nombre} · {usuario.rol}
           </Link>
