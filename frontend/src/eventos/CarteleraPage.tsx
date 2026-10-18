@@ -1,28 +1,24 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { EstadoCarga } from '../layout/EstadoCarga';
 import { EstadoError } from '../layout/EstadoError';
 import { listarProductoras } from '../productoras/api';
 import type { ProductoraDTO } from '../productoras/types';
 import { listarEventos } from './api';
+import { TarjetaEvento } from './TarjetaEvento';
 import type { EventoDTO } from './types';
 
-const FORMATO_FECHA = new Intl.DateTimeFormat('es-AR', {
-  weekday: 'short',
-  day: '2-digit',
-  month: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-});
-
-function precioDesde(evento: EventoDTO): number | null {
-  if (evento.tiposEntrada.length === 0) return null;
-  return Math.min(...evento.tiposEntrada.map((tipo) => tipo.precio));
+// Minúsculas y sin tildes, para que "recital" encuentre "Recital" y "musica" encuentre "Música".
+function normalizar(texto: string): string {
+  return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
 export function CarteleraPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  // El filtro por productora vive en la URL (/?productora=3): es compartible y sobrevive a un F5.
+  // La búsqueda por texto, en cambio, es estado local y filtra en el cliente sobre lo ya cargado.
   const filtroProductora = searchParams.get('productora') ?? '';
+  const [busqueda, setBusqueda] = useState('');
   const [eventos, setEventos] = useState<EventoDTO[]>([]);
   const [productoras, setProductoras] = useState<ProductoraDTO[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -61,6 +57,11 @@ export function CarteleraPage() {
     }
   }
 
+  const termino = normalizar(busqueda.trim());
+  const visibles = termino
+    ? eventos.filter((evento) => normalizar(`${evento.nombre} ${evento.lugar}`).includes(termino))
+    : eventos;
+
   return (
     <section className="stack-grande">
       <div className="encabezado-pagina">
@@ -69,10 +70,22 @@ export function CarteleraPage() {
           <h2>Próximos eventos</h2>
           <p className="texto-secundario">Entradas con QR único para la noche.</p>
         </div>
+      </div>
+
+      <div className="filtros-cartelera">
+        <label>
+          Buscar
+          <input
+            type="search"
+            value={busqueda}
+            onChange={(evento) => setBusqueda(evento.target.value)}
+            placeholder="Nombre del evento o lugar"
+          />
+        </label>
         <label>
           Productora
           <select value={filtroProductora} onChange={(evento) => cambiarFiltro(evento.target.value)}>
-            <option value="">Todas</option>
+            <option value="">Todas las productoras</option>
             {productoras.map((productora) => (
               <option key={productora.id} value={productora.id}>
                 {productora.nombreComercial}
@@ -93,30 +106,16 @@ export function CarteleraPage() {
             {filtroProductora ? 'Esta productora no tiene eventos publicados por ahora.' : 'Volvé a mirar más tarde.'}
           </p>
         </div>
+      ) : visibles.length === 0 ? (
+        <div className="panel estado-vacio">
+          <h3>Ningún evento coincide con “{busqueda.trim()}”</h3>
+          <p className="texto-secundario">Probá con otro nombre o lugar.</p>
+        </div>
       ) : (
         <div className="grilla-tarjetas">
-          {eventos.map((evento) => {
-            const desde = precioDesde(evento);
-            return (
-              <article className="panel tarjeta-evento" key={evento.id}>
-                <div>
-                  <p className="eyebrow">{evento.organizador.nombreComercial}</p>
-                  <h3>{evento.nombre}</h3>
-                  <p className="texto-secundario">
-                    {FORMATO_FECHA.format(new Date(evento.fechaHora))} · {evento.lugar}
-                  </p>
-                </div>
-                <div className="tarjeta-evento-pie">
-                  <span className="texto-secundario">
-                    {desde !== null ? `Desde $${desde.toLocaleString('es-AR')}` : 'Sin entradas cargadas'}
-                  </span>
-                  <Link className="boton boton-primario" to={`/eventos/${evento.id}`}>
-                    Ver entradas
-                  </Link>
-                </div>
-              </article>
-            );
-          })}
+          {visibles.map((evento) => (
+            <TarjetaEvento key={evento.id} evento={evento} />
+          ))}
         </div>
       )}
     </section>
