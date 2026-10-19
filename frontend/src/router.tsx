@@ -6,31 +6,36 @@ import { DetalleEventoPage } from './eventos/DetalleEventoPage';
 import { LoginPage } from './usuarios/LoginPage';
 import { RegistroPage } from './usuarios/RegistroPage';
 import { PerfilPage } from './usuarios/PerfilPage';
-import { CarritoPage } from './ventas/CarritoPage';
 import { MisOrdenesPage } from './ventas/MisOrdenesPage';
 import { DetalleOrdenPage } from './ventas/DetalleOrdenPage';
+import { CarritoSegunSesion } from './ventas/CarritoSegunSesion';
+import { OrdenInvitadoPage } from './ventas/OrdenInvitadoPage';
+import { AceptarInvitacionPage } from './productoras/AceptarInvitacionPage';
 import { BackofficePage } from './productoras/BackofficePage';
 import { PaginaProductoraPage } from './productoras/PaginaProductoraPage';
 import { ProductorasPage } from './productoras/ProductorasPage';
+import { CrearProductoraPage } from './productoras/CrearProductoraPage';
+import { OrganizarPage } from './productoras/OrganizarPage';
+import { ResumenProductoraPage } from './productoras/ResumenProductoraPage';
+import { GestionLayout } from './productoras/GestionLayout';
 import { CrearEventoPage } from './eventos/CrearEventoPage';
+import { GestionEventoPage } from './eventos/GestionEventoPage';
 import { EditarEventoPage } from './eventos/EditarEventoPage';
 import { EventosDeProductoraPage } from './eventos/EventosDeProductoraPage';
+import { ValidarPage } from './accesos/ValidarPage';
 
 export const router = createBrowserRouter([
   {
     element: <AppLayout />,
     children: [
-      // Públicas
       { path: '/', element: <CarteleraPage /> },
       { path: '/eventos/:id', element: <DetalleEventoPage /> },
+      { path: '/organizar', element: <OrganizarPage /> },
       { path: '/login', element: <LoginPage /> },
       { path: '/registro', element: <RegistroPage /> },
-      // Página pública de la productora (PAS-26). Convive con las privadas /productoras/:id/backoffice
-      // y /productoras/:id/eventos: React Router elige por especificidad, no por orden, así que
-      // /productoras/3 cae acá y /productoras/3/eventos sigue yendo al backoffice.
-      { path: '/productoras/:id', element: <PaginaProductoraPage /> },
-
-      // Privadas
+      { path: '/invitaciones', element: <AceptarInvitacionPage /> },
+      { path: '/orden-invitado', element: <OrdenInvitadoPage /> },
+      { path: '/carrito', element: <CarritoSegunSesion /> },
       {
         path: '/perfil',
         element: (
@@ -40,10 +45,10 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: '/carrito',
+        path: '/validar',
         element: (
           <RutaPrivada>
-            <CarritoPage />
+            <ValidarPage />
           </RutaPrivada>
         ),
       },
@@ -72,36 +77,36 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: '/productoras/:id/backoffice',
+        path: '/productoras/nueva',
         element: (
           <RutaPrivada>
-            <BackofficePage />
+            <CrearProductoraPage />
           </RutaPrivada>
         ),
       },
       {
-        path: '/productoras/:id/eventos',
-        element: (
-          <RutaPrivada>
-            <EventosDeProductoraPage />
-          </RutaPrivada>
-        ),
-      },
-      {
-        path: '/productoras/:id/eventos/nuevo',
-        element: (
-          <RutaPrivada>
-            <CrearEventoPage />
-          </RutaPrivada>
-        ),
-      },
-      {
-        path: '/productoras/:id/eventos/:idEvento/editar',
-        element: (
-          <RutaPrivada>
-            <EditarEventoPage />
-          </RutaPrivada>
-        ),
+        path: '/productoras/:id',
+        children: [
+          { index: true, element: <PaginaProductoraPage /> },
+          {
+            element: (
+              <RutaPrivada>
+                <GestionLayout />
+              </RutaPrivada>
+            ),
+            children: [
+              { path: 'gestion', element: <ResumenProductoraPage /> },
+              { path: 'backoffice', element: <BackofficePage /> },
+              { path: 'eventos', element: <EventosDeProductoraPage /> },
+              { path: 'eventos/nuevo', element: <CrearEventoPage /> },
+              { path: 'eventos/:idEvento', element: <GestionEventoPage /> },
+              {
+                path: 'eventos/:idEvento/editar',
+                element: <EditarEventoPage />,
+              },
+            ],
+          },
+        ],
       },
     ],
   },

@@ -5,7 +5,12 @@ import { EstadoCarga } from '../layout/EstadoCarga';
 import { EstadoError } from '../layout/EstadoError';
 import { useAuth } from '../lib/auth/AuthContext';
 import { listarOrdenesDeComprador } from './api';
-import { diaYMes, formatearFechaEvento, formatearPrecio, pluralEntradas } from './formato';
+import {
+  diaYMes,
+  formatearFechaEvento,
+  formatearPrecio,
+  pluralEntradas,
+} from './formato';
 import type { ItemDeOrdenDTO, OrdenDTO } from './types';
 import { nombreDeEvento, useEventos } from './useEventos';
 
@@ -23,9 +28,16 @@ function agrupar(ordenes: OrdenDTO[]): GrupoDeOrden[] {
   return ordenes.flatMap((orden) => {
     const porEvento = new Map<number, ItemDeOrdenDTO[]>();
     for (const item of orden.items) {
-      porEvento.set(item.idEvento, [...(porEvento.get(item.idEvento) ?? []), item]);
+      porEvento.set(item.idEvento, [
+        ...(porEvento.get(item.idEvento) ?? []),
+        item,
+      ]);
     }
-    return [...porEvento].map(([idEvento, items]) => ({ orden, idEvento, items }));
+    return [...porEvento].map(([idEvento, items]) => ({
+      orden,
+      idEvento,
+      items,
+    }));
   });
 }
 
@@ -39,7 +51,9 @@ export function MisOrdenesPage() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const [pestania, setPestania] = useState<Pestania>('proximas');
-  const eventos = useEventos(ordenes.flatMap((orden) => orden.items.map((item) => item.idEvento)));
+  const eventos = useEventos(
+    ordenes.flatMap((orden) => orden.items.map((item) => item.idEvento)),
+  );
 
   useEffect(() => {
     if (!usuario) return;
@@ -62,15 +76,22 @@ export function MisOrdenesPage() {
   }, [usuario]);
 
   const grupos = agrupar(ordenes)
-    .filter((grupo) => esPasado(eventos.get(grupo.idEvento)) === (pestania === 'pasadas'))
-    .sort((a, b) => new Date(b.orden.creadaEn).getTime() - new Date(a.orden.creadaEn).getTime());
+    .filter(
+      (grupo) =>
+        esPasado(eventos.get(grupo.idEvento)) === (pestania === 'pasadas'),
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.orden.creadaEn).getTime() -
+        new Date(a.orden.creadaEn).getTime(),
+    );
 
   return (
     <section className="stack-grande">
       <div className="encabezado-pagina">
         <div>
-          <p className="eyebrow">Ventas</p>
-          <h2>Mis órdenes</h2>
+          <p className="eyebrow">Tus compras</p>
+          <h2>Mis entradas</h2>
         </div>
       </div>
 
@@ -95,10 +116,16 @@ export function MisOrdenesPage() {
         <EstadoCarga mensaje="Cargando tus órdenes..." />
       ) : grupos.length === 0 && !error ? (
         <div className="panel estado-vacio stack-chico">
-          <h3>{pestania === 'proximas' ? 'No tenés entradas para próximos eventos' : 'No tenés órdenes de eventos pasados'}</h3>
+          <h3>
+            {pestania === 'proximas'
+              ? 'No tenés entradas para próximos eventos'
+              : 'No tenés órdenes de eventos pasados'}
+          </h3>
           {pestania === 'proximas' ? (
             <div>
-              <Link className="boton boton-primario" to="/">Ver la cartelera</Link>
+              <Link className="boton boton-primario" to="/">
+                Ver la cartelera
+              </Link>
             </div>
           ) : null}
         </div>
@@ -106,11 +133,20 @@ export function MisOrdenesPage() {
         <div className="stack-chico">
           {grupos.map(({ orden, idEvento, items }) => {
             const evento = eventos.get(idEvento);
-            const cantidad = items.reduce((suma, item) => suma + item.cantidad, 0);
-            const subtotal = items.reduce((suma, item) => suma + item.precioUnitario * item.cantidad, 0);
+            const cantidad = items.reduce(
+              (suma, item) => suma + item.cantidad,
+              0,
+            );
+            const subtotal = items.reduce(
+              (suma, item) => suma + item.precioUnitario * item.cantidad,
+              0,
+            );
             const fecha = evento ? diaYMes(evento.fechaHora) : null;
             return (
-              <article className="tarjeta-orden" key={`${orden.id}-${idEvento}`}>
+              <article
+                className="tarjeta-orden"
+                key={`${orden.id}-${idEvento}`}
+              >
                 <div className="flyer-fecha" aria-hidden="true">
                   {fecha ? (
                     <>
@@ -122,16 +158,24 @@ export function MisOrdenesPage() {
                 <div className="tarjeta-orden-info">
                   <h3>{nombreDeEvento(eventos, idEvento)}</h3>
                   {evento ? (
-                    <p>{formatearFechaEvento(evento.fechaHora)} · {evento.lugar}</p>
+                    <p>
+                      {formatearFechaEvento(evento.fechaHora)} · {evento.lugar}
+                    </p>
                   ) : null}
                   <p>
-                    {pluralEntradas(cantidad)} · {items.map((item) => item.nombreTipoEntrada).join(', ')}
+                    {pluralEntradas(cantidad)} ·{' '}
+                    {items.map((item) => item.nombreTipoEntrada).join(', ')}
                   </p>
                   <p>Orden #{orden.id}</p>
                 </div>
                 <span className="badge badge-pagada">● Pagada</span>
-                <span className="tarjeta-orden-total">{formatearPrecio(subtotal)}</span>
-                <Link className="boton boton-primario" to={`/mis-ordenes/${orden.id}`}>
+                <span className="tarjeta-orden-total">
+                  {formatearPrecio(subtotal)}
+                </span>
+                <Link
+                  className="boton boton-primario"
+                  to={`/mis-ordenes/${orden.id}`}
+                >
                   Ver detalle
                 </Link>
               </article>

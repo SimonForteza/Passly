@@ -17,6 +17,7 @@ top to bottom direction
 
 System_Boundary("PasslyApplication_boundary", "PasslyApplication", $tags="") {
   Container_Boundary("PasslyApplication.PasslyApplication_boundary", "PasslyApplication", $tags="") {
+    Component(PasslyApplication.PasslyApplication.Notificaciones, "Notificaciones", $techn="Module", $descr="", $tags="", $link="")
     Component(PasslyApplication.PasslyApplication.Usuarios, "Usuarios", $techn="Module", $descr="", $tags="", $link="")
     Component(PasslyApplication.PasslyApplication.Productoras, "Productoras", $techn="Module", $descr="", $tags="", $link="")
   }
@@ -24,6 +25,7 @@ System_Boundary("PasslyApplication_boundary", "PasslyApplication", $tags="") {
 }
 
 Rel(PasslyApplication.PasslyApplication.Productoras, PasslyApplication.PasslyApplication.Usuarios, "uses", $techn="", $tags="", $link="")
+Rel(PasslyApplication.PasslyApplication.Productoras, PasslyApplication.PasslyApplication.Notificaciones, "uses", $techn="", $tags="", $link="")
 
 SHOW_LEGEND(true)
 hide stereotypes

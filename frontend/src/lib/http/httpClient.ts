@@ -1,7 +1,9 @@
 import { getHeaderAutorizacion } from '../auth/session';
 import { ApiError, type ProblemDetail } from './ApiError';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+const BASE_URL = import.meta.env.DEV
+  ? ''
+  : ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '');
 
 // Cola de los requests autenticados. Spring Security le cambia el id a la sesion en CADA request
 // autenticado (ChangeSessionIdAuthenticationStrategy, CLAUDE.md 4.7) y Tomcat descarta el id
@@ -35,7 +37,10 @@ function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return headers.has('Authorization') ? encolar(enviar) : enviar();
 }
 
-async function enviarRequest<T>(path: string, init: RequestInit & { headers: Headers }): Promise<T> {
+async function enviarRequest<T>(
+  path: string,
+  init: RequestInit & { headers: Headers },
+): Promise<T> {
   const { headers } = init;
   const respuesta = await fetch(`${BASE_URL}${path}`, {
     ...init,
@@ -51,10 +56,20 @@ async function enviarRequest<T>(path: string, init: RequestInit & { headers: Hea
   }
 
   const contentType = respuesta.headers.get('content-type') ?? '';
-  const cuerpo = contentType.includes('json') ? await respuesta.json() : undefined;
+  const cuerpo = contentType.includes('json')
+    ? await respuesta.json()
+    : undefined;
 
   if (!respuesta.ok) {
-    throw new ApiError(cuerpo as ProblemDetail);
+    throw new ApiError(
+      (cuerpo ?? {
+        status: respuesta.status,
+        title: respuesta.statusText,
+        detail: '',
+        type: 'about:blank',
+        instance: path,
+      }) as ProblemDetail,
+    );
   }
 
   return cuerpo as T;
@@ -64,11 +79,18 @@ export const httpClient = {
   get<T>(path: string, init: RequestInit = {}): Promise<T> {
     return request<T>(path, { ...init, method: 'GET' });
   },
-  post<T>(path: string, body?: unknown): Promise<T> {
-    return request<T>(path, { method: 'POST', body: body !== undefined ? JSON.stringify(body) : undefined });
+  post<T>(path: string, body?: unknown, init: RequestInit = {}): Promise<T> {
+    return request<T>(path, {
+      ...init,
+      method: 'POST',
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
   },
   put<T>(path: string, body?: unknown): Promise<T> {
-    return request<T>(path, { method: 'PUT', body: body !== undefined ? JSON.stringify(body) : undefined });
+    return request<T>(path, {
+      method: 'PUT',
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
   },
   delete<T>(path: string): Promise<T> {
     return request<T>(path, { method: 'DELETE' });

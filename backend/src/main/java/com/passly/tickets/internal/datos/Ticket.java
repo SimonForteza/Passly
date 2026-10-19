@@ -28,7 +28,7 @@ public class Ticket {
     @Column(name = "orden_id", nullable = false, updatable = false)
     private Long ordenId;
 
-    @Column(name = "comprador_id", nullable = false, updatable = false)
+    @Column(name = "comprador_id", nullable = true, updatable = false)
     private Long compradorId;
 
     @Column(name = "evento_id", nullable = false, updatable = false)
@@ -49,6 +49,11 @@ public class Ticket {
 
     @Column(name = "emitido_en", nullable = false, updatable = false)
     private OffsetDateTime emitidoEn;
+
+    @Column(name = "usado_en")
+    private OffsetDateTime usadoEn;
+
+    public OffsetDateTime getUsadoEn() { return usadoEn; }
 
     protected Ticket() {
     }

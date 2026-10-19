@@ -5,8 +5,6 @@ import com.passly.pagos.dto.ResultadoDeCobroDTO;
 import com.passly.pagos.dto.SolicitudDeCobroDTO;
 import com.passly.ventas.PagoRechazadoException;
 import com.passly.ventas.dto.DatosDeTarjetaDTO;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -26,7 +24,6 @@ import java.math.BigDecimal;
 @Component
 class PasarelaDePagoReal implements PasarelaDePago {
 
-    private static final Logger log = LoggerFactory.getLogger(PasarelaDePagoReal.class);
     private static final String MONEDA = "ARS";
 
     private final PagoService pagoService;
@@ -51,19 +48,9 @@ class PasarelaDePagoReal implements PasarelaDePago {
         }
     }
 
-    /**
-     * Compensacion best-effort (Javadoc del Port): si la reversion tambien fallara, el cobro
-     * queda huerfano y solo queda este log en ERROR -- deuda declarada, no un caso cubierto.
-     * Nunca propaga: quien llama ya esta relanzando la excepcion que disparo esta compensacion,
-     * y una excepcion nueva acá la enmascararia.
-     */
     @Override
     public void revertir(String idComprobante) {
-        try {
-            pagoService.revertir(Long.valueOf(idComprobante));
-        } catch (RuntimeException fallaLaReversion) {
-            log.error("No se pudo revertir el cobro {}", idComprobante, fallaLaReversion);
-        }
+        pagoService.revertir(Long.valueOf(idComprobante));
     }
 
     private com.passly.pagos.dto.DatosDeTarjetaDTO aContratoDePagos(DatosDeTarjetaDTO tarjeta) {

@@ -4,8 +4,14 @@ import { EstadoError } from '../layout/EstadoError';
 import { useAuth } from '../lib/auth/AuthContext';
 import { crearEvento } from './api';
 import type { CrearTipoEntradaRequest } from './types';
+import { useProductoraActual } from '../productoras/GestionLayout';
+import { useCambiosSinGuardar } from '../lib/useCambiosSinGuardar';
 
-const TIPO_ENTRADA_INICIAL: CrearTipoEntradaRequest = { nombre: '', precio: 0, cupoTotal: 0 };
+const TIPO_ENTRADA_INICIAL: CrearTipoEntradaRequest = {
+  nombre: '',
+  precio: 0,
+  cupoTotal: 0,
+};
 
 export function CrearEventoPage() {
   const { id } = useParams();
@@ -19,15 +25,36 @@ export function CrearEventoPage() {
   const [fecha, setFecha] = useState('');
   const [hora, setHora] = useState('');
   const [lugar, setLugar] = useState('');
-  const [tiposEntrada, setTiposEntrada] = useState<CrearTipoEntradaRequest[]>([{ ...TIPO_ENTRADA_INICIAL }]);
+  const [tiposEntrada, setTiposEntrada] = useState<CrearTipoEntradaRequest[]>([
+    { ...TIPO_ENTRADA_INICIAL },
+  ]);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
-  const puedeCrear = usuario?.rol === 'ORGANIZADOR';
+  const productora = useProductoraActual();
+  const puedeCrear =
+    productora.puedeGestionar &&
+    (usuario?.rol === 'ORGANIZADOR' || usuario?.rol === 'ADMIN');
+  useCambiosSinGuardar(
+    !guardando &&
+      !!(
+        nombre ||
+        descripcion ||
+        fecha ||
+        hora ||
+        lugar ||
+        tiposEntrada.some((t) => t.nombre || t.precio || t.cupoTotal)
+      ),
+  );
 
-  function actualizarTipo(indice: number, cambios: Partial<CrearTipoEntradaRequest>) {
+  function actualizarTipo(
+    indice: number,
+    cambios: Partial<CrearTipoEntradaRequest>,
+  ) {
     setTiposEntrada((actuales) =>
-      actuales.map((tipo, i) => (i === indice ? { ...tipo, ...cambios } : tipo)),
+      actuales.map((tipo, i) =>
+        i === indice ? { ...tipo, ...cambios } : tipo,
+      ),
     );
   }
 
@@ -54,7 +81,10 @@ export function CrearEventoPage() {
         lugar: lugar.trim(),
         tiposEntrada,
       });
-      navigate(`/eventos/${creado.id}`);
+      navigate(`/productoras/${idProductora}/eventos/${creado.id}`, {
+        replace: true,
+        state: { eventoCreado: true },
+      });
     } catch (causa: unknown) {
       setError(causa);
     } finally {
@@ -65,8 +95,12 @@ export function CrearEventoPage() {
   if (!idValido) {
     return (
       <section className="stack-grande">
-        <Link className="volver" to="/productoras">← Mis productoras</Link>
-        <p className="mensaje-error" role="alert">El identificador de la productora no es válido.</p>
+        <Link className="volver" to="/productoras">
+          ← Mis productoras
+        </Link>
+        <p className="mensaje-error" role="alert">
+          El identificador de la productora no es válido.
+        </p>
       </section>
     );
   }
@@ -74,7 +108,9 @@ export function CrearEventoPage() {
   if (!puedeCrear) {
     return (
       <section className="stack-grande">
-        <Link className="volver" to={`/productoras/${idProductora}/eventos`}>← Eventos de la productora</Link>
+        <Link className="volver" to={`/productoras/${idProductora}/eventos`}>
+          ← Eventos de la productora
+        </Link>
         <p className="mensaje-error" role="alert">
           Necesitás el rol ORGANIZADOR para crear un evento.
         </p>
@@ -84,12 +120,17 @@ export function CrearEventoPage() {
 
   return (
     <section className="stack-grande">
-      <Link className="volver" to={`/productoras/${idProductora}/eventos`}>← Eventos de la productora</Link>
+      <Link className="volver" to={`/productoras/${idProductora}/eventos`}>
+        ← Eventos de la productora
+      </Link>
 
       <div>
         <p className="eyebrow">Nuevo evento</p>
         <h2>Crear evento</h2>
-        <p className="texto-secundario">Nace en BORRADOR: se publica después desde el backoffice.</p>
+        <p className="texto-secundario">
+          Se guardará como borrador en {productora.nombreComercial}. Podrás
+          revisarlo antes de publicarlo.
+        </p>
       </div>
 
       {error ? <EstadoError error={error} /> : null}
@@ -97,27 +138,51 @@ export function CrearEventoPage() {
       <form className="panel formulario" onSubmit={enviar}>
         <label>
           Nombre
-          <input required maxLength={150} value={nombre} onChange={(e) => setNombre(e.target.value)} />
+          <input
+            required
+            maxLength={150}
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+          />
         </label>
 
         <label>
           Descripción <span className="ayuda-campo">(opcional)</span>
-          <textarea rows={4} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
+          <textarea
+            rows={4}
+            value={descripcion}
+            onChange={(e) => setDescripcion(e.target.value)}
+          />
         </label>
 
         <label>
           Fecha
-          <input required type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          <input
+            required
+            type="date"
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+          />
         </label>
 
         <label>
           Hora
-          <input required type="time" value={hora} onChange={(e) => setHora(e.target.value)} />
+          <input
+            required
+            type="time"
+            value={hora}
+            onChange={(e) => setHora(e.target.value)}
+          />
         </label>
 
         <label>
           Lugar
-          <input required maxLength={200} value={lugar} onChange={(e) => setLugar(e.target.value)} />
+          <input
+            required
+            maxLength={200}
+            value={lugar}
+            onChange={(e) => setLugar(e.target.value)}
+          />
         </label>
 
         <div>
@@ -126,7 +191,11 @@ export function CrearEventoPage() {
               <p className="eyebrow">Entradas</p>
               <h3>Tipos de entrada</h3>
             </div>
-            <button className="boton boton-secundario" type="button" onClick={agregarTipo}>
+            <button
+              className="boton boton-secundario"
+              type="button"
+              onClick={agregarTipo}
+            >
               Agregar tipo
             </button>
           </div>
@@ -140,7 +209,9 @@ export function CrearEventoPage() {
                     required
                     maxLength={80}
                     value={tipo.nombre}
-                    onChange={(e) => actualizarTipo(indice, { nombre: e.target.value })}
+                    onChange={(e) =>
+                      actualizarTipo(indice, { nombre: e.target.value })
+                    }
                   />
                 </label>
                 <label>
@@ -151,7 +222,9 @@ export function CrearEventoPage() {
                     min={0}
                     step="0.01"
                     value={tipo.precio}
-                    onChange={(e) => actualizarTipo(indice, { precio: Number(e.target.value) })}
+                    onChange={(e) =>
+                      actualizarTipo(indice, { precio: Number(e.target.value) })
+                    }
                   />
                 </label>
                 <label>
@@ -162,7 +235,11 @@ export function CrearEventoPage() {
                     min={1}
                     step={1}
                     value={tipo.cupoTotal}
-                    onChange={(e) => actualizarTipo(indice, { cupoTotal: Number(e.target.value) })}
+                    onChange={(e) =>
+                      actualizarTipo(indice, {
+                        cupoTotal: Number(e.target.value),
+                      })
+                    }
                   />
                 </label>
                 <button
@@ -178,8 +255,12 @@ export function CrearEventoPage() {
           </div>
         </div>
 
-        <button className="boton boton-primario" type="submit" disabled={guardando}>
-          {guardando ? 'Creando...' : 'Crear evento'}
+        <button
+          className="boton boton-primario"
+          type="submit"
+          disabled={guardando}
+        >
+          {guardando ? 'Guardando borrador…' : 'Guardar borrador'}
         </button>
       </form>
     </section>

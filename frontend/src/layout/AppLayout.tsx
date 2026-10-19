@@ -1,9 +1,12 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Header } from './Header';
 
 export function AppLayout() {
+  const location = useLocation();
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <div
+      style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}
+    >
       <Header />
       <main
         style={{
@@ -16,7 +19,7 @@ export function AppLayout() {
           width: '100%',
         }}
       >
-        <Outlet />
+        <Outlet key={location.pathname} />
       </main>
     </div>
   );

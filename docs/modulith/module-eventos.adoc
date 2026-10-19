@@ -15,7 +15,7 @@ La superficie de contacto es chica y esta acotada a proposito: Eventos le pregun
 +
 <b>Package-private a proposito.</b> Spring la instancia igual por reflexion; los demas componentes solo pueden inyectar `c.p.e.EventoService`, sin poder nombrar esta clase concreta (CLAUDE.md 4.3, regla 1).  
 +
-<b>Es el punto donde Eventos consume a Productoras</b>, para dos cosas distintas: autorizar las operaciones de gestion y resolver el nombre comercial con el que se muestra cada fiesta. Esa dependencia esta declarada en el `c.p.p.dto.package-info` del modulo, y hasta que se la declaro el build fallaba.)
+<b>Es el punto donde Eventos consume a Productoras</b>, para dos cosas distintas: autorizar las operaciones de gestion y resolver el nombre comercial con el que se muestra cada fiesta. Esa dependencia esta declarada en el `c.p.f.package-info` del modulo, y hasta que se la declaro el build fallaba.)
 |Bean references
 |* `c.p.p.ProductoraService` (in Productoras) -- Contrato publico de <b>ServicioDeProductoras</b>: las identidades comerciales que publican fiestas y el padron de quienes pueden operar en nombre de cada una.  
 +

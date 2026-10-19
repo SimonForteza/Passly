@@ -15,6 +15,8 @@ public record TicketDTO(
         String nombreTipoEntrada,
         EstadoTicket estado,
         OffsetDateTime emitidoEn,
+        OffsetDateTime usadoEn,
+        String contenidoQr,
         String qrBase64
 ) {
 }

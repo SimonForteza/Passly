@@ -162,3 +162,7 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+
+# Evidencia local de revisiones del navegador
+.playwright-cli/
+output/playwright/

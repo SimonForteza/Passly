@@ -26,4 +26,5 @@ Es la unica puerta de entrada al componente. La implementacion, la entidad JPA, 
 <b>Sobre la credencial:</b> el password en texto plano entra solo por `registrarUsuario(CrearUsuarioRequest)` y nunca vuelve a salir; `c.p.u.dto.UsuarioDTO` no incluye el hash. La verificacion del login (PAS-6) la hace el modulo `seguridad` con Spring Security, no este componente: para eso `buscarCredencialPorEmail(String)` expone el hash BCrypt por el contrato acotado `usuarios :: autenticacion` (`c.p.u.autenticacion.CredencialDTO`). Es la <b>unica</b> operacion por la que el hash cruza la frontera, y su unico consumidor previsto es `seguridad`.  
 +
 <b>Posicion en el sistema:</b> Usuarios no llama a ningun otro componente. Es <b>stateless</b>: no guarda estado conversacional entre llamadas (persistir usuarios no lo vuelve stateful, CLAUDE.md 4.7).
+* `c.p.n.CorreoService` (in Notificaciones)
 |===

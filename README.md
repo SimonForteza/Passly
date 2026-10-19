@@ -16,8 +16,8 @@ CLAUDE.md §1 ("Visión de producto").
 Passly es **multi-productora**: un comprador elige entre fiestas de distintos organizadores y
 cada productora publica y gestiona solo las suyas.
 
-Siete modulos backend implementados: `usuarios`, `productoras`, `eventos`, `seguridad`, `ventas`,
-`pagos` y `tickets`. Spring Modulith verifica sus fronteras en el build y las dependencias estan
+Nueve modulos backend implementados: `usuarios`, `productoras`, `eventos`, `seguridad`, `ventas`,
+`pagos`, `tickets`, `accesos` y `facturacion` (esta ultima sin SOAP todavia). Spring Modulith verifica sus fronteras en el build y las dependencias estan
 **declaradas** modulo por modulo. El grafo de negocio es aciclico: `ventas` depende directamente
 de `eventos`, `usuarios`, `tickets` y `pagos`; `eventos -> productoras -> usuarios`; `pagos` y `tickets` no dependen de otro
 modulo. Ventas cobra a traves de `PagoService` (PAS-29): el checkout manda la tarjeta, el cobro
@@ -112,3 +112,30 @@ Falla con `Module 'eventos' depends on ... Allowed targets: none`.
   Java reporta el timezone del sistema como `America/Buenos_Aires`, un alias que la imagen
   oficial de Postgres no reconoce (solo tiene `America/Argentina/Buenos_Aires`), y la conexion
   JDBC fallaba con `FATAL: invalid value for parameter "TimeZone"`.
+
+## Mensajeria (PAS-32)
+
+`docker compose up -d` levanta Postgres y ActiveMQ Artemis. Consola: http://localhost:8161/console,
+usuario y clave de desarrollo `passly` (externalizables en `.env`). La cola durable `orden.pagada`
+registra una factura `PENDIENTE_AFIP` por compra confirmada; SOAP todavia no esta integrado.
+Con una base existente, crear el esquema `facturacion` antes de arrancar; no borrar el volumen.
+Guion de consumidor detenido, duplicados y DLQ: [docs/mensajeria.md](docs/mensajeria.md).
+
+## Productoras, invitaciones y compras invitadas
+
+Cualquier persona puede empezar desde **Organizar eventos → Crear mi productora**. Después de ingresar o registrarse, completa el nombre y llega al resumen de su productora, con accesos para preparar el primer evento e invitar al equipo. Quien ya tiene membresías entra por **Panel de organización**; **Crear otra productora** queda dentro de ese panel. El dueño envía invitaciones desde **Equipo**; el invitado usa el mismo email y acepta durante los siete días de vigencia.
+
+Guardar un evento abre su gestión como borrador. La publicación requiere revisar sus datos y confirmar que quedará a la venta. Guion manual y comprobaciones: [Correcciones de los recorridos UX](docs/correcciones-ux-flujos.md).
+
+Los correos quedan en una cola persistente con reintentos. En desarrollo, `docker compose up -d` también levanta Mailpit: su panel está en http://localhost:8025 y el SMTP escucha en `localhost:1025`. Para SMTP real, completar las variables `PASSLY_SMTP_*` en `.env`; no guardar credenciales en el repositorio.
+
+Desde el evento, se puede agregar al carrito sin sesión y pagar como invitado con la tarjeta de prueba vigente. Usa el mismo `ServicioDePagos` que la compra autenticada; los datos de tarjeta solo viven en memoria mientras se completa el formulario. La orden y los QR se consultan desde el enlace privado enviado por email; si se pierde, la pantalla `/orden-invitado` permite emitir uno nuevo con el número de orden y el email de compra. El enlace se invalida al solicitar otro.
+
+La migración aditiva de octubre corre automáticamente antes de Hibernate al iniciar el backend. Conserva órdenes existentes; no hace falta borrar el volumen.
+
+## Control de acceso (PAS-31)
+
+Los usuarios VALIDADOR y ORGANIZADOR tienen **Validar entradas** en el menu. Vera, del perfil demo,
+valida entradas de Aurora. La ruta `/validar` permite camara o ingreso manual, con uso unico bajo
+concurrencia. La camara necesita HTTPS o localhost. Guion: [docs/accesos.md](docs/accesos.md).
+En bases existentes crear `accesos` y `facturacion` antes de arrancar; no borrar datos.

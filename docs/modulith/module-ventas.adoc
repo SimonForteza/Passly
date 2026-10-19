@@ -21,12 +21,13 @@ Con este modulo el grafo de negocio deja de ser una cadena y pasa a ser un DAG: 
 +
 Es la unica puerta de entrada al componente. La implementacion, las entidades JPA y los repositorios viven en `internal` y no forman parte de este contrato; los demas componentes inyectan esta interfaz y no pueden nombrar la clase concreta.  
 +
-<b>Posicion en el sistema:</b> Eventos depende de Productoras — para saber quien puede gestionar los eventos de cada una y con que nombre comercial mostrarlos — y de nadie mas. La dependencia esta declarada en el `c.p.p.dto.package-info` del modulo y el build falla si aparece cualquier otra. No depende de Usuarios: la identidad queda detras de Productoras, que ya resolvio el cruce de roles al armar su padron.  
+<b>Posicion en el sistema:</b> Eventos depende de Productoras — para saber quien puede gestionar los eventos de cada una y con que nombre comercial mostrarlos — y de nadie mas. La dependencia esta declarada en el `c.p.f.package-info` del modulo y el build falla si aparece cualquier otra. No depende de Usuarios: la identidad queda detras de Productoras, que ya resolvio el cruce de roles al armar su padron.  
 +
 <b>Sobre el `idUsuarioActuante` de las operaciones de gestion:</b> es quien opera, y viaja como parametro <i>aparte</i> de la solicitud, nunca adentro. Hoy la capa web lo saca de un header temporal y con Spring Security saldra del principal autenticado — y este contrato no cambia en esa migracion, justamente por estar separado.  
 +
 <b>No es un Facade.</b> Es una interfaz de servicio: no oculta la coordinacion de varios subsistemas porque no hay ninguno que coordinar. El Facade del sistema es `ServicioDeVentas`, que si orquesta Eventos, Usuarios, Pagos y Tickets.
 * `c.p.t.TicketService` (in Tickets) -- Contrato publico de emision y consulta de tickets.
+* `c.p.n.CorreoService` (in Notificaciones)
 * `c.p.p.PagoService` (in Pagos) -- Contrato publico de <b>ServicioDePagos</b>: cobra un monto a traves de la pasarela de pago externa.  
 +
 Es la unica puerta de entrada al componente. La implementacion, el mock de la pasarela y el acceso a datos viven en `internal` y no forman parte de este contrato.  

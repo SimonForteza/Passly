@@ -65,7 +65,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code MockMvc} de este test sigue golpeando el {@code DispatcherServlet} directo (no hace
  * una llamada de red), asi que no compite por el mismo puerto.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT,
+        properties = {
+                "server.port=18081",
+                "passly.pagos.pasarela.base-url=http://localhost:18081",
+                "passly.facturacion.consumidor-activo=false"})
 class ConfirmarCompraTest {
 
     private static final String TARJETA_APROBADA = "4242424242424242";
@@ -87,10 +92,16 @@ class ConfirmarCompraTest {
     @Autowired
     private TicketService ticketService;
 
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    private org.springframework.jms.core.JmsTemplate jms;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.doNothing().when(jms).send(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(org.springframework.jms.core.MessageCreator.class));
+        org.mockito.Mockito.clearInvocations(jms);
         this.mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();
@@ -123,6 +134,10 @@ class ConfirmarCompraTest {
         DisponibilidadDTO sinCupo = eventoService.consultarDisponibilidad(idSinCupo);
         assertThat(conSobra.cupoDisponible()).isEqualTo(5);
         assertThat(sinCupo.cupoDisponible()).isEqualTo(2);
+
+        org.mockito.Mockito.verify(jms, org.mockito.Mockito.never()).send(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(org.springframework.jms.core.MessageCreator.class));
 
         // El carrito sobrevive: no se vacio porque la compra no se confirmo.
         mockMvc.perform(get("/api/ventas/carrito").with(actuante).session(sesion))
@@ -213,6 +228,8 @@ class ConfirmarCompraTest {
                 .andReturn().getResponse().getContentAsString();
         Long idOrden = extraerId(respuesta);
 
+        org.mockito.Mockito.verify(jms).send(org.mockito.ArgumentMatchers.eq("orden.pagada"),
+                org.mockito.ArgumentMatchers.any(org.springframework.jms.core.MessageCreator.class));
         assertThat(ticketService.listarTicketsDeOrden(idOrden, comprador.id()))
                 .hasSize(3)
                 .allSatisfy(ticket -> {

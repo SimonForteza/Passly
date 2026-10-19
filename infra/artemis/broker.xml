@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration xmlns="urn:activemq" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="urn:activemq /schema/artemis-configuration.xsd">
+  <core xmlns="urn:activemq:core">
+    <name>passly</name>
+    <persistence-enabled>true</persistence-enabled>
+    <journal-type>NIO</journal-type>
+    <paging-directory>data/paging</paging-directory>
+    <bindings-directory>data/bindings</bindings-directory>
+    <journal-directory>data/journal</journal-directory>
+    <large-messages-directory>data/large-messages</large-messages-directory>
+    <acceptors><acceptor name="core">tcp://0.0.0.0:61616?protocols=CORE,AMQP</acceptor></acceptors>
+    <security-settings>
+      <security-setting match="#">
+        <permission type="send" roles="amq"/>
+        <permission type="consume" roles="amq"/>
+        <permission type="browse" roles="amq"/>
+        <permission type="manage" roles="amq"/>
+        <permission type="createDurableQueue" roles="amq"/>
+        <permission type="createNonDurableQueue" roles="amq"/>
+        <permission type="createAddress" roles="amq"/>
+      </security-setting>
+    </security-settings>
+    <address-settings>
+      <address-setting match="#">
+        <dead-letter-address>DLQ</dead-letter-address>
+        <expiry-address>ExpiryQueue</expiry-address>
+        <redelivery-delay>5000</redelivery-delay>
+        <!-- Tres entregas totales, contando el primer intento. -->
+        <max-delivery-attempts>3</max-delivery-attempts>
+        <auto-create-queues>false</auto-create-queues>
+        <auto-create-addresses>false</auto-create-addresses>
+      </address-setting>
+    </address-settings>
+    <addresses>
+      <address name="orden.pagada"><anycast><queue name="orden.pagada"><durable>true</durable></queue></anycast></address>
+      <address name="DLQ"><anycast><queue name="DLQ"><durable>true</durable></queue></anycast></address>
+      <address name="ExpiryQueue"><anycast><queue name="ExpiryQueue"><durable>true</durable></queue></anycast></address>
+    </addresses>
+  </core>
+</configuration>

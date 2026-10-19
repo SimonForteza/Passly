@@ -90,6 +90,9 @@ class ConfiguracionDeSeguridad {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Cartelera publica: cualquiera ve los eventos publicados y un evento por id.
+                        .requestMatchers(HttpMethod.GET, "/api/invitaciones").permitAll()
+                        .requestMatchers("/api/ventas/invitados/transferencia").authenticated()
+                        .requestMatchers("/api/ventas/invitados/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/eventos", "/api/eventos/*").permitAll()
                         // Cartelera de productoras: publico, es lo que elige el comprador.
                         .requestMatchers(HttpMethod.GET, "/api/productoras", "/api/productoras/*").permitAll()
@@ -135,7 +138,7 @@ class ConfiguracionDeSeguridad {
         CorsConfiguration configuracion = new CorsConfiguration();
         configuracion.setAllowedOrigins(List.of(origenWeb));
         configuracion.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuracion.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuracion.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Invitacion-Token", "X-Orden-Token", "Idempotency-Key"));
         // El carrito depende de la cookie de sesion ademas del header Basic (ver Javadoc).
         configuracion.setAllowCredentials(true);
 

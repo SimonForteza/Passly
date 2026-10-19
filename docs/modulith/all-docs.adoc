@@ -1,6 +1,14 @@
 == PasslyApplication
 plantuml::components.puml[,,format=svg]
 
+== Facturacion
+plantuml::module-facturacion.puml[,,format=svg]
+include::module-facturacion.adoc[]
+
+== Notificaciones
+plantuml::module-notificaciones.puml[,,format=svg]
+include::module-notificaciones.adoc[]
+
 == Pagos
 plantuml::module-pagos.puml[,,format=svg]
 include::module-pagos.adoc[]
@@ -24,6 +32,10 @@ include::module-seguridad.adoc[]
 == Eventos
 plantuml::module-eventos.puml[,,format=svg]
 include::module-eventos.adoc[]
+
+== Accesos
+plantuml::module-accesos.puml[,,format=svg]
+include::module-accesos.adoc[]
 
 == Demo
 plantuml::module-demo.puml[,,format=svg]

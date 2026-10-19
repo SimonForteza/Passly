@@ -62,7 +62,8 @@ class EstructuraDeModulosTest {
     /**
      * El grafo de negocio ya no es una cadena: es un grafo aciclico con {@code ventas} en la
      * cima, que llega a Usuarios por <b>dos caminos</b> — directo, y via
-     * {@code eventos -> productoras -> usuarios} — y ademas depende de Tickets.
+     * {@code eventos -> productoras -> usuarios} — y ademas depende de Tickets, Pagos y
+     * Notificaciones.
      *
      * <p>Que ninguno de estos modulos toque los {@code internal} de otro, o importe algo que su
      * {@code package-info} no declare, no hace falta afirmarlo aca: lo garantiza
@@ -82,6 +83,7 @@ class EstructuraDeModulosTest {
         var ventas = MODULOS.getModuleByName("ventas").orElseThrow();
         var tickets = MODULOS.getModuleByName("tickets").orElseThrow();
         var pagos = MODULOS.getModuleByName("pagos").orElseThrow();
+        var notificaciones = MODULOS.getModuleByName("notificaciones").orElseThrow();
 
         assertThat(productoras.getAllDependencies(MODULOS).contains(usuarios)).isTrue();
         assertThat(eventos.getAllDependencies(MODULOS).contains(productoras)).isTrue();
@@ -89,6 +91,13 @@ class EstructuraDeModulosTest {
         assertThat(ventas.getAllDependencies(MODULOS).contains(usuarios)).isTrue();
         assertThat(ventas.getAllDependencies(MODULOS).contains(tickets)).isTrue();
         assertThat(ventas.getAllDependencies(MODULOS).contains(pagos)).isTrue();
+        assertThat(ventas.getAllDependencies(MODULOS).contains(notificaciones)).isTrue();
+    }
+
+    @Test
+    void facturacionNoDependeDeVentas() {
+        var facturacion = MODULOS.getModuleByName("facturacion").orElseThrow();
+        assertThat(facturacion.getAllDependencies(MODULOS).isEmpty()).isTrue();
     }
 
     @Test

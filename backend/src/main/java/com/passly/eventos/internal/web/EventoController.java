@@ -51,7 +51,7 @@ class EventoController {
     }
 
     @PostMapping("/api/eventos")
-    @PreAuthorize("hasRole('ORGANIZADOR')")
+    @PreAuthorize("hasAnyRole('ORGANIZADOR','ADMIN')")
     ResponseEntity<EventoDTO> crearEvento(
             Authentication authentication,
             @Valid @RequestBody CrearEventoRequest solicitud
@@ -78,7 +78,7 @@ class EventoController {
      * comunica peor que se esta pidiendo una transicion, no un update.
      */
     @PostMapping("/api/eventos/{id}/publicacion")
-    @PreAuthorize("hasRole('ORGANIZADOR')")
+    @PreAuthorize("hasAnyRole('ORGANIZADOR','ADMIN')")
     EventoDTO publicarEvento(@PathVariable("id") Long id, Authentication authentication) {
         return eventoService.publicarEvento(id, idDelActuante(authentication));
     }
@@ -128,7 +128,7 @@ class EventoController {
      * responde 409 si no (PAS-19).
      */
     @PutMapping("/api/eventos/{id}")
-    @PreAuthorize("hasRole('ORGANIZADOR')")
+    @PreAuthorize("hasAnyRole('ORGANIZADOR','ADMIN')")
     EventoDTO editarEvento(
             @PathVariable("id") Long id,
             Authentication authentication,
@@ -142,7 +142,7 @@ class EventoController {
      * vale con el evento PUBLICADO (PAS-19).
      */
     @PostMapping("/api/eventos/{id}/tipos-entrada")
-    @PreAuthorize("hasRole('ORGANIZADOR')")
+    @PreAuthorize("hasAnyRole('ORGANIZADOR','ADMIN')")
     ResponseEntity<EventoDTO> agregarTipoEntrada(
             @PathVariable("id") Long id,
             Authentication authentication,
@@ -158,7 +158,7 @@ class EventoController {
      * {@link #ampliarCupo(Long, Long, Authentication, AmpliarCupoRequest)} (PAS-19).
      */
     @PutMapping("/api/eventos/{id}/tipos-entrada/{idTipo}")
-    @PreAuthorize("hasRole('ORGANIZADOR')")
+    @PreAuthorize("hasAnyRole('ORGANIZADOR','ADMIN')")
     EventoDTO editarTipoEntrada(
             @PathVariable("id") Long id,
             @PathVariable("idTipo") Long idTipo,
@@ -175,7 +175,7 @@ class EventoController {
      * BORRADOR o PUBLICADO (PAS-19).
      */
     @PostMapping("/api/eventos/{id}/tipos-entrada/{idTipo}/ampliacion-de-cupo")
-    @PreAuthorize("hasRole('ORGANIZADOR')")
+    @PreAuthorize("hasAnyRole('ORGANIZADOR','ADMIN')")
     EventoDTO ampliarCupo(
             @PathVariable("id") Long id,
             @PathVariable("idTipo") Long idTipo,

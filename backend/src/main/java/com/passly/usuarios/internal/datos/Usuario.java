@@ -84,6 +84,11 @@ public class Usuario {
         return passwordHash;
     }
 
+    public void habilitarCapacidad(Rol capacidad) {
+        if (rol == Rol.ADMIN || rol == Rol.ORGANIZADOR) return;
+        if (capacidad == Rol.ORGANIZADOR || (capacidad == Rol.VALIDADOR && rol == Rol.COMPRADOR)) rol = capacidad;
+    }
+
     public Rol getRol() {
         return rol;
     }

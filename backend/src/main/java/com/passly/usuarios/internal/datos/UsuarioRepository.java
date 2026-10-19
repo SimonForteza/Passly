@@ -13,15 +13,18 @@ import java.util.Optional;
  * runtime — que no exista una clase concreta no cambia que el patron es DAO.
  */
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select u from Usuario u where u.id = :id")
+    Optional<Usuario> bloquearPorId(@org.springframework.data.repository.query.Param("id") Long id);
 
     /** Guard de unicidad del alta: no puede haber dos cuentas con el mismo email. */
-    boolean existsByEmail(String email);
+    boolean existsByEmailIgnoreCase(String email);
 
     /**
      * Busqueda por la clave natural de la cuenta. El email es {@code unique} en la tabla, asi que
      * devuelve como maximo una fila. La usa la autenticacion de PAS-6 para resolver el login.
      */
-    Optional<Usuario> findByEmail(String email);
+    Optional<Usuario> findByEmailIgnoreCase(String email);
 
     /** Listado estable para la demo y la consulta: por email ascendente. */
     List<Usuario> findAllByOrderByEmailAsc();

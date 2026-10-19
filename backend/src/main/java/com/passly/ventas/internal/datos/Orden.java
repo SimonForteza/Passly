@@ -36,7 +36,7 @@ public class Orden {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "comprador_id", nullable = false, updatable = false)
+    @Column(name = "comprador_id", nullable = true, updatable = false)
     private Long compradorId;
 
     @Column(nullable = false, precision = 12, scale = 2, updatable = false)
@@ -59,6 +59,19 @@ public class Orden {
 
     @OneToMany(mappedBy = "orden", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ItemOrden> items = new ArrayList<>();
+
+    @Column(length=150) private String compradorNombre;
+    @Column(length=254) private String compradorEmail;
+    @Column(unique=true,length=64) private String accesoHash;
+    private OffsetDateTime accesoVenceEn;
+    public void registrarInvitado(String nombre,String email,String hash,OffsetDateTime vence) {
+        compradorNombre=nombre; compradorEmail=email; accesoHash=hash; accesoVenceEn=vence;
+    }
+    public String getCompradorNombre() { return compradorNombre; }
+    public String getCompradorEmail() { return compradorEmail; }
+    public String getAccesoHash() { return accesoHash; }
+    public OffsetDateTime getAccesoVenceEn() { return accesoVenceEn; }
+    public void renovarAcceso(String hash) { accesoHash=hash; }
 
     /** Requerido por JPA. No usar desde el codigo de negocio. */
     protected Orden() {
