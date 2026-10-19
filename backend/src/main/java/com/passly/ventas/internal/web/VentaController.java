@@ -3,6 +3,7 @@ package com.passly.ventas.internal.web;
 import com.passly.ventas.VentaService;
 import com.passly.ventas.dto.AgregarItemRequest;
 import com.passly.ventas.dto.CarritoDTO;
+import com.passly.ventas.dto.ConfirmarCompraRequest;
 import com.passly.ventas.dto.OrdenDTO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -71,8 +72,11 @@ class VentaController {
     }
 
     @PostMapping("/api/ventas/ordenes")
-    ResponseEntity<OrdenDTO> confirmarCompra(Authentication authentication) {
-        OrdenDTO orden = ventaService.confirmarCompra(idDelActuante(authentication));
+    ResponseEntity<OrdenDTO> confirmarCompra(
+            @Valid @RequestBody ConfirmarCompraRequest solicitud,
+            Authentication authentication
+    ) {
+        OrdenDTO orden = ventaService.confirmarCompra(idDelActuante(authentication), solicitud.tarjeta());
         return ResponseEntity.created(URI.create("/api/ventas/ordenes/" + orden.id())).body(orden);
     }
 

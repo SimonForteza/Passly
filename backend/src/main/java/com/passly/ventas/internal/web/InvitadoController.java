@@ -12,7 +12,10 @@ class InvitadoController {
     private final CompraInvitadoService compras;
     private final ConsultaInvitado consultas;
     InvitadoController(CompraInvitadoService c,ConsultaInvitado q) { compras=c; consultas=q; }
-    record Datos(@NotBlank @Size(max=150) String nombre,@NotBlank @Email @Size(max=254) String email) {}
+    record Datos(
+            @NotBlank @Size(max=150) String nombre,
+            @NotBlank @Email @Size(max=254) String email,
+            @jakarta.validation.constraints.NotNull @Valid DatosDeTarjetaDTO tarjeta) {}
     record Recuperacion(@NotNull @Positive Long orden,@NotBlank @Email @Size(max=254) String email) {}
     @GetMapping("/carrito") CarritoDTO ver() { return compras.ver(); }
     @PostMapping("/carrito/items") CarritoDTO agregar(@Valid @RequestBody AgregarItemRequest r) { return compras.agregar(r); }
@@ -20,7 +23,7 @@ class InvitadoController {
     void vaciar() { compras.vaciar(); }
     @PostMapping("/transferencia") CarritoDTO transferir(Authentication a) { return compras.transferir(Long.valueOf(a.getName())); }
     @PostMapping("/ordenes") CompraInvitadoService.Confirmada confirmar(@RequestHeader("Idempotency-Key") String clave,@Valid @RequestBody Datos r) {
-        return compras.confirmar(clave,r.nombre(),r.email());
+        return compras.confirmar(clave,r.nombre(),r.email(),r.tarjeta());
     }
     @GetMapping("/orden") ConsultaInvitado.Detalle consultar(@RequestHeader("X-Orden-Token") String token) { return consultas.consultar(token); }
     @PostMapping("/recuperacion") @ResponseStatus(org.springframework.http.HttpStatus.ACCEPTED)

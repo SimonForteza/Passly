@@ -1,0 +1,9 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.passly.notificaciones`
+|Spring components
+|_Services_
+
+* `c.p.n.CorreoService` (via `c.p.n.internal.CorreoServiceImpl`)
+|===

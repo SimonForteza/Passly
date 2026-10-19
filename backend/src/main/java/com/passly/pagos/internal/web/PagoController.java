@@ -2,10 +2,12 @@ package com.passly.pagos.internal.web;
 
 import com.passly.pagos.PagoService;
 import com.passly.pagos.dto.ResultadoDeCobroDTO;
+import com.passly.pagos.dto.ResultadoDeReversionDTO;
 import com.passly.pagos.dto.SolicitudDeCobroDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,5 +42,11 @@ class PagoController {
     ResponseEntity<ResultadoDeCobroDTO> cobrar(@Valid @RequestBody SolicitudDeCobroDTO solicitud) {
         ResultadoDeCobroDTO resultado = pagoService.cobrar(solicitud);
         return ResponseEntity.status(HttpStatus.CREATED).body(resultado);
+    }
+
+    /** Mismo criterio que {@link #cobrar}: temporal, para poder probar la reversion con curl. */
+    @PostMapping("/api/pagos/{idPago}/reversion")
+    ResponseEntity<ResultadoDeReversionDTO> revertir(@PathVariable Long idPago) {
+        return ResponseEntity.ok(pagoService.revertir(idPago));
     }
 }

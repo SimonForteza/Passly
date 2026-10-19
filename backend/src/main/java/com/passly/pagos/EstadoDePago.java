@@ -17,5 +17,8 @@ public enum EstadoDePago {
     APROBADO,
 
     /** La pasarela proceso el pedido pero rechazo el cobro (fondos, tarjeta invalida, etc.). */
-    RECHAZADO
+    RECHAZADO,
+
+    /** Un cobro previamente APROBADO se revirtio (compensacion de una compra que no se pudo confirmar). */
+    REVERTIDO
 }

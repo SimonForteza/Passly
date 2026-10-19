@@ -9,6 +9,7 @@ import com.passly.ventas.VentaService;
 import com.passly.ventas.dto.AgregarItemRequest;
 import com.passly.ventas.dto.CarritoDTO;
 import com.passly.ventas.dto.CompradorDeOrdenDTO;
+import com.passly.ventas.dto.DatosDeTarjetaDTO;
 import com.passly.ventas.dto.ItemDeCarritoDTO;
 import com.passly.ventas.dto.OrdenDTO;
 import com.passly.ventas.internal.datos.Orden;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Implementacion de {@link VentaService}: el Facade de la compra (CLAUDE.md 4.9).
@@ -103,15 +105,19 @@ class VentaServiceImpl implements VentaService {
     }
 
     @Override
-    public OrdenDTO confirmarCompra(Long idComprador) {
+    public OrdenDTO confirmarCompra(Long idComprador, DatosDeTarjetaDTO tarjeta) {
         // Lee el carrito SIN vaciarlo: si el cobro o la transaccion fallan mas abajo, el
         // comprador tiene que poder reintentar sin haber perdido su seleccion.
         List<ItemDeCarritoDTO> items = carrito.itemsParaConfirmar(idComprador);
         BigDecimal total = carrito.total();
 
+        // La orden todavia no existe (y por lo tanto no tiene id) en el momento de cobrar, asi
+        // que la referencia que identifica este cobro ante la pasarela es un UUID propio.
+        String referencia = UUID.randomUUID().toString();
+
         // Fuera de cualquier transaccion de base de datos (CLAUDE.md 2 y 4.11): un externo
         // lento no puede mantener una fila bloqueada, y este cobro no es rollbackeable.
-        ComprobanteDeCobroDTO comprobante = pasarelaDePago.cobrar(total);
+        ComprobanteDeCobroDTO comprobante = pasarelaDePago.cobrar(total, referencia, tarjeta);
 
         try {
             Orden orden = confirmacionDeCompra.confirmar(
@@ -124,7 +130,15 @@ class VentaServiceImpl implements VentaService {
             // compensa best-effort; si revertir tambien fallara, queda un cobro huerfano y solo
             // un log en ERROR (PasarelaDePago.revertir, Javadoc) -- deuda declarada, no un caso
             // cubierto. El carrito no se vacia: sigue intacto para reintentar.
-            pasarelaDePago.revertir(comprobante.id());
+            try {
+                pasarelaDePago.revertir(comprobante.id());
+            } catch (RuntimeException fallaLaReversion) {
+                fallaLaConfirmacion.addSuppressed(fallaLaReversion);
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
+                        "El cobro fue aprobado, pero la compra necesita revisión. No vuelvas a pagar todavía.",
+                        fallaLaConfirmacion);
+            }
             throw fallaLaConfirmacion;
         }
     }

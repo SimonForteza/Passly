@@ -1,9 +1,12 @@
 package com.passly.pagos.internal.pasarelamock;
 
 import com.passly.pagos.internal.RespuestaExternaDeCobro;
+import com.passly.pagos.internal.RespuestaExternaDeReversion;
 import com.passly.pagos.internal.SolicitudExternaDeCobro;
+import com.passly.pagos.internal.SolicitudExternaDeReversion;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -41,6 +44,13 @@ class MockPasarelaDePagoController {
     private static final String TARJETA_RECHAZADA = "4000000000000002";
     private static final String TARJETA_PASARELA_CAIDA = "4000000000000119";
 
+    /**
+     * Una reversion no manda tarjeta, asi que la convencion de "tarjeta magica" no aplica: la
+     * marca magica para simular que la pasarela esta caida durante una reversion es el propio
+     * id de transaccion externa del cobro que se intenta revertir.
+     */
+    private static final String TRANSACCION_PASARELA_CAIDA_EN_REVERSION = "ext-pasarela-caida";
+
     @PostMapping("/cobros")
     ResponseEntity<RespuestaExternaDeCobro> cobrar(@RequestBody SolicitudExternaDeCobro solicitud) {
         if (TARJETA_PASARELA_CAIDA.equals(solicitud.cardNumber())) {
@@ -50,6 +60,21 @@ class MockPasarelaDePagoController {
         String estado = TARJETA_RECHAZADA.equals(solicitud.cardNumber()) ? "DECLINED" : "APPROVED";
         RespuestaExternaDeCobro respuesta = new RespuestaExternaDeCobro(
                 "ext-" + UUID.randomUUID(), estado, OffsetDateTime.now());
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @PostMapping("/cobros/{idTransaccionExterna}/reversion")
+    ResponseEntity<RespuestaExternaDeReversion> revertir(
+            @PathVariable String idTransaccionExterna,
+            @RequestBody SolicitudExternaDeReversion solicitud
+    ) {
+        if (TRANSACCION_PASARELA_CAIDA_EN_REVERSION.equals(idTransaccionExterna)) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+
+        RespuestaExternaDeReversion respuesta = new RespuestaExternaDeReversion(
+                "rev-" + UUID.randomUUID(), "REVERSED", OffsetDateTime.now());
 
         return ResponseEntity.ok(respuesta);
     }

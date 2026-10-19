@@ -55,9 +55,27 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p><b>Nunca {@code @Transactional} en esta clase</b>: envolveria la compra bajo prueba en la
  * transaccion del test y el rollback de {@code ConfirmacionDeCompra} no se podria observar desde
  * afuera (todo se revertiria igual al final, incluso el caso exitoso).
+ *
+ * <p><b>{@code webEnvironment = DEFINED_PORT} (PAS-29), y no el {@code MOCK} por defecto.</b>
+ * Confirmar una compra ahora cobra de verdad contra {@code PagoServiceImpl}, que le habla al
+ * mock de la pasarela por {@code RestClient} -- HTTP real, no un dispatcher en memoria. Sin un
+ * servidor real escuchando en el puerto configurado ({@code server.port: 8080}), esa llamada
+ * saliente se encuentra con nadie del otro lado y todo cobro termina en
+ * {@code PasarelaDePagoNoDisponibleException} (503), sin importar la tarjeta. El
+ * {@code MockMvc} de este test sigue golpeando el {@code DispatcherServlet} directo (no hace
+ * una llamada de red), asi que no compite por el mismo puerto.
  */
-@SpringBootTest(properties = "passly.facturacion.consumidor-activo=false")
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT,
+        properties = {
+                "server.port=18081",
+                "passly.pagos.pasarela.base-url=http://localhost:18081",
+                "passly.facturacion.consumidor-activo=false"})
 class ConfirmarCompraTest {
+
+    private static final String TARJETA_APROBADA = "4242424242424242";
+    private static final String TARJETA_RECHAZADA = "4000000000000002";
+    private static final String TARJETA_PASARELA_CAIDA = "4000000000000119";
 
     @Autowired
     private WebApplicationContext context;
@@ -109,7 +127,7 @@ class ConfirmarCompraTest {
         agregarAlCarrito(sesion, actuante, idConSobra, 3);
         agregarAlCarrito(sesion, actuante, idSinCupo, 5);
 
-        mockMvc.perform(post("/api/ventas/ordenes").with(actuante).session(sesion))
+        mockMvc.perform(confirmarCompra(actuante, sesion, TARJETA_APROBADA))
                 .andExpect(status().isConflict());
 
         DisponibilidadDTO conSobra = eventoService.consultarDisponibilidad(idConSobra);
@@ -127,6 +145,50 @@ class ConfirmarCompraTest {
                 .andExpect(jsonPath("$.items.length()").value(2));
     }
 
+    /** 402: la pasarela proceso el pedido y lo rechazo. El carrito sobrevive para reintentar. */
+    @Test
+    void confirmarCompraConTarjetaRechazadaDevuelve402() throws Exception {
+        UsuarioDTO comprador = registrarComprador();
+        EventoDTO evento = crearEventoConDosTiposDeEntrada(10, 10);
+        Long idTipoEntrada = evento.tiposEntrada().get(0).id();
+
+        MockHttpSession sesion = new MockHttpSession();
+        var actuante = user(String.valueOf(comprador.id())).roles("COMPRADOR");
+        agregarAlCarrito(sesion, actuante, idTipoEntrada, 2);
+
+        mockMvc.perform(confirmarCompra(actuante, sesion, TARJETA_RECHAZADA))
+                .andExpect(status().isPaymentRequired());
+
+        DisponibilidadDTO disponibilidad = eventoService.consultarDisponibilidad(idTipoEntrada);
+        assertThat(disponibilidad.cupoDisponible()).isEqualTo(10);
+
+        mockMvc.perform(get("/api/ventas/carrito").with(actuante).session(sesion))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1));
+    }
+
+    /** 503: la pasarela no respondio. Problema tecnico externo, no un bug de Passly. */
+    @Test
+    void confirmarCompraConPasarelaCaidaDevuelve503() throws Exception {
+        UsuarioDTO comprador = registrarComprador();
+        EventoDTO evento = crearEventoConDosTiposDeEntrada(10, 10);
+        Long idTipoEntrada = evento.tiposEntrada().get(0).id();
+
+        MockHttpSession sesion = new MockHttpSession();
+        var actuante = user(String.valueOf(comprador.id())).roles("COMPRADOR");
+        agregarAlCarrito(sesion, actuante, idTipoEntrada, 2);
+
+        mockMvc.perform(confirmarCompra(actuante, sesion, TARJETA_PASARELA_CAIDA))
+                .andExpect(status().isServiceUnavailable());
+
+        DisponibilidadDTO disponibilidad = eventoService.consultarDisponibilidad(idTipoEntrada);
+        assertThat(disponibilidad.cupoDisponible()).isEqualTo(10);
+
+        mockMvc.perform(get("/api/ventas/carrito").with(actuante).session(sesion))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1));
+    }
+
     @Test
     void unCompradorNoVeLaOrdenDeOtro() throws Exception {
         UsuarioDTO compradorA = registrarComprador();
@@ -138,7 +200,7 @@ class ConfirmarCompraTest {
         var actuanteA = user(String.valueOf(compradorA.id())).roles("COMPRADOR");
         agregarAlCarrito(sesionA, actuanteA, idTipoEntrada, 1);
 
-        String respuesta = mockMvc.perform(post("/api/ventas/ordenes").with(actuanteA).session(sesionA))
+        String respuesta = mockMvc.perform(confirmarCompra(actuanteA, sesionA, TARJETA_APROBADA))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         Long idOrden = extraerId(respuesta);
@@ -161,7 +223,7 @@ class ConfirmarCompraTest {
         var actuante = user(String.valueOf(comprador.id())).roles("COMPRADOR");
         agregarAlCarrito(sesion, actuante, idTipoEntrada, 3);
 
-        String respuesta = mockMvc.perform(post("/api/ventas/ordenes").with(actuante).session(sesion))
+        String respuesta = mockMvc.perform(confirmarCompra(actuante, sesion, TARJETA_APROBADA))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         Long idOrden = extraerId(respuesta);
@@ -214,6 +276,24 @@ class ConfirmarCompraTest {
                 .andExpect(jsonPath("$.items.length()").value(1));
 
         assertThat(sesion.isInvalid()).isTrue();
+    }
+
+    /**
+     * Confirma la compra con una tarjeta dada. El numero de tarjeta decide el resultado contra
+     * el mock de la pasarela (CLAUDE.md 9): {@code TARJETA_APROBADA} cobra, {@code
+     * TARJETA_RECHAZADA} devuelve 402, {@code TARJETA_PASARELA_CAIDA} devuelve 503.
+     */
+    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder confirmarCompra(
+            org.springframework.test.web.servlet.request.RequestPostProcessor actuante,
+            MockHttpSession sesion,
+            String numeroTarjeta
+    ) {
+        return post("/api/ventas/ordenes")
+                .with(actuante)
+                .session(sesion)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"tarjeta\":{\"numero\":\"" + numeroTarjeta + "\",\"titular\":\"Comprador de Prueba\","
+                        + "\"vencimiento\":\"12/29\",\"codigoSeguridad\":\"123\"}}");
     }
 
     private void agregarAlCarrito(

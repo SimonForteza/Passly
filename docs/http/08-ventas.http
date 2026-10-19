@@ -47,8 +47,20 @@ Authorization: Basic {{comprador}} {{clave}}
 
 # @name confirmarCompra
 ### 5. Confirmar la compra -> 201, con la orden, el total cobrado y 3 tickets emitidos
+# PAS-29: el cobro ya pasa por PagoService -> mock HTTP real. Cualquier numero de tarjeta
+# que no sea uno de los dos "magicos" de 09-pagos.http aprueba.
 POST {{baseUrl}}/api/ventas/ordenes
+Content-Type: application/json
 Authorization: Basic {{comprador}} {{clave}}
+
+{
+  "tarjeta": {
+    "numero": "4242424242424242",
+    "titular": "Carla Compradora",
+    "vencimiento": "12/29",
+    "codigoSeguridad": "123"
+  }
+}
 
 ### 5b. Un ticket individual por unidad, cada uno con UUID y QR Base64 diferentes
 GET {{baseUrl}}/api/tickets/ordenes/{{confirmarCompra.response.body.$.id}}
@@ -63,10 +75,11 @@ GET {{baseUrl}}/api/ventas/carrito
 Authorization: Basic {{comprador}} {{clave}}
 
 # ============================================================================
-# El guion central: el rollback. Necesita un evento con cupos chicos para que
-# excederlos no dispare primero el limite de la pasarela simulada ($1.000.000,
-# PasarelaDePagoSimulada.LIMITE) -- por eso se crea uno nuevo, en vez de reusar
-# el del perfil demo (cupos de 50/200, y superarlos ya cuesta mas que el limite).
+# El guion central: el rollback. Se crea un evento nuevo, de cupos chicos, en vez de
+# reusar el del perfil demo, simplemente para no gastar su cupo real en esta demo.
+# PAS-29: el cobro ya pasa por PagoService -> mock HTTP real; la reversion de ESTE cobro
+# (al fallar la confirmacion por cupo insuficiente) se ve en la consola, llamando de
+# verdad a POST /mock/pasarela-pago/cobros/{id}/reversion.
 # ============================================================================
 
 ### 8. Omar crea un evento con dos tipos de entrada: uno con cupo de sobra, otro con solo 2
@@ -120,7 +133,17 @@ Authorization: Basic {{comprador}} {{clave}}
 
 ### 13. Confirmar -> 409: CupoInsuficienteException en la segunda linea
 POST {{baseUrl}}/api/ventas/ordenes
+Content-Type: application/json
 Authorization: Basic {{comprador}} {{clave}}
+
+{
+  "tarjeta": {
+    "numero": "4242424242424242",
+    "titular": "Carla Compradora",
+    "vencimiento": "12/29",
+    "codigoSeguridad": "123"
+  }
+}
 
 ### 14. Disponibilidad DESPUES: exactamente los mismos numeros que en el paso 9 (10, sin cambios)
 # El UPDATE de la primera linea se emitio de verdad (visible en la consola con show-sql: true,
@@ -150,3 +173,46 @@ Authorization: Basic {{organizador}} {{clave}}
 
 ### 20. Sin credenciales -> 401
 GET {{baseUrl}}/api/ventas/carrito
+
+# ============================================================================
+# PAS-29: las dos tarjetas "magicas" del mock (ver docs/http/09-pagos.http), ahora
+# ejercitadas desde ventas y no directo contra /api/pagos.
+# ============================================================================
+
+### 21. Agregar una entrada para los dos escenarios de abajo
+POST {{baseUrl}}/api/ventas/carrito/items
+Content-Type: application/json
+Authorization: Basic {{comprador}} {{clave}}
+
+{
+  "idTipoEntrada": {{tipoEntradaConCupo}},
+  "cantidad": 1
+}
+
+### 22. Confirmar con la tarjeta de rechazo -> 402, el carrito y el cupo quedan intactos
+POST {{baseUrl}}/api/ventas/ordenes
+Content-Type: application/json
+Authorization: Basic {{comprador}} {{clave}}
+
+{
+  "tarjeta": {
+    "numero": "4000000000000002",
+    "titular": "Carla Compradora",
+    "vencimiento": "12/29",
+    "codigoSeguridad": "123"
+  }
+}
+
+### 23. Confirmar con la tarjeta "pasarela caida" -> 503, el carrito y el cupo quedan intactos
+POST {{baseUrl}}/api/ventas/ordenes
+Content-Type: application/json
+Authorization: Basic {{comprador}} {{clave}}
+
+{
+  "tarjeta": {
+    "numero": "4000000000000119",
+    "titular": "Carla Compradora",
+    "vencimiento": "12/29",
+    "codigoSeguridad": "123"
+  }
+}

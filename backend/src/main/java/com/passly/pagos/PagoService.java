@@ -1,6 +1,7 @@
 package com.passly.pagos;
 
 import com.passly.pagos.dto.ResultadoDeCobroDTO;
+import com.passly.pagos.dto.ResultadoDeReversionDTO;
 import com.passly.pagos.dto.SolicitudDeCobroDTO;
 
 /**
@@ -33,4 +34,14 @@ public interface PagoService {
      * @throws PasarelaDePagoNoDisponibleException si la pasarela no respondio (caida, timeout)
      */
     ResultadoDeCobroDTO cobrar(SolicitudDeCobroDTO solicitud);
+
+    /**
+     * Revierte un cobro previamente aprobado.
+     *
+     * @throws PagoNoEncontradoException           si no existe un pago con ese id
+     * @throws ReversionNoDisponibleException      si el pago no esta en estado APROBADO (ya fue
+     *                                              RECHAZADO o ya se revirtio antes)
+     * @throws PasarelaDePagoNoDisponibleException si la pasarela no respondio (caida, timeout)
+     */
+    ResultadoDeReversionDTO revertir(Long idPago);
 }

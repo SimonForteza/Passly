@@ -101,6 +101,13 @@ class ConfiguracionDeSeguridad {
                         .requestMatchers(HttpMethod.POST, "/api/usuarios").permitAll()
                         // Healthcheck sin credenciales, para probes y demo.
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+                        // El mock de la pasarela de pago (PAS-7/PAS-29, com.passly.pagos.internal.pasarelamock)
+                        // simula un proveedor externo al que PagoServiceImpl le habla por HTTP real.
+                        // Un proveedor real tendria su propio esquema de autenticacion, nunca las
+                        // credenciales de Passly -- y PagoServiceImpl no manda ningun header
+                        // Authorization en esa llamada saliente. Sin este permitAll, anyRequest()
+                        // exigiria credenciales que nadie va a mandar y todo cobro terminaria en 401.
+                        .requestMatchers(HttpMethod.POST, "/mock/pasarela-pago/**").permitAll()
                         // Todo lo demas exige, al menos, estar autenticado.
                         .anyRequest().authenticated())
                 .httpBasic(basic -> basic.authenticationEntryPoint(puntoDeEntradaNoAutenticado));

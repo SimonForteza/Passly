@@ -17,8 +17,8 @@ top to bottom direction
 
 System_Boundary("PasslyApplication_boundary", "PasslyApplication", $tags="") {
   Container_Boundary("PasslyApplication.PasslyApplication_boundary", "PasslyApplication", $tags="") {
-    Component(PasslyApplication.PasslyApplication.Productoras, "Productoras", $techn="Module", $descr="", $tags="", $link="")
     Component(PasslyApplication.PasslyApplication.Eventos, "Eventos", $techn="Module", $descr="", $tags="", $link="")
+    Component(PasslyApplication.PasslyApplication.Productoras, "Productoras", $techn="Module", $descr="", $tags="", $link="")
   }
 
 }

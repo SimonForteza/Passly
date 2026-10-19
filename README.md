@@ -19,9 +19,10 @@ cada productora publica y gestiona solo las suyas.
 Nueve modulos backend implementados: `usuarios`, `productoras`, `eventos`, `seguridad`, `ventas`,
 `pagos`, `tickets`, `accesos` y `facturacion` (esta ultima sin SOAP todavia). Spring Modulith verifica sus fronteras en el build y las dependencias estan
 **declaradas** modulo por modulo. El grafo de negocio es aciclico: `ventas` depende directamente
-de `eventos`, `usuarios` y `tickets`; `eventos -> productoras -> usuarios`; `pagos` y `tickets` no dependen de otro
-modulo. Ventas todavia cobra con una pasarela simulada: integrarlo con `PagoService` es una deuda
-explicita. La compra ya emite un ticket con QR firmado por cada unidad adquirida.
+de `eventos`, `usuarios`, `tickets` y `pagos`; `eventos -> productoras -> usuarios`; `pagos` y `tickets` no dependen de otro
+modulo. Ventas cobra a traves de `PagoService` (PAS-29): el checkout manda la tarjeta, el cobro
+pasa por el Adapter REST real hacia la pasarela (mockeada), y si la confirmacion falla despues de
+cobrar, el cobro se revierte. La compra ya emite un ticket con QR firmado por cada unidad adquirida.
 
 La identidad de quien opera la resuelve **Spring Security** (HTTP Basic, sesion STATELESS):
 ningun endpoint depende de un header propio para saber quien esta operando. La autorizacion
@@ -128,7 +129,7 @@ Guardar un evento abre su gestión como borrador. La publicación requiere revis
 
 Los correos quedan en una cola persistente con reintentos. En desarrollo, `docker compose up -d` también levanta Mailpit: su panel está en http://localhost:8025 y el SMTP escucha en `localhost:1025`. Para SMTP real, completar las variables `PASSLY_SMTP_*` en `.env`; no guardar credenciales en el repositorio.
 
-Desde el evento, se puede agregar al carrito sin sesión y pagar como invitado. La orden y los QR se consultan desde el enlace privado enviado por email; si se pierde, la pantalla `/orden-invitado` permite emitir uno nuevo con el número de orden y el email de compra. El enlace se invalida al solicitar otro.
+Desde el evento, se puede agregar al carrito sin sesión y pagar como invitado con la tarjeta de prueba vigente. Usa el mismo `ServicioDePagos` que la compra autenticada; los datos de tarjeta solo viven en memoria mientras se completa el formulario. La orden y los QR se consultan desde el enlace privado enviado por email; si se pierde, la pantalla `/orden-invitado` permite emitir uno nuevo con el número de orden y el email de compra. El enlace se invalida al solicitar otro.
 
 La migración aditiva de octubre corre automáticamente antes de Hibernate al iniciar el backend. Conserva órdenes existentes; no hace falta borrar el volumen.
 

@@ -27,6 +27,14 @@ Es la unica puerta de entrada al componente. La implementacion, las entidades JP
 +
 <b>No es un Facade.</b> Es una interfaz de servicio: no oculta la coordinacion de varios subsistemas porque no hay ninguno que coordinar. El Facade del sistema es `ServicioDeVentas`, que si orquesta Eventos, Usuarios, Pagos y Tickets.
 * `c.p.t.TicketService` (in Tickets) -- Contrato publico de emision y consulta de tickets.
+* `c.p.n.CorreoService` (in Notificaciones)
+* `c.p.p.PagoService` (in Pagos) -- Contrato publico de <b>ServicioDePagos</b>: cobra un monto a traves de la pasarela de pago externa.  
++
+Es la unica puerta de entrada al componente. La implementacion, el mock de la pasarela y el acceso a datos viven en `internal` y no forman parte de este contrato.  
++
+<b>Es un Adapter.</b> `c.p.p.PagoService` expone la interfaz de "proveedor externo" que el resto de Passly entiende (una solicitud de cobro, un resultado con estado APROBADO/RECHAZADO); puertas adentro, la implementacion traduce esa forma al contrato propio de la pasarela — que tiene sus propios nombres de campo, como cualquier API de un tercero. Cuando `ServicioDeFacturacion` adapte SOAP/AFIP, va a resolver el mismo problema con el mismo patron sobre un protocolo distinto.  
++
+<b>No depende de nadie mas en Passly.</b> Hoy no se persigue: se llama a este servicio directo por HTTP desde afuera (ver `c.p.p.internal.web.PagoController`), a falta de `ServicioDeVentas`. Cuando Ventas exista, la va a llamar en proceso, dentro de su propia transaccion de negocio — pero la llamada a la pasarela en si <b>nunca</b> debe quedar envuelta en esa transaccion: es lenta y externa, y CLAUDE.md 2 explica por que eso bloquearia filas sin necesidad.
 * `c.p.u.UsuarioService` (in Usuarios) -- Contrato publico de <b>ServicioDeUsuarios</b>: registro y consulta de usuarios y su rol.  
 +
 Es la unica puerta de entrada al componente. La implementacion, la entidad JPA, el repositorio y el `PasswordEncoder` viven en `internal` y no forman parte de este contrato; los demas componentes inyectan esta interfaz y no pueden nombrar la clase concreta.  

@@ -1,7 +1,9 @@
 package com.passly.pagos.internal.web;
 
+import com.passly.pagos.PagoNoEncontradoException;
 import com.passly.pagos.PagoRechazadoException;
 import com.passly.pagos.PasarelaDePagoNoDisponibleException;
+import com.passly.pagos.ReversionNoDisponibleException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -34,6 +36,18 @@ class ManejadorDeErroresDePagos {
     @ExceptionHandler(PasarelaDePagoNoDisponibleException.class)
     ProblemDetail noDisponible(PasarelaDePagoNoDisponibleException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+    }
+
+    /** El pago que se pide revertir no existe: 404. */
+    @ExceptionHandler(PagoNoEncontradoException.class)
+    ProblemDetail pagoNoEncontrado(PagoNoEncontradoException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    /** El pago existe pero su estado no admite revertirse: 409, no 404 ni 402. */
+    @ExceptionHandler(ReversionNoDisponibleException.class)
+    ProblemDetail reversionNoDisponible(ReversionNoDisponibleException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

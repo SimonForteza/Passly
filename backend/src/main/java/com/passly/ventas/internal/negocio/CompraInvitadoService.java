@@ -42,7 +42,7 @@ public class CompraInvitadoService {
         }
     }
     public record Confirmada(ConsultaInvitado.Detalle detalle,String token) {}
-    public Confirmada confirmar(String clave,String nombre,String email) {
+    public Confirmada confirmar(String clave,String nombre,String email,DatosDeTarjetaDTO tarjeta) {
         try { UUID.fromString(clave); } catch (IllegalArgumentException e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"La clave de intento debe ser un UUID."); }
         synchronized(sesion.candado()) {
             String normal=email.trim().toLowerCase(Locale.ROOT);
@@ -71,7 +71,7 @@ public class CompraInvitadoService {
             String token=sesion.tokenPara(clave);
             BigDecimal total=sesion.carrito().total();
             ComprobanteDeCobroDTO cobro;
-            try { cobro=pasarela.cobrar(total); }
+            try { cobro=pasarela.cobrar(total,clave,tarjeta); }
             catch (com.passly.ventas.PagoRechazadoException e) { intentos.fallar(clave); throw e; }
             // Otros errores del proveedor son ambiguos: el intento queda PROCESANDO, sin recobro automático.
             try {

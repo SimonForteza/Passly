@@ -26,7 +26,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
-@SpringBootTest(properties={"passly.facturacion.consumidor-activo=false","passly.correo.activo=false","spring.jpa.show-sql=false"})
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT, properties={
+    "server.port=18082",
+    "passly.pagos.pasarela.base-url=http://localhost:18082",
+    "passly.facturacion.consumidor-activo=false",
+    "passly.correo.activo=false",
+    "spring.jpa.show-sql=false"})
 class AltasInvitadosIntegrationTest {
     @Autowired WebApplicationContext context;
     @Autowired UsuarioService usuarios;
@@ -35,6 +40,7 @@ class AltasInvitadosIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired JsonMapper json;
     @Autowired com.passly.facturacion.FacturacionService facturacion;
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean com.passly.pagos.PagoService pagos;
     MockMvc mvc;
     UsuarioDTO duenio;
     Long productora;
@@ -74,8 +80,13 @@ class AltasInvitadosIntegrationTest {
             .content("{\"idTipoEntrada\":"+tipo+",\"cantidad\":1}")).andExpect(status().isOk());
     }
     MvcResult comprar(MockHttpSession sesion,String clave,String email) throws Exception {
+        return comprar(sesion,clave,email,"4242424242424242");
+    }
+    MvcResult comprar(MockHttpSession sesion,String clave,String email,String numeroTarjeta) throws Exception {
         return mvc.perform(post("/api/ventas/invitados/ordenes").session(sesion).header("Idempotency-Key",clave)
-            .contentType(APPLICATION_JSON).content(json.writeValueAsString(Map.of("nombre","Invitado","email",email)))).andReturn();
+            .contentType(APPLICATION_JSON).content(json.writeValueAsString(Map.of(
+                "nombre","Invitado","email",email,
+                "tarjeta",Map.of("numero",numeroTarjeta,"titular","Invitado","vencimiento","12/30","codigoSeguridad","123"))))).andReturn();
     }
     @Test void altaAutonomaOtorgaCapacidadYDueno() {
         assertThat(usuarios.consultarUsuario(duenio.id()).rol()).isEqualTo(Rol.ORGANIZADOR);
@@ -168,12 +179,41 @@ class AltasInvitadosIntegrationTest {
         mvc.perform(get("/api/ventas/ordenes/{id}",orden)).andExpect(status().isUnauthorized());
     }
     @Test void faltaDeCupoYPagoRechazadoNoEmitenOrden() throws Exception {
-        var sesion=new MockHttpSession(); long tipo=tipo(new BigDecimal("1000001"),2); agregar(sesion,tipo);
-        assertThat(comprar(sesion,UUID.randomUUID().toString(),"invitado@test.com").getResponse().getStatus()).isEqualTo(402);
+        var sesion=new MockHttpSession(); long tipo=tipo(new BigDecimal("10"),2); agregar(sesion,tipo);
+        assertThat(comprar(sesion,UUID.randomUUID().toString(),"invitado@test.com","4000000000000002").getResponse().getStatus()).isEqualTo(402);
         assertThat(eventos.consultarDisponibilidad(tipo).cupoDisponible()).isEqualTo(2);
         var otro=new MockHttpSession(); long agotado=tipo(BigDecimal.ONE,1); agregar(otro,agotado);
         jdbc.update("update eventos.tipo_entrada set cupo_disponible=0 where id=?",agotado);
         assertThat(comprar(otro,UUID.randomUUID().toString(),"invitado@test.com").getResponse().getStatus()).isEqualTo(409);
+    }
+    @Test void compraInvitadaConPasarelaCaidaBloqueaUnSegundoCobroConLaMismaClave() throws Exception {
+        var sesion=new MockHttpSession(); long tipo=tipo(BigDecimal.TEN,2); agregar(sesion,tipo);
+        String clave=UUID.randomUUID().toString();
+        assertThat(comprar(sesion,clave,"ambiguo@test.com","4000000000000119").getResponse().getStatus()).isEqualTo(503);
+        assertThat(comprar(sesion,clave,"ambiguo@test.com","4000000000000119").getResponse().getStatus()).isEqualTo(409);
+        assertThat(jdbc.queryForObject("select estado from ventas.intento_compra where clave=?",String.class,clave)).isEqualTo("PROCESANDO");
+        assertThat(jdbc.queryForObject("select count(*) from ventas.orden o join ventas.intento_compra i on i.orden_id=o.id where i.clave=?",Integer.class,clave)).isZero();
+    }
+    @Test void reversionFallidaDevuelve503YElIntentoNoVuelveACobrar() throws Exception {
+        var sesion=new MockHttpSession(); long tipo=tipo(BigDecimal.TEN,2); agregar(sesion,tipo);
+        String clave=UUID.randomUUID().toString();
+        org.mockito.Mockito.doAnswer(invocacion -> {
+            jdbc.update("update eventos.tipo_entrada set cupo_disponible=0 where id=?",tipo);
+            return new com.passly.pagos.dto.ResultadoDeCobroDTO(9876L,"ext-aprobado",
+                com.passly.pagos.EstadoDePago.APROBADO,BigDecimal.TEN,"ARS",OffsetDateTime.now());
+        }).when(pagos).cobrar(org.mockito.ArgumentMatchers.any());
+        org.mockito.Mockito.doThrow(new com.passly.pagos.PasarelaDePagoNoDisponibleException(
+            clave,new IllegalStateException("sin respuesta de reversión"))).when(pagos).revertir(9876L);
+        try {
+            var respuesta=comprar(sesion,clave,"reversion@test.com");
+            assertThat(respuesta.getResponse().getStatus()).isEqualTo(503);
+            assertThat(comprar(sesion,clave,"reversion@test.com").getResponse().getStatus()).isEqualTo(409);
+            org.mockito.Mockito.verify(pagos,org.mockito.Mockito.times(1)).cobrar(org.mockito.ArgumentMatchers.any());
+            assertThat(jdbc.queryForObject("select estado from ventas.intento_compra where clave=?",String.class,clave)).isEqualTo("PROCESANDO");
+            assertThat(jdbc.queryForObject("select count(*) from ventas.intento_compra where clave=? and orden_id is not null",Integer.class,clave)).isZero();
+        } finally {
+            jdbc.update("update eventos.tipo_entrada set cupo_disponible=2 where id=?",tipo);
+        }
     }
     @Test void recuperacionRotaAccesoYLimitaSolicitudes() throws Exception {
         var sesion=new MockHttpSession(); agregar(sesion,tipo(BigDecimal.ONE,2)); String email=UUID.randomUUID()+"@test.com";

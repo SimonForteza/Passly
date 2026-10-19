@@ -5,6 +5,10 @@ plantuml::components.puml[,,format=svg]
 plantuml::module-facturacion.puml[,,format=svg]
 include::module-facturacion.adoc[]
 
+== Notificaciones
+plantuml::module-notificaciones.puml[,,format=svg]
+include::module-notificaciones.adoc[]
+
 == Pagos
 plantuml::module-pagos.puml[,,format=svg]
 include::module-pagos.adoc[]

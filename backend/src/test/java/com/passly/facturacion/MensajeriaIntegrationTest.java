@@ -19,7 +19,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import java.time.Duration;
 
-@SpringBootTest(properties = {
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT, properties = {
+    "server.port=18083",
+    "passly.pagos.pasarela.base-url=http://localhost:18083",
     "spring.artemis.broker-url=tcp://127.0.0.1:61618",
     "spring.artemis.user=", "spring.artemis.password=",
     "passly.facturacion.consumidor-activo=true"
@@ -74,7 +76,9 @@ class MensajeriaIntegrationTest {
                     .content("{\"idTipoEntrada\":" + evento.tiposEntrada().getFirst().id() + ",\"cantidad\":1}"))
                     .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
             String respuesta = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/ventas/ordenes")
-                    .with(actor).session(sesion)).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isCreated())
+                    .with(actor).session(sesion).contentType("application/json")
+                    .content("{\"tarjeta\":{\"numero\":\"4242424242424242\",\"titular\":\"Comprador\",\"vencimiento\":\"12/30\",\"codigoSeguridad\":\"123\"}}"))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isCreated())
                     .andReturn().getResponse().getContentAsString();
             long orden = tools.jackson.databind.json.JsonMapper.builder().build().readTree(respuesta).get("id").asLong();
             assertThat(jdbc.queryForObject("select count(*) from facturacion.factura where orden_id=?", Long.class, orden)).isZero();

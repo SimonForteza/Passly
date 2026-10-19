@@ -92,3 +92,38 @@ Authorization: Basic {{comprador}} {{clave}}
     "codigoSeguridad": "12"
   }
 }
+
+# ============================================================================
+# Reversion (PAS-29): la compensacion que usa ventas cuando una compra ya cobrada no se
+# puede confirmar. Aca se prueba directo contra PagoService, sin pasar por ventas.
+# ============================================================================
+
+### 6. Cobro a revertir -- 201, anotar el id del pago en la respuesta ($.idPago)
+# @name cobroARevertir
+POST {{baseUrl}}/api/pagos
+Content-Type: application/json
+Authorization: Basic {{comprador}} {{clave}}
+
+{
+  "monto": 15000.00,
+  "moneda": "ARS",
+  "referencia": "orden-demo-reversion",
+  "tarjeta": {
+    "numero": "4242424242424242",
+    "titular": "Carla Compradora",
+    "vencimiento": "12/29",
+    "codigoSeguridad": "123"
+  }
+}
+
+### 7. Revertirlo -- 200, con estado REVERTIDO y el id de transaccion de la reversion
+POST {{baseUrl}}/api/pagos/{{cobroARevertir.response.body.$.idPago}}/reversion
+Authorization: Basic {{comprador}} {{clave}}
+
+### 8. Revertir el mismo pago otra vez -- 409: ya esta REVERTIDO, no admite la operacion de nuevo
+POST {{baseUrl}}/api/pagos/{{cobroARevertir.response.body.$.idPago}}/reversion
+Authorization: Basic {{comprador}} {{clave}}
+
+### 9. Revertir un id que no existe -- 404
+POST {{baseUrl}}/api/pagos/999999/reversion
+Authorization: Basic {{comprador}} {{clave}}

@@ -1,13 +1,18 @@
 package com.passly.pagos.internal.negocio;
 
 import com.passly.pagos.EstadoDePago;
+import com.passly.pagos.PagoNoEncontradoException;
 import com.passly.pagos.PagoRechazadoException;
 import com.passly.pagos.PagoService;
 import com.passly.pagos.PasarelaDePagoNoDisponibleException;
+import com.passly.pagos.ReversionNoDisponibleException;
 import com.passly.pagos.dto.ResultadoDeCobroDTO;
+import com.passly.pagos.dto.ResultadoDeReversionDTO;
 import com.passly.pagos.dto.SolicitudDeCobroDTO;
 import com.passly.pagos.internal.RespuestaExternaDeCobro;
+import com.passly.pagos.internal.RespuestaExternaDeReversion;
 import com.passly.pagos.internal.SolicitudExternaDeCobro;
+import com.passly.pagos.internal.SolicitudExternaDeReversion;
 import com.passly.pagos.internal.datos.Pago;
 import com.passly.pagos.internal.datos.PagoRepository;
 import org.springframework.stereotype.Service;
@@ -69,6 +74,43 @@ class PagoServiceImpl implements PagoService {
         }
 
         return mapper.aDTO(pago);
+    }
+
+    /**
+     * Revierte un cobro previamente aprobado. Deliberadamente sin {@code @Transactional}: el
+     * {@code findById} y el {@code save} son operaciones cortas propias de Spring Data, y la
+     * llamada HTTP de por medio no puede sostener nada bloqueado mientras espera (CLAUDE.md 2),
+     * mismo criterio que {@link #cobrar}.
+     */
+    @Override
+    public ResultadoDeReversionDTO revertir(Long idPago) {
+        Pago pago = pagoRepository.findById(idPago)
+                .orElseThrow(() -> new PagoNoEncontradoException(idPago));
+
+        if (pago.getEstado() != EstadoDePago.APROBADO) {
+            throw new ReversionNoDisponibleException(idPago, pago.getEstado());
+        }
+
+        RespuestaExternaDeReversion respuesta = llamarReversionEnPasarela(pago);
+        pago.marcarComoRevertido(respuesta.reversalId(), respuesta.processedAt());
+
+        return mapper.aDTOReversion(pagoRepository.save(pago));
+    }
+
+    /**
+     * Mismo criterio que {@link #llamarPasarela}: distingue el rechazo de negocio (no aplica
+     * aca, una reversion no se "rechaza") de la caida tecnica del proveedor.
+     */
+    private RespuestaExternaDeReversion llamarReversionEnPasarela(Pago pago) {
+        try {
+            return pasarelaDePago.post()
+                    .uri("/mock/pasarela-pago/cobros/{id}/reversion", pago.getIdTransaccionExterna())
+                    .body(new SolicitudExternaDeReversion(pago.getReferencia()))
+                    .retrieve()
+                    .body(RespuestaExternaDeReversion.class);
+        } catch (HttpServerErrorException | ResourceAccessException fallaDeLaPasarela) {
+            throw new PasarelaDePagoNoDisponibleException(pago.getReferencia(), fallaDeLaPasarela);
+        }
     }
 
     /**

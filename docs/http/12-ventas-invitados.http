@@ -1,0 +1,73 @@
+@baseUrl = http://localhost:8080
+@tipoEntrada = 1
+@clave = {{$guid}}
+
+# El carrito invitado usa una sesion de servidor; REST Client conserva JSESSIONID
+# entre requests de este archivo.
+
+### Ver el carrito invitado
+GET {{baseUrl}}/api/ventas/invitados/carrito
+
+### Agregar una entrada
+POST {{baseUrl}}/api/ventas/invitados/carrito/items
+Content-Type: application/json
+
+{
+  "idTipoEntrada": {{tipoEntrada}},
+  "cantidad": 1
+}
+
+### Confirmar con tarjeta aprobada
+# @name comprarInvitado
+POST {{baseUrl}}/api/ventas/invitados/ordenes
+Content-Type: application/json
+Idempotency-Key: {{clave}}
+
+{
+  "nombre": "Invitado de prueba",
+  "email": "invitado@example.test",
+  "tarjeta": {
+    "numero": "4242424242424242",
+    "titular": "Invitado de prueba",
+    "vencimiento": "12/30",
+    "codigoSeguridad": "123"
+  }
+}
+
+### Consultar solo con el token privado devuelto arriba
+GET {{baseUrl}}/api/ventas/invitados/orden
+X-Orden-Token: {{comprarInvitado.response.body.$.token}}
+
+### Una tarjeta rechazada responde 402 y conserva el carrito
+# Use un nuevo Idempotency-Key para este intento.
+POST {{baseUrl}}/api/ventas/invitados/ordenes
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{
+  "nombre": "Invitado de prueba",
+  "email": "invitado@example.test",
+  "tarjeta": {
+    "numero": "4000000000000002",
+    "titular": "Invitado de prueba",
+    "vencimiento": "12/30",
+    "codigoSeguridad": "123"
+  }
+}
+
+### Una respuesta ambigua de la pasarela da 503; reusar la clave devuelve 409 sin recobrar
+# Repetir esta request con la misma clave de idempotencia.
+POST {{baseUrl}}/api/ventas/invitados/ordenes
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{
+  "nombre": "Invitado de prueba",
+  "email": "invitado@example.test",
+  "tarjeta": {
+    "numero": "4000000000000119",
+    "titular": "Invitado de prueba",
+    "vencimiento": "12/30",
+    "codigoSeguridad": "123"
+  }
+}

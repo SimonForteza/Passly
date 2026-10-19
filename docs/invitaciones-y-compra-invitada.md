@@ -17,7 +17,7 @@ El endpoint legado de alta directa de miembros permanece disponible para cliente
 ## Compra sin cuenta
 
 1. Agregar entradas desde una ficha pública; la selección vive en una sesión separada del carrito autenticado.
-2. En `/carrito`, completar nombre y email y confirmar como invitado, o ingresar y transferir la selección a la cuenta. Ambos recorridos muestran evento, fecha, lugar y total. La interfaz explica que el pago vigente es simulado. El servidor agrupa y vuelve a validar disponibilidad antes del pago; la transacción descuenta cupo, crea orden y emite los QR existentes.
+2. En `/carrito`, completar nombre, email y tarjeta de prueba para confirmar como invitado, o ingresar y transferir la selección a la cuenta. Ambos recorridos muestran evento, fecha, lugar y total, y usan `ServicioDePagos`. Los datos de tarjeta solo viven en memoria durante el formulario. El servidor agrupa y vuelve a validar disponibilidad antes del pago; la transacción descuenta cupo, crea orden y emite los QR existentes.
 3. La respuesta inmediata abre la orden. El email también contiene un enlace privado; sus tickets pueden descargarse en PNG o mostrarse en la puerta. El acceso vence 30 días después del último evento de la compra.
 4. Para recuperar el enlace, ingresar número de orden y email en `/orden-invitado`. La respuesta es genérica tanto si coincide como si no; al emitir otro enlace se revoca el anterior. Hay límites por hora por dirección y por orden/email.
 
@@ -27,4 +27,4 @@ La migración `backend/src/main/resources/db/migraciones/20261018-altas-invitado
 
 ## Pruebas
 
-`AltasInvitadosIntegrationTest` cubre alta, roles, permisos, expiración, revocación, reenvío, concurrencia, compra invitada, cupo, pago rechazado, idempotencia, QR, recuperación, límites y origen cruzado. `DespachadorDeCorreoTest` cubre recuperación del despacho cuando SMTP vuelve a estar disponible. Ejecutar `cd backend; ./mvnw test` y `cd frontend; npm run build`.
+`AltasInvitadosIntegrationTest` cubre alta, roles, permisos, expiración, revocación, reenvío, concurrencia, compra invitada con aprobación, rechazo y caída ambigua de la pasarela, cupo, idempotencia, QR, recuperación, límites y origen cruzado. `DespachadorDeCorreoTest` cubre recuperación del despacho cuando SMTP vuelve a estar disponible. Ejecutar `cd backend; ./mvnw test` y `cd frontend; npm run build`.

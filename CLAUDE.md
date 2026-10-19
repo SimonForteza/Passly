@@ -50,7 +50,7 @@ prioridad.
 | 1. Crear y publicar | ✅ backend + web | ~~Botón "copiar link" en el backoffice~~ ✅ PAS-25 | ~~PAS-25~~ |
 | 2. Llegar por link | ✅ backend + web | ~~`GET /api/eventos/{id}` devuelve también borradores~~ ✅ PAS-25 (borrador → 404 salvo para quien lo gestiona); ~~el registro no vuelve al evento de origen~~ ✅ PAS-25; ~~no hay página pública de la productora~~ ✅ PAS-26 (`/productoras/{id}`) | ~~PAS-25~~, ~~PAS-26~~ |
 | 3. Cartelera | ✅ backend + web | ~~Búsqueda/filtro por productora en la UI~~ ✅ PAS-26 (búsqueda por nombre o lugar; filtro `?productora=` en la URL) | ~~PAS-26~~ |
-| 4. Pago integrado + QR | ⚠️ parcial | Ventas cobra con `PasarelaDePagoSimulada`, no con `PagoService`; `PagoService` no expone `revertir`; el checkout no pide tarjeta. El QR ya se emite (PAS-20) | PAS-29, PAS-30 |
+| 4. Pago integrado + QR | ⚠️ parcial | Backend resuelto (PAS-29): Ventas cobra con `PagoService` real y revierte el cobro si la confirmación falla. El QR ya se emite (PAS-20). Falta el formulario de tarjeta en el checkout de la web (depende de PAS-29) | ~~PAS-29~~, PAS-30, [6/8] |
 | 5. Validación | ✅ | Accesos valida QR con uso único atómico y pantalla web responsive | PAS-31 |
 
 Para el Checkpoint 2 además: diagrama SOA (PAS-27), doc funcional + manual + Figma (PAS-28) y
@@ -60,7 +60,7 @@ el proceso async real con Artemis (PAS-32). **Cada issue, al cerrarse, actualiza
 
 - Cualquier cuenta puede crear una productora. El alta la hace dueña y habilita capacidad de organizador dentro de la misma transacción; el registro público general sigue creando compradores.
 - Los dueños invitan por email a STAFF o VALIDADOR. El enlace dura siete días, admite una aceptación y requiere iniciar sesión con el email invitado. La cola `notificaciones.correo` guarda entrega pendiente y reintentos; Docker Compose levanta Mailpit (`http://localhost:8025`, SMTP local `:1025`). En producción se configura `PASSLY_SMTP_*`.
-- Una compra sin cuenta conserva su carrito en la sesión, cobra por el adaptador vigente, emite los mismos QR y manda un enlace privado de orden. El enlace dura hasta 30 días después del último evento. Se puede reemplazar desde la pantalla de recuperación; número de orden y email se responden de forma genérica y con límite por hora.
+- Una compra sin cuenta conserva su carrito en la sesión, cobra con `ServicioDePagos` usando tarjeta de prueba (igual que el checkout autenticado), emite los mismos QR y manda un enlace privado de orden. Los datos de tarjeta no se guardan. El enlace dura hasta 30 días después del último evento. Se puede reemplazar desde la pantalla de recuperación; número de orden y email se responden de forma genérica y con límite por hora.
 - Las órdenes de cuenta conservan su comprador. Órdenes y tickets invitados guardan `comprador_id` nulo; la orden mantiene nombre y email históricos. El acceso privado guarda solamente el hash del token. El intento usa `Idempotency-Key`; estados ambiguos no vuelven a cobrar automáticamente y necesitan conciliación.
 - La migración aditiva `backend/src/main/resources/db/migraciones/20261018-altas-invitados.sql` se ejecuta antes de Hibernate y conserva órdenes existentes. No recrear el volumen local.
 
@@ -273,7 +273,7 @@ ventas/
     │   ├── VentaServiceImpl.java    package-private, SIN @Transactional de clase (§4.11)
     │   ├── ConfirmacionDeCompra.java  package-private, @Transactional acá (§4.11)
     │   ├── PasarelaDePago.java        interfaz package-private — el Port (§4.9)
-    │   ├── PasarelaDePagoSimulada.java  el Adapter de hoy, hasta que exista PAS-7
+    │   ├── PasarelaDePagoReal.java    el Adapter (PAS-29), delega a `PagoService`
     │   ├── ComprobanteDeCobroDTO.java  package-private, no cruza la frontera del módulo
     │   └── VentaMapper.java
     ├── web/
@@ -286,7 +286,9 @@ ventas/
 
 No depende de `productoras`: el nombre comercial del organizador ya viaja dentro de
 `EventoDTO.organizador`, así que declarar esa arista sería sumar una dependencia sin uso. Su
-`package-info` declara `{"eventos", "eventos :: dto", "usuarios", "usuarios :: dto"}`.
+`package-info` declara `{"eventos", "eventos :: dto", "usuarios", "usuarios :: dto", "tickets",
+"tickets :: dto", "pagos", "pagos :: dto"}` (las dos últimas, agregadas en PAS-20 y PAS-29
+respectivamente).
 
 **Cada módulo suma un `package-info.java` en su raíz** con
 `@ApplicationModule(allowedDependencies = ...)`, que declara de qué otros componentes puede
@@ -419,7 +421,7 @@ presentación (Controller + DTO) → negocio (Service) → datos (Repository + E
 |---|---|---|
 | **Ventas** | **Eventos** | **Síncrona, implementada** — disponibilidad, descuento de cupo |
 | **Ventas** | **Usuarios** | **Síncrona, implementada** — datos del comprador en la orden |
-| Ventas | Pagos | Síncrona — cobro. Hoy resuelto **adentro** de Ventas con un Port/Adapter propio (`PasarelaDePago` / `PasarelaDePagoSimulada`, §4.9). `ServicioDePagos` (PAS-7) ya existe como módulo, pero todavía no está cableado: falta escribir el adapter real y declarar la dependencia en el `package-info` de `ventas` — sin tocar el resto de `VentaServiceImpl` |
+| **Ventas** | **Pagos** | **Síncrona, implementada (PAS-29)** — cobro y reversión vía `PagoService`, detrás del Port `PasarelaDePago` (`PasarelaDePagoReal`, §4.9) |
 | **Ventas** | **Tickets** | **Síncrona, implementada** — emisión dentro de la transacción |
 | Ventas | Facturación | **Asincrónica, implementada** — cola P2P `orden.pagada` (PAS-32) |
 | Tickets | Notificaciones, Accesos | **Asincrónica** — tópico `ticket.emitido` |
@@ -959,10 +961,9 @@ seguridad: son datos transitorios que se descartan apenas se usan, el mismo crit
 `usuarios` aplica a la contraseña hasheada. Al ser un componente sin dependencias, se pudo
 desarrollar en paralelo sin bloquear ni ser bloqueado por Ventas.
 
-**Pendiente, no parte de esta integración:** `ventas` sigue cobrando con
-`PasarelaDePagoSimulada`, no con el `ServicioDePagos` real que este merge trae — el Port ya
-existe para eso (§4.9), pero cablear `VentaServiceImpl` a `PagoService` es un cambio de
-código aparte, no un efecto automático de mergear ambas ramas.
+**Pendiente en ese momento, resuelto en PAS-29 (ver más abajo):** `ventas` seguía cobrando con
+`PasarelaDePagoSimulada`, no con el `ServicioDePagos` que este merge trajo — cablear
+`VentaServiceImpl` a `PagoService` no fue un efecto automático de mergear ambas ramas.
 
 **`frontend/` — esqueleto de la app web implementado** (PAS-14, en paralelo al backend): Vite +
 React + TypeScript, con carpetas por módulo de negocio (`usuarios/`, `productoras/`,
@@ -1143,6 +1144,44 @@ Eventos ya tenía `listarEventosPublicadosDeProductora` (expuesto como
 públicos, sin el padrón de miembros. Una funcionalidad entera de la visión de producto se armó
 solo combinando operaciones que ya estaban en los contratos. Es la prueba de que las interfaces
 se diseñaron por lo que el negocio necesita y no por la pantalla del momento.
+
+**Ventas cobra con el `ServicioDePagos` real (PAS-29):** el Port se diseñó para este momento
+(Javadoc de `PasarelaDePago`, §4.9) y cumplió — `PasarelaDePagoReal` reemplaza a
+`PasarelaDePagoSimulada` sin tocar `ConfirmacionDeCompra` ni el límite transaccional. Dos
+huecos de contrato se resolvieron explícitamente: `PasarelaDePago.cobrar` pasó a llevar
+`referencia` (un UUID generado antes de cobrar, porque la orden todavía no tiene id) y
+`DatosDeTarjetaDTO` propio de `ventas` — no el de `pagos`, para no filtrar la forma de un
+módulo ajeno en el contrato público de este (`VentaService.confirmarCompra`,
+`ConfirmarCompraRequest`); y `PagoService` ganó `revertir(Long idPago)`, con un estado nuevo
+`EstadoDePago.REVERTIDO` y dos excepciones (`PagoNoEncontradoException` → 404,
+`ReversionNoDisponibleException` → 409) para distinguir "no existe" de "no admite la
+operación en su estado actual".
+
+**La decisión sobre `PasarelaDePagoSimulada`: se borró, junto con su test.** No se dejó bajo
+un `@Profile` — no hay ningún escenario donde siga cumpliendo un rol: los tests de
+integración de `ConfirmarCompraTest` ya corren contra el mock HTTP real de `pagos` en el
+mismo proceso, que es exactamente lo que la simulada imitaba. Mantenerla viva solo habría
+agregado un segundo bean `PasarelaDePago` a desambiguar sin necesidad real.
+
+**El episodio de Modulith, igual que en §4.4 — y reproducible del mismo modo.** Escribir
+`PasarelaDePagoReal` (que importa `PagoService`, sus DTOs y sus excepciones) *antes* de
+declarar `"pagos", "pagos :: dto"` en el `package-info` de `ventas` hizo fallar
+`noHayViolacionesDeFrontera()` con seis violaciones distintas, una por cada tipo de `pagos`
+que el adapter nuevo tocaba — el build, no una revisión de código, fue quien lo dijo. Quedó
+declarado recién después de confirmar ese mensaje.
+
+**Un bug real que la propia tarea destapó, no relacionado con `ventas`:** el self-call HTTP
+que `PagoServiceImpl` le hace al mock de la pasarela (`/mock/pasarela-pago/cobros`) pasaba
+por el mismo `SecurityFilterChain` que el resto de la API — y, como esa llamada saliente no
+manda ningún header `Authorization`, el filtro general `anyRequest().authenticated()` le
+respondía 401 a su propio backend. Nadie lo había notado porque ningún test anterior ejercía
+esa llamada contra un servidor real (`PagoController` se probaba con `curl`, un humano
+autenticado; `PagoServiceImpl` nunca se ejercitó dentro de un `@SpringBootTest` con un puerto
+real escuchando). `ConfirmarCompraTest` tuvo que pasar a `webEnvironment = DEFINED_PORT` para
+que la llamada saliente de verdad golpeara un servidor — y ahí apareció. Se resolvió con un
+`permitAll` explícito sobre `POST /mock/pasarela-pago/**` en `ConfiguracionDeSeguridad`: un
+proveedor de pago real tiene su propio esquema de autenticación, nunca las credenciales de
+Passly, así que el mock que lo simula tampoco debería exigirlas.
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 
