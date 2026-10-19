@@ -33,6 +33,14 @@ ordenes y visualizacion de los QR emitidos. El login no usa
 un endpoint de "login" (Basic no lo tiene): valida email + password contra
 `GET /api/usuarios/me`.
 
+## Documentación para usuarios y prototipo
+
+- [Manual de usuario](docs/manual-de-usuario.md): cómo comprar, organizar eventos y validar entradas, con capturas.
+- [Documentación funcional](docs/funcional.md): historias de usuario y su estado real.
+- [Prototipo navegable en Figma](https://www.figma.com/proto/aQFl7PEjpuIVy9DjmbPJ3W/Passly?node-id=4-3&starting-point-node-id=4%3A3)
+  (flujos de comprador, organizador y validador).
+- PDFs de la entrega del Checkpoint 2: [docs/entrega-c2/](docs/entrega-c2/).
+
 ## Levantar el entorno
 
 Requisitos: Java 21, Maven (o el wrapper `./mvnw` incluido), Docker.

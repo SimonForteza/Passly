@@ -53,7 +53,7 @@ prioridad.
   | 4. Pago integrado + QR | ✅ | La compra autenticada y la invitada usan la pasarela de prueba, muestran errores de pago y conservan la tarjeta solo en memoria; cada entrada genera un QR. | ~~PAS-29~~, ~~PAS-30~~ |
   | 5. Validación | ✅ | Accesos valida QR con uso único atómico y pantalla web responsive. | ~~PAS-31~~ |
 
-Para el Checkpoint 2 además: ~~diagrama SOA (PAS-27)~~ ✅ `docs/integraciones.md`, doc funcional + manual + Figma (PAS-28) y
+Para el Checkpoint 2 además: ~~diagrama SOA (PAS-27)~~ ✅ `docs/integraciones.md`, ~~doc funcional + manual + Figma (PAS-28)~~ ✅ `docs/funcional.md`, `docs/manual-de-usuario.md` y
 el proceso async real con Artemis (PAS-32). **Cada issue, al cerrarse, actualiza esta tabla y la §9.**
 
 ### Alta de productoras, invitaciones y compra como invitado (18/10)
@@ -72,6 +72,7 @@ el proceso async real con Artemis (PAS-32). **Cada issue, al cerrarse, actualiza
 | Spring Boot — documentación | https://docs.spring.io/spring-boot/index.html |
 | Spring Modulith — documentación | https://docs.spring.io/spring-modulith/reference/index.html |
 | Supabase — documentación | https://supabase.com/docs |
+| **Figma — prototipo navegable** | https://www.figma.com/proto/aQFl7PEjpuIVy9DjmbPJ3W/Passly?node-id=4-3&starting-point-node-id=4%3A3 (páginas "Web — Passly" y "App - Passly"; archivo: https://www.figma.com/design/aQFl7PEjpuIVy9DjmbPJ3W/Passly) |
 
 > Ante una duda de API, configuración o versión, consultar la documentación
 > oficial antes de asumir. Spring Modulith y Supabase evolucionan rápido y el
@@ -801,6 +802,9 @@ passly/
 │   │                        errores (401/403/404/409), productoras, y **aislamiento entre
 │   │                        productoras** — el guion central de la demo
 │   ├── integraciones.md   ← inventario SOA: cada integración, canal, sync/async, estado (PAS-27)
+│   ├── funcional.md       ← historias de usuario con estado real + diagrama de casos de uso (PAS-28)
+│   ├── manual-de-usuario.md ← manual por rol, sin jerga, con capturas de la app real (PAS-28)
+│   ├── manual/img/        ← capturas del manual (perfil demo, base limpia)
 │   ├── diagramas/         ← integracion-soa.mmd (fuente Mermaid) + .png/.svg exportados
 │   ├── entrega-c2/        ← PDF del Checkpoint 2 + pdf.css + README con el comando para regenerarlo
 │   └── modulith/          ← salida de Documenter (PAS-9): components.puml (diagrama global),
@@ -840,7 +844,8 @@ passly/
 > en un clon recién hecho. Los `.md` de `docs/` listados como aspiracionales todavía
 > no están escritos: hoy `docs/` contiene los DDL de referencia (`ddl-eventos.sql`,
 > `ddl-productoras.sql`, `ddl-pagos.sql`, `ddl-ventas.sql`), `http/`, `modulith/` y `adr/`,
-> más `integraciones.md`, `diagramas/` y `entrega-c2/` (PAS-27).
+> más `integraciones.md`, `diagramas/` y `entrega-c2/` (PAS-27), y `funcional.md`,
+> `manual-de-usuario.md` y `manual/img/` (PAS-28).
 
 ---
 

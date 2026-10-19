@@ -1,0 +1,49 @@
+%% Casos de uso de Passly — PAS-28. Fuente editable; regenerar el PNG desde la raíz del repo:
+%%   npx -y @mermaid-js/mermaid-cli@11 -i docs/diagramas/casos-de-uso.mmd -o docs/diagramas/casos-de-uso.png -s 2 -b white
+%% Línea punteada y gris = planificado (sin código en main).
+flowchart LR
+    ANON(["Comprador<br/>sin cuenta"])
+    COMP(["Comprador<br/>registrado"])
+    ORG(["Organizador<br/>dueño / staff"])
+    VAL(["Validador"])
+    ADM(["Admin"])
+
+    subgraph SIS["Passly"]
+        direction TB
+        HU1["HU-01 Navegar cartelera<br/>y página de productora"]
+        HU2["HU-02 Llegar por link<br/>y ver el evento"]
+        HU3["HU-03 Comprar con tarjeta<br/>y recibir los QR"]
+        HU4["HU-04 Comprar como invitado<br/>y recuperar la orden"]
+        HU5["HU-05 Registrarse / ingresar<br/>y volver al evento"]
+        HU6["HU-06 Ver mis entradas<br/>y descargar QR"]
+        HU7["HU-07 Crear productora"]
+        HU8["HU-08 Crear, editar<br/>y publicar evento"]
+        HU9["HU-09 Copiar link<br/>del evento"]
+        HU10["HU-10 Invitar staff<br/>o validadores"]
+        HU11["HU-11 Validar QR<br/>en la puerta"]
+        HU12["HU-12 Alta de cuentas<br/>con rol privilegiado"]
+        HU13["HU-13 Recibir las entradas<br/>por mail (con cuenta)"]
+        HU14["HU-14 Cancelar un evento"]
+    end
+
+    ANON --> HU1
+    ANON --> HU2
+    ANON --> HU4
+    ANON --> HU5
+    COMP --> HU1
+    COMP --> HU3
+    COMP --> HU6
+    COMP --> HU7
+    COMP -.-> HU13
+    ORG --> HU8
+    ORG --> HU9
+    ORG --> HU10
+    ORG --> HU11
+    ORG -.-> HU14
+    VAL --> HU11
+    ADM --> HU12
+
+    classDef actor fill:#eaf2ff,stroke:#3a6fd8,color:#222
+    classDef pendiente fill:#f2f2f2,stroke:#999,stroke-dasharray:4 3,color:#666
+    class ANON,COMP,ORG,VAL,ADM actor
+    class HU13,HU14 pendiente
