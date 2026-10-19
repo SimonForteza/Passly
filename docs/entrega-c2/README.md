@@ -3,6 +3,13 @@
 | Archivo | Fuente |
 |---|---|
 | `integraciones-checkpoint-2.pdf` | [`../integraciones.md`](../integraciones.md) (PAS-27) |
+| `funcional-checkpoint-2.pdf` | [`../funcional.md`](../funcional.md) (PAS-28) |
+| `manual-de-usuario-checkpoint-2.pdf` | [`../manual-de-usuario.md`](../manual-de-usuario.md) (PAS-28) |
+
+Los otros dos se generan igual que el de integraciones, cambiando el `.md`. El diagrama de casos de
+uso sale de `docs/diagramas/casos-de-uso.mmd` con el mismo comando de `mermaid-cli`. Las capturas
+de `docs/manual/img/` se sacaron con Puppeteer contra la app real (perfil `demo`, base recién
+sembrada), no se editan a mano.
 
 El PDF se genera; no se edita. Para regenerarlo desde la raíz del repo:
 
