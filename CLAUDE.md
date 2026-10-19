@@ -56,6 +56,14 @@ prioridad.
 Para el Checkpoint 2 además: diagrama SOA (PAS-27), doc funcional + manual + Figma (PAS-28) y
 el proceso async real con Artemis (PAS-32). **Cada issue, al cerrarse, actualiza esta tabla y la §9.**
 
+### Alta de productoras, invitaciones y compra como invitado (18/10)
+
+- Cualquier cuenta puede crear una productora. El alta la hace dueña y habilita capacidad de organizador dentro de la misma transacción; el registro público general sigue creando compradores.
+- Los dueños invitan por email a STAFF o VALIDADOR. El enlace dura siete días, admite una aceptación y requiere iniciar sesión con el email invitado. La cola `notificaciones.correo` guarda entrega pendiente y reintentos; Docker Compose levanta Mailpit (`http://localhost:8025`, SMTP local `:1025`). En producción se configura `PASSLY_SMTP_*`.
+- Una compra sin cuenta conserva su carrito en la sesión, cobra por el adaptador vigente, emite los mismos QR y manda un enlace privado de orden. El enlace dura hasta 30 días después del último evento. Se puede reemplazar desde la pantalla de recuperación; número de orden y email se responden de forma genérica y con límite por hora.
+- Las órdenes de cuenta conservan su comprador. Órdenes y tickets invitados guardan `comprador_id` nulo; la orden mantiene nombre y email históricos. El acceso privado guarda solamente el hash del token. El intento usa `Idempotency-Key`; estados ambiguos no vuelven a cobrar automáticamente y necesitan conciliación.
+- La migración aditiva `backend/src/main/resources/db/migraciones/20261018-altas-invitados.sql` se ejecuta antes de Hibernate y conserva órdenes existentes. No recrear el volumen local.
+
 ### Enlaces
 
 | Recurso | URL |

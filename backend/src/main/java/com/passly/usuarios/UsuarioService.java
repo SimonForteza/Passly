@@ -36,6 +36,9 @@ public interface UsuarioService {
      */
     UsuarioDTO registrarUsuario(CrearUsuarioRequest solicitud);
 
+    /** Solo para flujos internos de alta de productora y aceptación de invitaciones. */
+    UsuarioDTO habilitarCapacidad(Long idUsuario, Rol capacidad);
+
     /**
      * Devuelve un usuario por id.
      *

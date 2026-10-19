@@ -14,7 +14,7 @@ class AccesoController {
     AccesoController(AccesoService accesos) { this.accesos = accesos; }
 
     @PostMapping("/api/accesos/validaciones")
-    @PreAuthorize("hasAnyRole('VALIDADOR','ORGANIZADOR')")
+    @PreAuthorize("hasAnyRole('VALIDADOR','ORGANIZADOR','ADMIN')")
     ValidacionDTO validar(@Valid @RequestBody ValidarEntradaRequest solicitud, Authentication actor) {
         return accesos.validarEntrada(solicitud, Long.valueOf(actor.getName()));
     }

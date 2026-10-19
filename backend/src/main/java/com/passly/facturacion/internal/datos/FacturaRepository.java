@@ -18,4 +18,14 @@ public interface FacturaRepository extends JpaRepository<Factura, Long> {
         """, nativeQuery = true)
     int insertarSiNoExiste(@Param("orden") Long orden, @Param("comprador") Long comprador,
                           @Param("total") BigDecimal total, @Param("cobrada") OffsetDateTime cobrada);
+
+    @Modifying
+    @Query(value="""
+        INSERT INTO facturacion.factura (orden_id,comprador_id,comprador_nombre,comprador_email,total,cobrada_en,estado,creada_en)
+        VALUES (:orden,:comprador,:nombre,:email,:total,:cobrada,'PENDIENTE_AFIP',CURRENT_TIMESTAMP)
+        ON CONFLICT (orden_id) DO NOTHING
+        """,nativeQuery=true)
+    int insertarInvitadoSiNoExiste(@Param("orden") Long orden,@Param("comprador") Long comprador,
+            @Param("nombre") String nombre,@Param("email") String email,@Param("total") BigDecimal total,
+            @Param("cobrada") OffsetDateTime cobrada);
 }

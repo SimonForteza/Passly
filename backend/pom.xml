@@ -21,6 +21,7 @@
 	</properties>
 
 	<dependencies>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-mail</artifactId></dependency>
 		<!-- ============ Capa de presentacion ============ -->
 		<!-- OJO: en Spring Boot 4 el starter web pasa a llamarse 'webmvc'. -->
 		<dependency>
@@ -155,6 +156,7 @@
 
 	<dependencyManagement>
 		<dependencies>
+
 			<dependency>
 				<groupId>org.springframework.modulith</groupId>
 				<artifactId>spring-modulith-bom</artifactId>

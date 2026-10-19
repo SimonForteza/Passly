@@ -21,8 +21,10 @@ class OrdenPagadaListener {
     @JmsListener(id = "facturacion-orden-pagada", destination = "orden.pagada")
     public void recibir(String json) {
         OrdenPagada mensaje = mapper.readValue(json, OrdenPagada.class);
-        facturacion.registrarOrdenPagada(mensaje.idOrden(), mensaje.idComprador(), mensaje.total(), mensaje.cobradaEn());
+        facturacion.registrarOrdenPagada(mensaje.idOrden(),mensaje.idComprador(),mensaje.total(),
+                mensaje.cobradaEn(),mensaje.compradorNombre(),mensaje.compradorEmail());
     }
     // Tipo local: no importar eventos ni DTOs de ventas.
-    record OrdenPagada(Long idOrden, Long idComprador, BigDecimal total, OffsetDateTime cobradaEn) {}
+    record OrdenPagada(Long idOrden, Long idComprador, BigDecimal total, OffsetDateTime cobradaEn,
+                        String compradorNombre, String compradorEmail) {}
 }

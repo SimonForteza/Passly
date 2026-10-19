@@ -8,6 +8,11 @@
 # componentes es el contenedor IoC de Spring, que es lo que evalua la Unidad II.
 
 services:
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
   artemis:
     image: apache/artemis:2.53.0-alpine
     container_name: passly-artemis
@@ -32,9 +37,9 @@ services:
       # entorno y nunca se commitean. Ver .env.example.
       POSTGRES_PASSWORD: passly
     ports:
-      # Mismo puerto 5432 que usaremos contra Supabase: nunca el 6543 (PgBouncer en
-      # modo transaccion), que rompe los prepared statements de JPA.
-      - "5432:5432"
+      # En el host usamos 5433 para no chocar con una instalacion local de Postgres.
+      # Dentro del contenedor Postgres sigue escuchando en 5432.
+      - "5433:5432"
     volumes:
       - passly-pgdata:/var/lib/postgresql/data
       # Postgres ejecuta estos scripts UNA SOLA VEZ, al inicializar el volumen.

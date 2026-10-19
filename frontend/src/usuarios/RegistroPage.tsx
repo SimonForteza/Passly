@@ -3,7 +3,12 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError } from '../lib/http/ApiError';
 import { useAuth } from '../lib/auth/AuthContext';
 import { crearUsuario } from './api';
-import { BotonPrimario, CampoTexto, PantallaAuth, estilos } from './componentes';
+import {
+  BotonPrimario,
+  CampoTexto,
+  PantallaAuth,
+  estilos,
+} from './componentes';
 
 export function RegistroPage() {
   const { iniciarSesion } = useAuth();
@@ -11,7 +16,20 @@ export function RegistroPage() {
   const location = useLocation();
   // Mismo criterio que LoginPage: quien llegó por el link de un evento (Comprar -> login ->
   // "Crear una") trae ese evento en state.from y vuelve a él después del alta (PAS-25).
-  const destino = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/';
+  const origen = (
+    location.state as {
+      from?: { pathname: string; search?: string; hash?: string };
+    } | null
+  )?.from;
+  const contexto =
+    (location.state as { contexto?: string } | null)?.contexto ??
+    (origen?.pathname === '/productoras/nueva'
+      ? 'Primero creá tu cuenta. Después continuás con el alta de tu productora.'
+      : '');
+  const destino =
+    origen?.pathname?.startsWith('/') && !origen.pathname.startsWith('//')
+      ? `${origen.pathname}${origen.search ?? ''}${origen.hash ?? ''}`
+      : '/';
 
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
@@ -30,7 +48,12 @@ export function RegistroPage() {
     try {
       // El alta publica SIEMPRE crea COMPRADOR: no ofrecemos elegir rol. Pedir uno privilegiado
       // como anonimo es 401 en el backend; el alta de otros roles la hace un ADMIN desde su perfil.
-      const usuario = await crearUsuario({ email, nombre, password, rol: 'COMPRADOR' });
+      const usuario = await crearUsuario({
+        email,
+        nombre,
+        password,
+        rol: 'COMPRADOR',
+      });
       // El POST devuelve el UsuarioDTO (con id): con eso y la clave ya podemos dejar la sesion
       // iniciada sin pasar por el login.
       iniciarSesion(usuario, password);
@@ -51,6 +74,7 @@ export function RegistroPage() {
   return (
     <PantallaAuth>
       <h2>Crear cuenta</h2>
+      {contexto ? <p className="texto-secundario">{contexto}</p> : null}
       <form onSubmit={enviar} style={estilos.formulario}>
         <CampoTexto
           etiqueta="Nombre"
@@ -95,11 +119,18 @@ export function RegistroPage() {
           </p>
         )}
 
-        <BotonPrimario cargando={cargando}>{cargando ? 'Creando…' : 'Crear cuenta'}</BotonPrimario>
+        <BotonPrimario cargando={cargando}>
+          {cargando ? 'Creando…' : 'Crear cuenta'}
+        </BotonPrimario>
       </form>
 
-      <p style={{ color: 'var(--color-texto-secundario)', marginTop: '1.5rem' }}>
-        ¿Ya tenés cuenta? <Link to="/login" state={location.state}>Ingresar</Link>
+      <p
+        style={{ color: 'var(--color-texto-secundario)', marginTop: '1.5rem' }}
+      >
+        ¿Ya tenés cuenta?{' '}
+        <Link to="/login" state={location.state}>
+          Ingresar
+        </Link>
       </p>
     </PantallaAuth>
   );

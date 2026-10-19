@@ -51,22 +51,53 @@ class ConfirmacionDeCompra {
             EventoService eventoService,
             OrdenRepository ordenRepository,
             TicketService ticketService,
-            org.springframework.context.ApplicationEventPublisher eventos
+            org.springframework.context.ApplicationEventPublisher eventos,
+            com.passly.ventas.internal.datos.IntentoCompraRepository intentos,
+            com.passly.notificaciones.CorreoService correos,
+            @org.springframework.beans.factory.annotation.Value("${passly.web.origen}") String origen
     ) {
         this.eventoService = eventoService;
         this.ordenRepository = ordenRepository;
         this.ticketService = ticketService;
         this.eventos = eventos;
+        this.intentos = intentos;
+        this.correos = correos;
+        this.origen = origen;
+    }
+
+    private final com.passly.ventas.internal.datos.IntentoCompraRepository intentos;
+    private final com.passly.notificaciones.CorreoService correos;
+    private final String origen;
+
+    @Transactional
+    Orden confirmarInvitado(String nombre,String email,String token,String clave,
+            java.time.OffsetDateTime vence,List<ItemDeCarritoDTO> items,BigDecimal total,
+            String comprobante,OffsetDateTime cobrada) {
+        Orden orden=confirmarConIdentidadInvitado(nombre,email,token,vence,items,total,comprobante,cobrada);
+        var intento=intentos.findById(clave).orElseThrow();
+        intento.ordenId=orden.getId(); intento.estado="CONFIRMADO";
+        correos.encolar(email,"Tus entradas de Passly · orden "+orden.getId(),
+            "Tu compra fue confirmada. Consultá la orden y tus QR en "+origen+"/orden-invitado#"+token+
+            "\nNúmero de orden: "+orden.getId()+". Guardá este enlace privado.");
+        return orden;
     }
 
     @Transactional
-    Orden confirmar(
-            Long idComprador,
-            List<ItemDeCarritoDTO> items,
-            BigDecimal total,
-            String comprobanteCobro,
-            OffsetDateTime cobradaEn
-    ) {
+    Orden confirmar(Long idComprador,List<ItemDeCarritoDTO> items,BigDecimal total,
+            String comprobanteCobro,OffsetDateTime cobradaEn) {
+        return confirmarInterno(idComprador,null,null,null,null,items,total,comprobanteCobro,cobradaEn);
+    }
+
+    @Transactional
+    private Orden confirmarConIdentidadInvitado(String nombre,String email,String token,
+            OffsetDateTime vence,List<ItemDeCarritoDTO> items,BigDecimal total,
+            String comprobanteCobro,OffsetDateTime cobradaEn) {
+        return confirmarInterno(null,nombre,email,SeguridadEnlaces.hash(token),vence,items,total,comprobanteCobro,cobradaEn);
+    }
+
+    private Orden confirmarInterno(Long idComprador,String nombre,String email,String accesoHash,
+            OffsetDateTime vence,List<ItemDeCarritoDTO> items,BigDecimal total,
+            String comprobanteCobro,OffsetDateTime cobradaEn) {
         eventoService.descontarCupo(items.stream()
                 .map(item -> new DescontarCupoRequest(item.idTipoEntrada(), item.cantidad()))
                 .toList());
@@ -77,6 +108,7 @@ class ConfirmacionDeCompra {
                     item.idTipoEntrada(), item.idEvento(), item.nombreTipoEntrada(),
                     item.precioUnitario(), item.cantidad()));
         }
+        if (idComprador==null) orden.registrarInvitado(nombre,email,accesoHash,vence);
         // El id de la orden forma parte de cada ticket. saveAndFlush fuerza el INSERT antes de
         // emitirlos, pero todo sigue dentro de esta misma transaccion y se revierte en conjunto.
         orden = ordenRepository.saveAndFlush(orden);
@@ -92,7 +124,8 @@ class ConfirmacionDeCompra {
                                 item.cantidad()))
                         .toList()));
 
-        eventos.publishEvent(new OrdenPagada(orden.getId(), idComprador, total, cobradaEn));
+        eventos.publishEvent(new OrdenPagada(orden.getId(),idComprador,total,cobradaEn,
+                orden.getCompradorNombre(),orden.getCompradorEmail()));
         return orden;
     }
 }

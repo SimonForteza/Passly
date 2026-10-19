@@ -28,7 +28,7 @@ export interface ItemDeOrdenDTO {
 }
 
 export interface CompradorDeOrdenDTO {
-  id: number;
+  id: number | null;
   email: string;
   nombre: string;
 }

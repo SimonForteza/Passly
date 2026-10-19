@@ -1,4 +1,20 @@
 spring:
+  mail:
+    host: ${PASSLY_SMTP_HOST:localhost}
+    port: ${PASSLY_SMTP_PORT:1025}
+    username: ${PASSLY_SMTP_USER:}
+    password: ${PASSLY_SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${PASSLY_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${PASSLY_SMTP_TLS:false}
+      mail.smtp.connectiontimeout: 3000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/migraciones/20261018-altas-invitados.sql
+      separator: "^^^"
   application:
     name: passly-backend
 
@@ -13,9 +29,9 @@ spring:
     # descartable de docker-compose.yml, para que el repo recien clonado arranque sin
     # setup. Cuando el destino sea Supabase, las variables ganan y no se commitea nada.
     #
-    # Puerto 5432 siempre: el 6543 de Supabase es PgBouncer en modo transaccion y rompe
-    # los prepared statements de JPA (CLAUDE.md 3, "Trampas conocidas de Supabase").
-    url: ${PASSLY_DB_URL:jdbc:postgresql://localhost:5432/passly}
+    # El Postgres local de Docker se publica en 5433 para evitar conflictos en el host.
+    # Para Supabase, PASSLY_DB_URL debe usar el puerto directo 5432, nunca PgBouncer 6543.
+    url: ${PASSLY_DB_URL:jdbc:postgresql://localhost:5433/passly}
     username: ${PASSLY_DB_USER:passly}
     password: ${PASSLY_DB_PASSWORD:passly}
 
@@ -59,6 +75,10 @@ server:
         same-site: lax
 
 passly:
+  correo:
+    remitente: ${PASSLY_CORREO_REMITENTE:entradas@passly.test}
+    activo: ${PASSLY_CORREO_ACTIVO:true}
+    intervalo-ms: ${PASSLY_CORREO_INTERVALO_MS:10000}
   facturacion:
     consumidor-activo: ${PASSLY_FACTURACION_CONSUMIDOR_ACTIVO:true}
   tickets:

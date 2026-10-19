@@ -28,7 +28,7 @@ public class Ticket {
     @Column(name = "orden_id", nullable = false, updatable = false)
     private Long ordenId;
 
-    @Column(name = "comprador_id", nullable = false, updatable = false)
+    @Column(name = "comprador_id", nullable = true, updatable = false)
     private Long compradorId;
 
     @Column(name = "evento_id", nullable = false, updatable = false)
