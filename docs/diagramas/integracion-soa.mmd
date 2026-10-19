@@ -1,0 +1,74 @@
+%% Diagrama de integración (SOA) de Passly — PAS-27.
+%% Fuente editable. Regenerar los exports desde la raíz del repo:
+%%   npx -y @mermaid-js/mermaid-cli@11 -i docs/diagramas/integracion-soa.mmd -o docs/diagramas/integracion-soa.png -s 2 -b white
+%%   npx -y @mermaid-js/mermaid-cli@11 -i docs/diagramas/integracion-soa.mmd -o docs/diagramas/integracion-soa.svg -b white
+%% Convención: línea continua = implementado en main; línea punteada + gris = planificado.
+flowchart LR
+    subgraph CLI["Clientes"]
+        WEB["App web<br/>comprador · organizador"]
+        VAL["Pantalla web /validar<br/>validador (cámara)"]
+    end
+
+    subgraph BE["Backend Passly — monolito modular (Spring Boot + Modulith)"]
+        SEG["seguridad<br/>HTTP Basic + @PreAuthorize"]
+        VEN["ventas<br/>Facade · stateful"]
+        EVE["eventos"]
+        PRO["productoras"]
+        USU["usuarios"]
+        TIC["tickets<br/>QR firmado"]
+        PAG["pagos<br/>Adapter REST"]
+        FAC["facturacion<br/>Adapter SOAP"]
+        ACC["accesos"]
+        NOT["notificaciones<br/>outbox de correo"]
+    end
+
+    subgraph MQ["ActiveMQ Artemis (Docker)"]
+        Q[("COLA P2P<br/>orden.pagada")]
+        T{{"TÓPICO pub/sub<br/>ticket.emitido"}}
+    end
+
+    subgraph EXT["Sistemas externos"]
+        PSP["Pasarela de pago<br/>(mock in-process)"]
+        AFIP["AFIP WSFE<br/>(SOAP / WSDL)"]
+        SMTP["Servidor SMTP<br/>(Mailpit en desarrollo)"]
+    end
+
+    %% Clientes -> backend (síncrono, REST)
+    WEB -- "REST/JSON síncrono" --> SEG
+    VAL -- "REST/JSON síncrono" --> SEG
+    SEG --> VEN
+    SEG --> ACC
+
+    %% Llamadas en proceso entre módulos (síncronas, verificadas por Modulith)
+    VEN --> EVE
+    VEN --> USU
+    VEN -- "misma TX" --> TIC
+    VEN --> PAG
+    VEN -- "misma TX" --> NOT
+    EVE --> PRO
+    PRO --> USU
+    PRO --> NOT
+    ACC --> TIC
+
+    %% Salientes a externos
+    PAG -- "REST saliente síncrono" --> PSP
+    NOT -- "SMTP asíncrono, reintento" --> SMTP
+    FAC -. "SOAP síncrono (pendiente)" .-> AFIP
+
+    %% Mensajería JMS
+    VEN -- "JMS async, AFTER_COMMIT" --> Q
+    Q -- "JMS, 1 consumidor" --> FAC
+    TIC -. "JMS async (pendiente)" .-> T
+    T -. "suscriptor" .-> NOT
+    T -. "suscriptor" .-> ACC
+
+    classDef pendiente fill:#f2f2f2,stroke:#999,stroke-dasharray:4 3,color:#666
+    classDef broker fill:#fff4e0,stroke:#d08a00,color:#222
+    classDef externo fill:#eaf2ff,stroke:#3a6fd8,color:#222
+    class T,AFIP pendiente
+    class Q broker
+    class PSP,SMTP externo
+
+    %% Aristas en proceso (2-12) en gris fino; integraciones reales (clientes, externos, JMS) gruesas
+    linkStyle 2,3,4,5,6,7,8,9,10,11,12 stroke:#9aa3b5,stroke-width:1px
+    linkStyle 0,1,13,14,16,17 stroke:#222,stroke-width:2.5px
