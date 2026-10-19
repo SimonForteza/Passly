@@ -31,8 +31,10 @@ npm run dev
   eventos publicados de una productora; se llega desde el detalle de un evento o desde
   "Ver página pública" en el backoffice. La cartelera busca por nombre o lugar en el cliente y
   filtra por productora con `?productora=` en la URL.
-- **Ventas (PAS-18):** carrito (`/carrito`), checkout, mis órdenes (`/mis-ordenes`) y detalle de
-  cada orden con sus tickets QR (`/mis-ordenes/:id`).
+- **Ventas (PAS-18, PAS-30):** carrito (`/carrito`), checkout con tarjeta de prueba, mis órdenes
+  (`/mis-ordenes`) y detalle con tickets QR (`/mis-ordenes/:id`). También se puede comprar como
+  invitado: se piden nombre y email y la orden se consulta desde su enlace privado. Los datos de
+  tarjeta viven solo en el estado del formulario y no se guardan en el navegador.
 
 ## Componentes compartidos
 

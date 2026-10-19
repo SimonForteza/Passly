@@ -2,6 +2,7 @@ import { httpClient } from '../lib/http/httpClient';
 import { registrarCarrito, actualizarCarrito } from './carritoEstado';
 import type {
   CarritoDTO,
+  DatosDeTarjetaDTO,
   OrdenDTO,
   TicketDTO,
   AgregarItemRequest,
@@ -31,10 +32,15 @@ export const vaciarInvitado = () =>
   httpClient.delete<void>(`${base}/carrito`).then(() => {
     actualizarCarrito(null);
   });
-export const comprarInvitado = (nombre: string, email: string, clave: string) =>
+export const comprarInvitado = (
+  nombre: string,
+  email: string,
+  clave: string,
+  tarjeta: DatosDeTarjetaDTO,
+) =>
   httpClient.post<CompraInvitada>(
     `${base}/ordenes`,
-    { nombre, email },
+    { nombre, email, tarjeta },
     { headers: { 'Idempotency-Key': clave } },
   );
 export const consultarInvitado = (token: string) =>

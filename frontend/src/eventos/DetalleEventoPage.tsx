@@ -251,8 +251,8 @@ export function DetalleEventoPage() {
                       : 'Continuar como invitado'}
                 </button>
                 <p className="aviso-pasarela">
-                  Modo demostración: el pago es simulado y no se realiza un
-                  cobro real.
+                  En el checkout te vamos a pedir los datos de una tarjeta de
+                  prueba. La pasarela no realiza cobros reales.
                 </p>
               </aside>
             ) : null}

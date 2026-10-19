@@ -3,6 +3,7 @@ import { registrarCarrito, actualizarCarrito } from './carritoEstado';
 import type {
   AgregarItemRequest,
   CarritoDTO,
+  DatosDeTarjetaDTO,
   OrdenDTO,
   TicketDTO,
 } from './types';
@@ -21,7 +22,7 @@ export function agregarItemAlCarrito(
     .then(registrarCarrito);
 }
 
-// 200 con la foto del carrito tomada antes de invalidar la sesion (VentaController.abandonarCarrito).
+// El backend devuelve la foto del carrito antes de invalidar la sesión.
 export function vaciarCarrito(): Promise<CarritoDTO> {
   return httpClient.delete<CarritoDTO>('/api/ventas/carrito').then((v) => {
     actualizarCarrito(null);
@@ -29,8 +30,8 @@ export function vaciarCarrito(): Promise<CarritoDTO> {
   });
 }
 
-export function confirmarCompra(): Promise<OrdenDTO> {
-  return httpClient.post<OrdenDTO>('/api/ventas/ordenes');
+export function confirmarCompra(tarjeta: DatosDeTarjetaDTO): Promise<OrdenDTO> {
+  return httpClient.post<OrdenDTO>('/api/ventas/ordenes', { tarjeta });
 }
 
 export function obtenerOrden(id: number): Promise<OrdenDTO> {

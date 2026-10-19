@@ -19,6 +19,16 @@ Content-Type: application/json
 # @name compra
 POST {{base}}/api/ventas/ordenes
 Authorization: Basic {{comprador}} {{clave}}
+Content-Type: application/json
+
+{
+  "tarjeta": {
+    "numero": "4242424242424242",
+    "titular": "Carla Compradora",
+    "vencimiento": "12/29",
+    "codigoSeguridad": "123"
+  }
+}
 
 ### Obtener contenido firmado del ticket de la orden
 # @name tickets

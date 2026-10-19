@@ -19,6 +19,14 @@ export interface AgregarItemRequest {
   cantidad: number;
 }
 
+/** Espejo de `com.passly.ventas.dto.DatosDeTarjetaDTO`. Nunca se persiste (CarritoPage). */
+export interface DatosDeTarjetaDTO {
+  numero: string;
+  titular: string;
+  vencimiento: string;
+  codigoSeguridad: string;
+}
+
 export interface ItemDeOrdenDTO {
   idTipoEntrada: number;
   idEvento: number;
