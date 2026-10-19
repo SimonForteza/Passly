@@ -1,77 +1,100 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { EstadoCarga } from '../layout/EstadoCarga';
 import { EstadoError } from '../layout/EstadoError';
-import { useAuth } from '../lib/auth/AuthContext';
-import { agregarTipoEntrada, ampliarCupo, editarEvento, editarTipoEntrada, obtenerEvento } from './api';
-import type { CrearTipoEntradaRequest, EventoDTO, TipoEntradaDTO } from './types';
-
-const TIPO_ENTRADA_INICIAL: CrearTipoEntradaRequest = { nombre: '', precio: 0, cupoTotal: 0 };
-
-// Parte un ISO ("2027-03-15T21:00:00-03:00") en los valores de <input type="date">/<input
-// type="time"> en hora local, y arma el ISO de vuelta con el mismo criterio que CrearEventoPage.
-function partirFechaHora(iso: string): { fecha: string; hora: string } {
-  const fechaHora = new Date(iso);
+import { EstadoCarga } from '../layout/EstadoCarga';
+import { useCambiosSinGuardar } from '../lib/useCambiosSinGuardar';
+import { useProductoraActual } from '../productoras/GestionLayout';
+import {
+  agregarTipoEntrada,
+  ampliarCupo,
+  editarEvento,
+  editarTipoEntrada,
+  obtenerEvento,
+} from './api';
+import type {
+  CrearTipoEntradaRequest,
+  EventoDTO,
+  TipoEntradaDTO,
+} from './types';
+const INICIAL: CrearTipoEntradaRequest = {
+  nombre: '',
+  precio: 0,
+  cupoTotal: 0,
+};
+function partirFechaHora(iso: string) {
+  const f = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, '0');
-  const fecha = `${fechaHora.getFullYear()}-${pad(fechaHora.getMonth() + 1)}-${pad(fechaHora.getDate())}`;
-  const hora = `${pad(fechaHora.getHours())}:${pad(fechaHora.getMinutes())}`;
-  return { fecha, hora };
+  return {
+    fecha:
+      f.getFullYear() + '-' + pad(f.getMonth() + 1) + '-' + pad(f.getDate()),
+    hora: pad(f.getHours()) + ':' + pad(f.getMinutes()),
+  };
 }
-
 function FilaTipoEntrada({
   tipo,
   soloAmpliar,
-  onGuardar,
-  onAmpliar,
+  cancelado,
+  guardar,
+  ampliar,
+  notificarCambios,
 }: {
   tipo: TipoEntradaDTO;
   soloAmpliar: boolean;
-  onGuardar: (cambios: { nombre: string; precio: number; cupoTotal: number }) => Promise<void>;
-  onAmpliar: (cantidad: number) => Promise<void>;
+  cancelado: boolean;
+  guardar: (datos: CrearTipoEntradaRequest) => Promise<void>;
+  ampliar: (cantidad: number) => Promise<void>;
+  notificarCambios: (id: number, cambios: boolean) => void;
 }) {
-  const vendidas = tipo.cupoTotal - tipo.cupoDisponible;
   const [nombre, setNombre] = useState(tipo.nombre);
   const [precio, setPrecio] = useState(tipo.precio);
-  const [cupoTotal, setCupoTotal] = useState(tipo.cupoTotal);
-  const [cantidadASumar, setCantidadASumar] = useState(0);
-  const [guardando, setGuardando] = useState(false);
+  const [cupo, setCupo] = useState(tipo.cupoTotal);
+  const [sumar, setSumar] = useState(0);
+  const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<unknown>(null);
-
-  async function guardar() {
-    setGuardando(true);
+  const [mensaje, setMensaje] = useState('');
+  useEffect(() => {
+    setNombre(tipo.nombre);
+    setPrecio(tipo.precio);
+    setCupo(tipo.cupoTotal);
+  }, [tipo.nombre, tipo.precio, tipo.cupoTotal]);
+  const editado =
+    !soloAmpliar &&
+    (nombre.trim() !== tipo.nombre ||
+      precio !== tipo.precio ||
+      cupo !== tipo.cupoTotal);
+  useEffect(() => {
+    notificarCambios(tipo.id, editado || sumar > 0);
+  }, [tipo.id, editado, sumar, notificarCambios]);
+  async function enviar(e: FormEvent, esAmpliacion: boolean) {
+    e.preventDefault();
+    setOcupado(true);
     setError(null);
+    setMensaje('');
     try {
-      await onGuardar({ nombre: nombre.trim(), precio, cupoTotal });
-    } catch (causa: unknown) {
+      if (esAmpliacion) {
+        await ampliar(sumar);
+        setSumar(0);
+        setMensaje('Cupo ampliado.');
+      } else {
+        await guardar({ nombre: nombre.trim(), precio, cupoTotal: cupo });
+        setMensaje('Categoría guardada.');
+      }
+    } catch (causa) {
       setError(causa);
     } finally {
-      setGuardando(false);
+      setOcupado(false);
     }
   }
-
-  async function sumar() {
-    if (cantidadASumar <= 0) return;
-    setGuardando(true);
-    setError(null);
-    try {
-      await onAmpliar(cantidadASumar);
-      setCantidadASumar(0);
-    } catch (causa: unknown) {
-      setError(causa);
-    } finally {
-      setGuardando(false);
-    }
-  }
-
   return (
-    <div className="panel">
-      <div className="fila-tipo-entrada">
+    <div className="panel stack-chico">
+      <form className="fila-tipo-entrada" onSubmit={(e) => enviar(e, false)}>
         <label>
-          Nombre
+          Nombre de la categoría
           <input
+            required
             maxLength={80}
             value={nombre}
-            disabled={soloAmpliar}
+            disabled={soloAmpliar || ocupado}
             onChange={(e) => setNombre(e.target.value)}
           />
         </label>
@@ -79,10 +102,11 @@ function FilaTipoEntrada({
           Precio
           <input
             type="number"
+            required
             min={0}
             step="0.01"
             value={precio}
-            disabled={soloAmpliar}
+            disabled={soloAmpliar || ocupado}
             onChange={(e) => setPrecio(Number(e.target.value))}
           />
         </label>
@@ -90,320 +114,311 @@ function FilaTipoEntrada({
           Cupo total
           <input
             type="number"
-            min={vendidas}
+            required
+            min={Math.max(1, tipo.cupoTotal - tipo.cupoDisponible)}
             step={1}
-            value={cupoTotal}
-            disabled={soloAmpliar}
-            onChange={(e) => setCupoTotal(Number(e.target.value))}
+            value={cupo}
+            disabled={soloAmpliar || ocupado}
+            onChange={(e) => setCupo(Number(e.target.value))}
           />
         </label>
         {!soloAmpliar ? (
-          <button className="boton boton-secundario" type="button" onClick={guardar} disabled={guardando}>
-            {guardando ? 'Guardando...' : 'Guardar'}
+          <button
+            className="boton boton-secundario"
+            disabled={ocupado || !editado}
+          >
+            {ocupado ? 'Guardando…' : 'Guardar esta categoría'}
           </button>
         ) : null}
-      </div>
-
+      </form>
       <p className="ayuda-campo">
-        Vendidas: {vendidas} · Disponibles: {tipo.cupoDisponible}
+        Vendidas: {tipo.cupoTotal - tipo.cupoDisponible} · Disponibles:{' '}
+        {tipo.cupoDisponible}
       </p>
-
-      <div className="fila-tipo-entrada">
-        <label>
-          Sumar entradas
-          <input
-            type="number"
-            min={1}
-            step={1}
-            value={cantidadASumar}
-            onChange={(e) => setCantidadASumar(Number(e.target.value))}
-          />
-        </label>
-        <button
-          className="boton boton-secundario"
-          type="button"
-          onClick={sumar}
-          disabled={guardando || cantidadASumar <= 0}
-        >
-          {guardando ? 'Sumando...' : 'Sumar cupo'}
-        </button>
-      </div>
-
+      {!cancelado ? (
+        <form className="fila-tipo-entrada" onSubmit={(e) => enviar(e, true)}>
+          <label>
+            Entradas adicionales
+            <input
+              type="number"
+              min={1}
+              required
+              step={1}
+              value={sumar || ''}
+              disabled={ocupado}
+              placeholder="Cantidad a sumar"
+              onChange={(e) => setSumar(Number(e.target.value))}
+            />
+          </label>
+          <button
+            className="boton boton-secundario"
+            disabled={ocupado || sumar <= 0}
+          >
+            Sumar cupo
+          </button>
+        </form>
+      ) : null}
       {error ? <EstadoError error={error} /> : null}
+      {mensaje ? (
+        <p className="mensaje-exito" role="status">
+          {mensaje}
+        </p>
+      ) : null}
     </div>
   );
 }
-
 export function EditarEventoPage() {
-  const { id, idEvento } = useParams();
-  const { usuario } = useAuth();
-  const idProductora = Number(id);
-  const idEventoNumero = Number(idEvento);
-  const idsValidos =
-    Number.isInteger(idProductora) && idProductora > 0 && Number.isInteger(idEventoNumero) && idEventoNumero > 0;
-
+  const { idEvento } = useParams();
+  const p = useProductoraActual();
   const [evento, setEvento] = useState<EventoDTO | null>(null);
-  const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<unknown>(null);
-
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [fecha, setFecha] = useState('');
   const [hora, setHora] = useState('');
   const [lugar, setLugar] = useState('');
-  const [guardandoDatos, setGuardandoDatos] = useState(false);
-  const [errorDatos, setErrorDatos] = useState<unknown>(null);
-
-  const [nuevoTipo, setNuevoTipo] = useState<CrearTipoEntradaRequest>({ ...TIPO_ENTRADA_INICIAL });
-  const [agregando, setAgregando] = useState(false);
-  const [errorAgregar, setErrorAgregar] = useState<unknown>(null);
-
-  const puedeEditar = usuario?.rol === 'ORGANIZADOR';
-
+  const [ocupado, setOcupado] = useState(false);
+  const [mensaje, setMensaje] = useState('');
+  const [nuevo, setNuevo] = useState({ ...INICIAL });
+  const [cambiosTipos, setCambiosTipos] = useState<Record<number, boolean>>({});
+  const notificarCambios = useCallback(
+    (id: number, valor: boolean) =>
+      setCambiosTipos((actual) =>
+        actual[id] === valor ? actual : { ...actual, [id]: valor },
+      ),
+    [],
+  );
   useEffect(() => {
     let vigente = true;
-    if (!idsValidos) return;
-
-    obtenerEvento(idEventoNumero)
-      .then((detalle) => {
+    obtenerEvento(Number(idEvento))
+      .then((e) => {
         if (!vigente) return;
-        setEvento(detalle);
-        const { fecha: f, hora: h } = partirFechaHora(detalle.fechaHora);
-        setNombre(detalle.nombre);
-        setDescripcion(detalle.descripcion ?? '');
-        setFecha(f);
-        setHora(h);
-        setLugar(detalle.lugar);
+        if (e.organizador.id !== p.id) {
+          setError(new Error('El evento pertenece a otra productora.'));
+          return;
+        }
+        setEvento(e);
+        setNombre(e.nombre);
+        setDescripcion(e.descripcion ?? '');
+        setLugar(e.lugar);
+        const f = partirFechaHora(e.fechaHora);
+        setFecha(f.fecha);
+        setHora(f.hora);
       })
-      .catch((causa: unknown) => {
-        if (vigente) setError(causa);
-      })
-      .finally(() => {
-        if (vigente) setCargando(false);
+      .catch((e) => {
+        if (vigente) setError(e);
       });
-
     return () => {
       vigente = false;
     };
-  }, [idEventoNumero, idsValidos]);
-
-  async function guardarDatos(evt: FormEvent<HTMLFormElement>) {
-    evt.preventDefault();
-    setGuardandoDatos(true);
-    setErrorDatos(null);
+  }, [idEvento, p.id]);
+  const f = evento ? partirFechaHora(evento.fechaHora) : null;
+  const datosModificados =
+    !!evento &&
+    (nombre.trim() !== evento.nombre ||
+      descripcion.trim() !== (evento.descripcion ?? '') ||
+      lugar.trim() !== evento.lugar ||
+      fecha !== f?.fecha ||
+      hora !== f?.hora);
+  const nuevoModificado = !!(nuevo.nombre || nuevo.precio || nuevo.cupoTotal);
+  useCambiosSinGuardar(
+    !ocupado &&
+      (datosModificados ||
+        nuevoModificado ||
+        Object.values(cambiosTipos).some(Boolean)),
+  );
+  async function guardarDatos(e: FormEvent) {
+    e.preventDefault();
+    setOcupado(true);
+    setError(null);
+    setMensaje('');
     try {
-      const fechaHora = new Date(`${fecha}T${hora}`).toISOString();
-      const actualizado = await editarEvento(idEventoNumero, {
+      const v = await editarEvento(Number(idEvento), {
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
-        fechaHora,
         lugar: lugar.trim(),
+        fechaHora: new Date(fecha + 'T' + hora).toISOString(),
       });
-      setEvento(actualizado);
-    } catch (causa: unknown) {
-      setErrorDatos(causa);
+      setEvento(v);
+      setMensaje('Datos del evento guardados.');
+    } catch (causa) {
+      setError(causa);
     } finally {
-      setGuardandoDatos(false);
+      setOcupado(false);
     }
   }
-
-  async function agregarTipo(evt: FormEvent<HTMLFormElement>) {
-    evt.preventDefault();
-    setAgregando(true);
-    setErrorAgregar(null);
+  async function agregar(e: FormEvent) {
+    e.preventDefault();
+    setOcupado(true);
+    setError(null);
+    setMensaje('');
     try {
-      const actualizado = await agregarTipoEntrada(idEventoNumero, {
-        nombre: nuevoTipo.nombre.trim(),
-        precio: nuevoTipo.precio,
-        cupoTotal: nuevoTipo.cupoTotal,
-      });
-      setEvento(actualizado);
-      setNuevoTipo({ ...TIPO_ENTRADA_INICIAL });
-    } catch (causa: unknown) {
-      setErrorAgregar(causa);
+      setEvento(
+        await agregarTipoEntrada(Number(idEvento), {
+          ...nuevo,
+          nombre: nuevo.nombre.trim(),
+        }),
+      );
+      setNuevo({ ...INICIAL });
+      setMensaje('Nueva categoría de entradas agregada.');
+    } catch (causa) {
+      setError(causa);
     } finally {
-      setAgregando(false);
+      setOcupado(false);
     }
   }
-
-  if (!idsValidos) {
-    return (
-      <section className="stack-grande">
-        <Link className="volver" to="/productoras">← Mis productoras</Link>
-        <p className="mensaje-error" role="alert">El identificador del evento no es válido.</p>
-      </section>
-    );
-  }
-
-  if (!puedeEditar) {
-    return (
-      <section className="stack-grande">
-        <Link className="volver" to={`/productoras/${idProductora}/eventos`}>← Eventos de la productora</Link>
-        <p className="mensaje-error" role="alert">Necesitás el rol ORGANIZADOR para editar un evento.</p>
-      </section>
-    );
-  }
-
-  if (cargando) return <EstadoCarga mensaje="Cargando el evento..." />;
-  if (error) return <EstadoError error={error} />;
-  if (!evento) return null;
-
-  const enBorrador = evento.estado === 'BORRADOR';
-  const cancelado = evento.estado === 'CANCELADO';
-
+  if (!evento && !error) return <EstadoCarga mensaje="Cargando tu evento…" />;
+  const base = '/productoras/' + p.id + '/eventos/' + idEvento;
+  const borrador = evento?.estado === 'BORRADOR';
+  const cancelado = evento?.estado === 'CANCELADO';
   return (
     <section className="stack-grande">
-      <Link className="volver" to={`/productoras/${idProductora}/eventos`}>← Eventos de la productora</Link>
-
-      <div>
-        <p className="eyebrow">Editar evento</p>
-        <h2>{evento.nombre}</h2>
-        {enBorrador ? (
-          <p className="texto-secundario">En borrador: se puede editar todo.</p>
-        ) : cancelado ? (
-          <p className="texto-secundario">Evento cancelado: no admite ediciones.</p>
-        ) : (
-          <p className="texto-secundario">
-            Publicado: los datos y los tipos de entrada existentes ya no se editan, pero podés sumar
-            entradas o agregar un tipo nuevo.
-          </p>
-        )}
-      </div>
-
-      <div>
-        <h3>Datos del evento</h3>
-        {errorDatos ? <EstadoError error={errorDatos} /> : null}
-
-        <form className="panel formulario" onSubmit={guardarDatos}>
-          <label>
-            Nombre
-            <input
-              required
-              maxLength={150}
-              value={nombre}
-              disabled={!enBorrador}
-              onChange={(e) => setNombre(e.target.value)}
-            />
-          </label>
-
-          <label>
-            Descripción <span className="ayuda-campo">(opcional)</span>
-            <textarea
-              rows={4}
-              value={descripcion}
-              disabled={!enBorrador}
-              onChange={(e) => setDescripcion(e.target.value)}
-            />
-          </label>
-
-          <label>
-            Fecha
-            <input
-              required
-              type="date"
-              value={fecha}
-              disabled={!enBorrador}
-              onChange={(e) => setFecha(e.target.value)}
-            />
-          </label>
-
-          <label>
-            Hora
-            <input
-              required
-              type="time"
-              value={hora}
-              disabled={!enBorrador}
-              onChange={(e) => setHora(e.target.value)}
-            />
-          </label>
-
-          <label>
-            Lugar
-            <input
-              required
-              maxLength={200}
-              value={lugar}
-              disabled={!enBorrador}
-              onChange={(e) => setLugar(e.target.value)}
-            />
-          </label>
-
-          {enBorrador ? (
-            <button className="boton boton-primario" type="submit" disabled={guardandoDatos}>
-              {guardandoDatos ? 'Guardando...' : 'Guardar datos'}
-            </button>
+      <Link className="volver" to={base}>
+        ← Resumen del evento
+      </Link>
+      {error ? <EstadoError error={error} /> : null}
+      {evento ? (
+        <>
+          <div>
+            <p className="eyebrow">Editar evento</p>
+            <h2>{evento.nombre}</h2>
+            <p className="texto-secundario">
+              {borrador
+                ? 'Guardá cada sección por separado. Tus cambios no se publican hasta que publiques el evento.'
+                : cancelado
+                  ? 'Este evento está cancelado y no admite cambios.'
+                  : 'El evento está publicado. Podés sumar cupo y agregar categorías; los datos y las categorías existentes ya no se modifican.'}
+            </p>
+          </div>
+          {mensaje ? (
+            <p className="mensaje-exito" role="status">
+              {mensaje}
+            </p>
           ) : null}
-        </form>
-      </div>
-
-      <div>
-        <h3>Tipos de entrada</h3>
-        <div className="stack-chico">
-          {evento.tiposEntrada.map((tipo) => (
-            <FilaTipoEntrada
-              key={tipo.id}
-              tipo={tipo}
-              soloAmpliar={!enBorrador}
-              onGuardar={async (cambios) => {
-                const actualizado = await editarTipoEntrada(idEventoNumero, tipo.id, cambios);
-                setEvento(actualizado);
-              }}
-              onAmpliar={async (cantidad) => {
-                const actualizado = await ampliarCupo(idEventoNumero, tipo.id, { cantidad });
-                setEvento(actualizado);
-              }}
-            />
-          ))}
-        </div>
-      </div>
-
-      {!cancelado ? (
-        <div>
-          <h3>Agregar tipo de entrada</h3>
-          {errorAgregar ? <EstadoError error={errorAgregar} /> : null}
-
-          <form className="panel fila-tipo-entrada" onSubmit={agregarTipo}>
+          <form className="panel formulario" onSubmit={guardarDatos}>
+            <h3>Datos del evento</h3>
             <label>
               Nombre
               <input
                 required
-                maxLength={80}
-                value={nuevoTipo.nombre}
-                onChange={(e) => setNuevoTipo((actual) => ({ ...actual, nombre: e.target.value }))}
+                maxLength={150}
+                value={nombre}
+                disabled={!borrador || ocupado}
+                onChange={(e) => setNombre(e.target.value)}
               />
             </label>
             <label>
-              Precio
-              <input
-                required
-                type="number"
-                min={0}
-                step="0.01"
-                value={nuevoTipo.precio}
-                onChange={(e) =>
-                  setNuevoTipo((actual) => ({ ...actual, precio: Number(e.target.value) }))
-                }
+              Descripción
+              <textarea
+                rows={4}
+                value={descripcion}
+                disabled={!borrador || ocupado}
+                onChange={(e) => setDescripcion(e.target.value)}
               />
             </label>
             <label>
-              Cupo
+              Fecha
               <input
+                type="date"
                 required
-                type="number"
-                min={1}
-                step={1}
-                value={nuevoTipo.cupoTotal}
-                onChange={(e) =>
-                  setNuevoTipo((actual) => ({ ...actual, cupoTotal: Number(e.target.value) }))
-                }
+                value={fecha}
+                disabled={!borrador || ocupado}
+                onChange={(e) => setFecha(e.target.value)}
               />
             </label>
-            <button className="boton boton-primario" type="submit" disabled={agregando}>
-              {agregando ? 'Agregando...' : 'Agregar tipo'}
-            </button>
+            <label>
+              Hora
+              <input
+                type="time"
+                required
+                value={hora}
+                disabled={!borrador || ocupado}
+                onChange={(e) => setHora(e.target.value)}
+              />
+            </label>
+            <label>
+              Lugar
+              <input
+                required
+                maxLength={200}
+                value={lugar}
+                disabled={!borrador || ocupado}
+                onChange={(e) => setLugar(e.target.value)}
+              />
+            </label>
+            {borrador ? (
+              <button
+                className="boton boton-primario"
+                disabled={ocupado || !datosModificados}
+              >
+                {ocupado ? 'Guardando…' : 'Guardar datos del evento'}
+              </button>
+            ) : null}
           </form>
-        </div>
+          <div className="stack-chico">
+            <h3>Categorías de entradas</h3>
+            {evento.tiposEntrada.map((t) => (
+              <FilaTipoEntrada
+                key={t.id}
+                tipo={t}
+                soloAmpliar={!borrador}
+                cancelado={!!cancelado}
+                notificarCambios={notificarCambios}
+                guardar={async (v) => {
+                  setEvento(await editarTipoEntrada(evento.id, t.id, v));
+                }}
+                ampliar={async (cantidad) => {
+                  setEvento(await ampliarCupo(evento.id, t.id, { cantidad }));
+                }}
+              />
+            ))}
+          </div>
+          {!cancelado ? (
+            <form className="panel formulario" onSubmit={agregar}>
+              <h3>Agregar categoría</h3>
+              <label>
+                Nombre de la nueva categoría
+                <input
+                  required
+                  maxLength={80}
+                  value={nuevo.nombre}
+                  onChange={(e) =>
+                    setNuevo({ ...nuevo, nombre: e.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Precio
+                <input
+                  required
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={nuevo.precio}
+                  onChange={(e) =>
+                    setNuevo({ ...nuevo, precio: Number(e.target.value) })
+                  }
+                />
+              </label>
+              <label>
+                Cupo
+                <input
+                  required
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={nuevo.cupoTotal || ''}
+                  onChange={(e) =>
+                    setNuevo({ ...nuevo, cupoTotal: Number(e.target.value) })
+                  }
+                />
+              </label>
+              <button className="boton boton-primario" disabled={ocupado}>
+                {ocupado ? 'Agregando…' : 'Agregar categoría'}
+              </button>
+            </form>
+          ) : null}
+        </>
       ) : null}
     </section>
   );

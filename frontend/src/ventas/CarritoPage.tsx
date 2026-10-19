@@ -4,6 +4,7 @@ import { EstadoCarga } from '../layout/EstadoCarga';
 import { EstadoError } from '../layout/EstadoError';
 import { ApiError } from '../lib/http/ApiError';
 import { useAuth } from '../lib/auth/AuthContext';
+import { verCarritoInvitado, transferirCarritoInvitado } from './invitadosApi';
 import { confirmarCompra, obtenerCarrito, vaciarCarrito } from './api';
 import { FormularioTarjeta } from './FormularioTarjeta';
 import { formatearFechaEvento, formatearPrecio } from './formato';
@@ -14,15 +15,14 @@ import iconoReloj from './iconos/reloj.svg';
 import iconoTarjeta from './iconos/tarjeta.svg';
 import { ModalCarritoVencido } from './ModalCarritoVencido';
 import { digitosDeNumero, quitarPrefijoTarjeta, TARJETA_VACIA, validarTarjeta } from './tarjeta';
-import type { CarritoDTO } from './types';
+import type { CarritoDTO, DatosDeTarjetaDTO } from './types';
 import { useCuentaRegresiva } from './useCuentaRegresiva';
 import { nombreDeEvento, useEventos } from './useEventos';
 
-/** Copy especifico para los dos casos de pago que el issue pide distinguir del resto de errores. */
 function mensajeDePago(causa: unknown): string | null {
   if (!(causa instanceof ApiError)) return null;
-  if (causa.status === 402) return 'Tu pago fue rechazado. Probá con otra tarjeta.';
-  if (causa.status === 503) return 'El medio de pago no está disponible. Intentá de nuevo en unos minutos.';
+  if (causa.status === 402) return 'El pago fue rechazado. Revisá los datos o probá con otra tarjeta.';
+  if (causa.status === 503) return 'No pudimos confirmar el resultado del pago. No vuelvas a intentarlo hasta que verifiquemos qué pasó.';
   return null;
 }
 
@@ -34,6 +34,8 @@ export function CarritoPage() {
   const [cargando, setCargando] = useState(true);
   const [errorDeCarga, setErrorDeCarga] = useState<unknown>(null);
   const [errorDeCompra, setErrorDeCompra] = useState<unknown>(null);
+  const [errorDePago, setErrorDePago] = useState<unknown>(null);
+  const [pagoEnRevision, setPagoEnRevision] = useState(false);
   const [procesando, setProcesando] = useState(false);
   const [tarjeta, setTarjeta] = useState(TARJETA_VACIA);
   const [erroresTarjeta, setErroresTarjeta] = useState<Record<string, string>>({});
@@ -47,7 +49,10 @@ export function CarritoPage() {
 
   useEffect(() => {
     montado.current = true;
-    obtenerCarrito()
+    verCarritoInvitado()
+      .then((invitado) =>
+        invitado.items.length ? transferirCarritoInvitado() : obtenerCarrito(),
+      )
       .then(recibir)
       .catch((causa: unknown) => {
         if (montado.current) setErrorDeCarga(causa);
@@ -63,7 +68,64 @@ export function CarritoPage() {
   const cuenta = useCuentaRegresiva(carrito, recibidoEn);
   const eventos = useEventos(carrito?.items.map((item) => item.idEvento) ?? []);
 
-  if (cargando) return <EstadoCarga mensaje="Cargando tu carrito..." />;
+  function cambiarTarjeta(nueva: DatosDeTarjetaDTO) {
+    setTarjeta(nueva);
+    if (Object.keys(erroresTarjeta).length > 0) {
+      setErroresTarjeta(validarTarjeta(nueva));
+    }
+  }
+
+  async function pagar() {
+    const erroresDeValidacion = validarTarjeta(tarjeta);
+    if (Object.keys(erroresDeValidacion).length > 0) {
+      setErroresTarjeta(erroresDeValidacion);
+      return;
+    }
+
+    setErroresTarjeta({});
+    setProcesando(true);
+    setErrorDeCompra(null);
+    setErrorDePago(null);
+    setPagoEnRevision(false);
+    try {
+      const orden = await confirmarCompra({
+        ...tarjeta,
+        numero: digitosDeNumero(tarjeta.numero),
+      });
+      setTarjeta(TARJETA_VACIA);
+      await vaciarCarrito().catch(() => undefined);
+      navigate(`/mis-ordenes/${orden.id}`, {
+        replace: true,
+        state: { recienConfirmada: true },
+      });
+    } catch (causa) {
+      if (causa instanceof ApiError && causa.status === 400 && causa.errores) {
+        setErroresTarjeta(quitarPrefijoTarjeta(causa.errores));
+      } else if (causa instanceof ApiError && (causa.status === 402 || causa.status === 503)) {
+        setErrorDePago(causa);
+        setPagoEnRevision(causa.status === 503);
+      } else {
+        setErrorDeCompra(causa);
+      }
+      await obtenerCarrito().then(recibir).catch(() => undefined);
+      if (montado.current) setProcesando(false);
+    }
+  }
+
+  async function vaciar() {
+    setProcesando(true);
+    setErrorDeCompra(null);
+    setErrorDePago(null);
+    try {
+      await vaciarCarrito();
+      navigate('/');
+    } catch (causa) {
+      setErrorDeCompra(causa);
+      setProcesando(false);
+    }
+  }
+
+  if (cargando) return <EstadoCarga mensaje="Cargando tu carrito…" />;
   if (errorDeCarga || !carrito) {
     return (
       <section className="stack-grande">
@@ -91,50 +153,6 @@ export function CarritoPage() {
         </div>
       </section>
     );
-  }
-
-  async function pagar() {
-    // Validacion de cliente antes de pegarle a la red: espejo de DatosDeTarjetaDTO en el
-    // backend (ver tarjeta.ts). Si falla, ni se deshabilita el boton ni se toca errorDeCompra —
-    // el error es de formulario, no de la compra.
-    const erroresDeValidacion = validarTarjeta(tarjeta);
-    if (Object.keys(erroresDeValidacion).length > 0) {
-      setErroresTarjeta(erroresDeValidacion);
-      return;
-    }
-
-    setErroresTarjeta({});
-    setProcesando(true);
-    setErrorDeCompra(null);
-    try {
-      const orden = await confirmarCompra({ ...tarjeta, numero: digitosDeNumero(tarjeta.numero) });
-      // La tarjeta no sobrevive a la navegacion, ni siquiera en memoria.
-      setTarjeta(TARJETA_VACIA);
-      // La compra ya se confirmó: el DELETE solo reinicia el reloj del carrito para la próxima
-      // compra de esta sesión (expiraEn no se reinicia al vaciar). Si falla, no hay nada que
-      // mostrar — la orden existe igual.
-      await vaciarCarrito().catch(() => undefined);
-      navigate(`/mis-ordenes/${orden.id}`, { state: { recienConfirmada: true } });
-    } catch (causa) {
-      // 400: el backend tambien valida la tarjeta (es la autoridad); si encuentra algo que el
-      // cliente dejo pasar, sus mensajes por campo pisan a los de arriba. 409 (cupo insuficiente,
-      // carrito vencido, bloqueo optimista), 402 (pago rechazado) o 503 (pasarela caida) van al
-      // banner general. En todos los casos el backend NO vació el carrito: se vuelve a pedir
-      // para mostrar el estado real y dejar reintentar sin perder la selección.
-      if (causa instanceof ApiError && causa.status === 400 && causa.errores) {
-        setErroresTarjeta(quitarPrefijoTarjeta(causa.errores));
-      } else {
-        setErrorDeCompra(causa);
-      }
-      await obtenerCarrito().then(recibir).catch(() => undefined);
-      if (montado.current) setProcesando(false);
-    }
-  }
-
-  async function vaciar() {
-    setProcesando(true);
-    await vaciarCarrito().catch(() => undefined);
-    navigate('/');
   }
 
   const idsEventos = [...new Set(carrito.items.map((item) => item.idEvento))];
@@ -197,14 +215,14 @@ export function CarritoPage() {
 
           <FormularioTarjeta
             tarjeta={tarjeta}
-            onCambio={setTarjeta}
+            onCambio={cambiarTarjeta}
             erroresCampo={erroresTarjeta}
-            deshabilitado={procesando}
+            deshabilitado={procesando || pagoEnRevision}
           />
 
           <p className="aviso-pasarela">
             <img className="icono" src={iconoCandado} width={14} height={14} alt="" />
-            El pago se procesa con una pasarela externa (integración REST).
+            El pago se procesa con la pasarela externa en modo de prueba.
           </p>
         </div>
 
@@ -236,30 +254,39 @@ export function CarritoPage() {
             <span>Total</span>
             <span>{formatearPrecio(carrito.total)}</span>
           </div>
-          {errorDeCompra ? (
-            mensajeDePago(errorDeCompra) ? (
+          {errorDePago ? (
+            mensajeDePago(errorDePago) ? (
               <p className="mensaje-error" role="alert">
-                {mensajeDePago(errorDeCompra)}
+                {mensajeDePago(errorDePago)}
               </p>
             ) : (
-              <EstadoError error={errorDeCompra} />
+              <EstadoError error={errorDePago} />
             )
           ) : null}
+          {errorDeCompra ? <EstadoError error={errorDeCompra} /> : null}
           <button
             className="boton boton-primario boton-ancho boton-sombra"
             type="button"
             onClick={pagar}
-            disabled={procesando || cuenta.vencido}
+            disabled={procesando || cuenta.vencido || pagoEnRevision}
           >
-            {procesando ? 'Procesando...' : errorDeCompra ? `Reintentar pago ${formatearPrecio(carrito.total)}` : `Pagar ${formatearPrecio(carrito.total)}`}
+            {procesando
+              ? 'Procesando…'
+              : pagoEnRevision
+                ? 'Pago en revisión'
+              : errorDePago
+                ? `Reintentar pago ${formatearPrecio(carrito.total)}`
+                : `Pagar ${formatearPrecio(carrito.total)}`}
           </button>
-          <button className="boton-texto" type="button" onClick={vaciar} disabled={procesando}>
+          <button className="boton-texto" type="button" onClick={vaciar} disabled={procesando || pagoEnRevision}>
             Vaciar carrito
           </button>
         </aside>
       </div>
 
-      {cuenta.vencido ? <ModalCarritoVencido carrito={carrito} eventos={eventos} /> : null}
+      {cuenta.vencido && !pagoEnRevision ? (
+        <ModalCarritoVencido carrito={carrito} eventos={eventos} />
+      ) : null}
     </section>
   );
 }

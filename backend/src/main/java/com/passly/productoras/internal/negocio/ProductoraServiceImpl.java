@@ -59,7 +59,7 @@ class ProductoraServiceImpl implements ProductoraService {
 
         // Lanza "usuario no encontrado" (404) si el id no existe, antes de crear nada.
         UsuarioDTO creador = usuarioService.consultarUsuario(idUsuarioCreador);
-        exigirRolGlobalCompatible(creador, RolEnProductora.DUENIO);
+        usuarioService.habilitarCapacidad(creador.id(), Rol.ORGANIZADOR);
 
         Productora productora = new Productora(
                 solicitud.nombreComercial(),
@@ -151,6 +151,13 @@ class ProductoraServiceImpl implements ProductoraService {
 
     @Override
     @Transactional(readOnly = true)
+    public boolean puedeValidarEntradas(Long idProductora, Long idUsuario) {
+        return productoraRepository.findById(idProductora)
+                .map(p -> p.puedeValidarEntradas(idUsuario)).orElse(false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public boolean puedeGestionarEventos(Long idProductora, Long idUsuario) {
         // La regla de que roles califican vive en la entidad (Productora.puedeGestionarEventos):
         // usa solo datos propios del agregado. Aca solo se resuelve el agregado.
@@ -174,7 +181,8 @@ class ProductoraServiceImpl implements ProductoraService {
      */
     private void exigirRolGlobalCompatible(UsuarioDTO usuario, RolEnProductora rolEnProductora) {
         Rol requerido = rolGlobalRequeridoPara(rolEnProductora);
-        if (usuario.rol() != requerido) {
+        if (usuario.rol() != requerido && usuario.rol() != Rol.ADMIN
+                && !(rolEnProductora == RolEnProductora.VALIDADOR && usuario.rol() == Rol.ORGANIZADOR)) {
             throw new RolIncompatibleConLaMembresiaException(
                     usuario.id(), rolEnProductora, requerido.name());
         }

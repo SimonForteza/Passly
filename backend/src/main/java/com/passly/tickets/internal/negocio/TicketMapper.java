@@ -23,6 +23,8 @@ class TicketMapper {
                 ticket.getNombreTipoEntrada(),
                 ticket.getEstado(),
                 ticket.getEmitidoEn(),
+                ticket.getUsadoEn(),
+                ticket.getContenidoQr(),
                 generadorDeQr.comoPngBase64(ticket.getContenidoQr()));
     }
 }

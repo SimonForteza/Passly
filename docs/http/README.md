@@ -16,6 +16,7 @@ independiente: se abre, aparece un link `Send Request` arriba de cada `###`, y s
 | [09-pagos.http](09-pagos.http) | Adapter REST hacia la pasarela de pago (PAS-7): cobro aprobado, **rechazado (402)**, **pasarela caida (503)**, 401, validacion, y la **reversion** de un cobro (PAS-29): 200, **409 si se repite**, 404 si el pago no existe |
 | [10-edicion-eventos.http](10-edicion-eventos.http) | edicion de evento y tipos de entrada (PAS-19): editar en BORRADOR, **bajar cupo bajo lo vendido -> 409**, editar en PUBLICADO -> 409, agregar tipo y ampliar cupo en PUBLICADO -> 200/201, nombre repetido -> 409, aislamiento -> 403, sin identidad -> 401 |
 | [11-link-compartible.http](11-link-compartible.http) | el link compartible de un evento (PAS-25): publicado -> 200 para todos; **borrador -> 404 (no 403)** para anonimos, compradores y organizadores de otra productora; 200 para quien gestiona la productora dueña |
+| [12-ventas-invitados.http](12-ventas-invitados.http) | compra como invitado con `ServicioDePagos`: tarjeta aprobada, rechazada y caída ambigua; consulta de la orden solo con token privado |
 
 ## Autenticacion (PAS-6)
 
@@ -129,3 +130,5 @@ cd backend && ./mvnw test
 
 falla con `Module 'eventos' depends on ... Allowed targets: none`. La frontera entre
 componentes no es una convencion del equipo: es una condicion de compilacion.
+
+- `09-accesos.http`: compra, consulta de contenido QR, cuatro resultados de validacion y rechazo por rol/productora.

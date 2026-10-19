@@ -36,7 +36,7 @@ export interface ItemDeOrdenDTO {
 }
 
 export interface CompradorDeOrdenDTO {
-  id: number;
+  id: number | null;
   email: string;
   nombre: string;
 }
@@ -60,5 +60,7 @@ export interface TicketDTO {
   nombreTipoEntrada: string;
   estado: EstadoTicket;
   emitidoEn: string;
+  usadoEn: string | null;
+  contenidoQr: string;
   qrBase64: string;
 }

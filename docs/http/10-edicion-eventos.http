@@ -71,6 +71,16 @@ Authorization: Basic {{comprador}} {{clave}}
 ### 5. Confirmar la compra -> 201, quedan 5 entradas vendidas de este tipo
 POST {{baseUrl}}/api/ventas/ordenes
 Authorization: Basic {{comprador}} {{clave}}
+Content-Type: application/json
+
+{
+  "tarjeta": {
+    "numero": "4242424242424242",
+    "titular": "Carla Compradora",
+    "vencimiento": "12/29",
+    "codigoSeguridad": "123"
+  }
+}
 
 ### 6. Bajar el cupo total por debajo de lo ya vendido (5) -> 409
 PUT {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/tipos-entrada/{{crearEvento.response.body.$.tiposEntrada[0].id}}

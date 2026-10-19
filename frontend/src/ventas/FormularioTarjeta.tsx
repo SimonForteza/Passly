@@ -8,49 +8,60 @@ interface FormularioTarjetaProps {
   deshabilitado: boolean;
 }
 
-/**
- * Puramente presentacional: no guarda estado propio, para que CarritoPage sea la unica fuente
- * de verdad del dato (y quien decide cuando se limpia). No hay autocomplete propio del
- * navegador mas alla de `autoComplete`: sin libreria de mascaras, el formateo es manual
- * (ver tarjeta.ts).
- */
-export function FormularioTarjeta({ tarjeta, onCambio, erroresCampo, deshabilitado }: FormularioTarjetaProps) {
+/** Presentacional: el estado de la tarjeta vive en la página de checkout y nunca se persiste. */
+export function FormularioTarjeta({
+  tarjeta,
+  onCambio,
+  erroresCampo,
+  deshabilitado,
+}: FormularioTarjetaProps) {
   function actualizar(campo: keyof DatosDeTarjetaDTO, valor: string) {
     onCambio({ ...tarjeta, [campo]: valor });
   }
 
   return (
     <div className="formulario-tarjeta">
-      <label>
-        Numero de tarjeta
-        <input
-          inputMode="numeric"
-          autoComplete="cc-number"
-          placeholder="4242 4242 4242 4242"
-          value={tarjeta.numero}
-          onChange={(e) => actualizar('numero', formatearNumeroTarjeta(e.target.value))}
-          disabled={deshabilitado}
-          maxLength={23}
-        />
-        {erroresCampo.numero ? <span className="ayuda-campo-error">{erroresCampo.numero}</span> : null}
-      </label>
+      <label htmlFor="tarjeta-numero">Número de tarjeta</label>
+      <input
+        id="tarjeta-numero"
+        inputMode="numeric"
+        autoComplete="cc-number"
+        placeholder="4242 4242 4242 4242"
+        value={tarjeta.numero}
+        onChange={(e) => actualizar('numero', formatearNumeroTarjeta(e.target.value))}
+        disabled={deshabilitado}
+        maxLength={23}
+        aria-invalid={Boolean(erroresCampo.numero)}
+        aria-describedby={erroresCampo.numero ? 'tarjeta-numero-error' : undefined}
+      />
+      {erroresCampo.numero ? (
+        <span id="tarjeta-numero-error" className="ayuda-campo-error" role="alert">
+          {erroresCampo.numero}
+        </span>
+      ) : null}
 
-      <label>
-        Titular
-        <input
-          autoComplete="cc-name"
-          placeholder="Como figura en la tarjeta"
-          value={tarjeta.titular}
-          onChange={(e) => actualizar('titular', e.target.value)}
-          disabled={deshabilitado}
-        />
-        {erroresCampo.titular ? <span className="ayuda-campo-error">{erroresCampo.titular}</span> : null}
-      </label>
+      <label htmlFor="tarjeta-titular">Titular</label>
+      <input
+        id="tarjeta-titular"
+        autoComplete="cc-name"
+        placeholder="Como figura en la tarjeta"
+        value={tarjeta.titular}
+        onChange={(e) => actualizar('titular', e.target.value)}
+        disabled={deshabilitado}
+        aria-invalid={Boolean(erroresCampo.titular)}
+        aria-describedby={erroresCampo.titular ? 'tarjeta-titular-error' : undefined}
+      />
+      {erroresCampo.titular ? (
+        <span id="tarjeta-titular-error" className="ayuda-campo-error" role="alert">
+          {erroresCampo.titular}
+        </span>
+      ) : null}
 
       <div className="fila-datos">
-        <label>
-          Vencimiento
+        <div>
+          <label htmlFor="tarjeta-vencimiento">Vencimiento</label>
           <input
+            id="tarjeta-vencimiento"
             inputMode="numeric"
             autoComplete="cc-exp"
             placeholder="MM/AA"
@@ -58,13 +69,20 @@ export function FormularioTarjeta({ tarjeta, onCambio, erroresCampo, deshabilita
             onChange={(e) => actualizar('vencimiento', formatearVencimiento(e.target.value))}
             disabled={deshabilitado}
             maxLength={5}
+            aria-invalid={Boolean(erroresCampo.vencimiento)}
+            aria-describedby={erroresCampo.vencimiento ? 'tarjeta-vencimiento-error' : undefined}
           />
-          {erroresCampo.vencimiento ? <span className="ayuda-campo-error">{erroresCampo.vencimiento}</span> : null}
-        </label>
+          {erroresCampo.vencimiento ? (
+            <span id="tarjeta-vencimiento-error" className="ayuda-campo-error" role="alert">
+              {erroresCampo.vencimiento}
+            </span>
+          ) : null}
+        </div>
 
-        <label>
-          Codigo de seguridad
+        <div>
+          <label htmlFor="tarjeta-codigo-seguridad">Código de seguridad</label>
           <input
+            id="tarjeta-codigo-seguridad"
             type="password"
             inputMode="numeric"
             autoComplete="cc-csc"
@@ -73,11 +91,15 @@ export function FormularioTarjeta({ tarjeta, onCambio, erroresCampo, deshabilita
             onChange={(e) => actualizar('codigoSeguridad', e.target.value.replace(/\D/g, '').slice(0, 4))}
             disabled={deshabilitado}
             maxLength={4}
+            aria-invalid={Boolean(erroresCampo.codigoSeguridad)}
+            aria-describedby={erroresCampo.codigoSeguridad ? 'tarjeta-codigo-seguridad-error' : undefined}
           />
           {erroresCampo.codigoSeguridad ? (
-            <span className="ayuda-campo-error">{erroresCampo.codigoSeguridad}</span>
+            <span id="tarjeta-codigo-seguridad-error" className="ayuda-campo-error" role="alert">
+              {erroresCampo.codigoSeguridad}
+            </span>
           ) : null}
-        </label>
+        </div>
       </div>
     </div>
   );

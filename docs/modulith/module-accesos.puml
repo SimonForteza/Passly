@@ -1,0 +1,35 @@
+@startuml
+title <size:24>Accesos</size>
+
+set separator none
+top to bottom direction
+
+<style>
+  root {
+    BackgroundColor: #ffffff
+    FontColor: #444444
+  }
+</style>
+
+!include <C4/C4>
+!include <C4/C4_Context>
+!include <C4/C4_Component>
+
+System_Boundary("PasslyApplication_boundary", "PasslyApplication", $tags="") {
+  Container_Boundary("PasslyApplication.PasslyApplication_boundary", "PasslyApplication", $tags="") {
+    Component(PasslyApplication.PasslyApplication.Eventos, "Eventos", $techn="Module", $descr="", $tags="", $link="")
+    Component(PasslyApplication.PasslyApplication.Accesos, "Accesos", $techn="Module", $descr="", $tags="", $link="")
+    Component(PasslyApplication.PasslyApplication.Tickets, "Tickets", $techn="Module", $descr="", $tags="", $link="")
+    Component(PasslyApplication.PasslyApplication.Productoras, "Productoras", $techn="Module", $descr="", $tags="", $link="")
+  }
+
+}
+
+Rel(PasslyApplication.PasslyApplication.Eventos, PasslyApplication.PasslyApplication.Productoras, "uses", $techn="", $tags="", $link="")
+Rel(PasslyApplication.PasslyApplication.Accesos, PasslyApplication.PasslyApplication.Eventos, "uses", $techn="", $tags="", $link="")
+Rel(PasslyApplication.PasslyApplication.Accesos, PasslyApplication.PasslyApplication.Productoras, "uses", $techn="", $tags="", $link="")
+Rel(PasslyApplication.PasslyApplication.Accesos, PasslyApplication.PasslyApplication.Tickets, "uses", $techn="", $tags="", $link="")
+
+SHOW_LEGEND(true)
+hide stereotypes
+@enduml

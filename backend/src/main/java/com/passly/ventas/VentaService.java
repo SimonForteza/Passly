@@ -33,6 +33,9 @@ public interface VentaService {
      */
     CarritoDTO agregarItem(AgregarItemRequest solicitud, Long idComprador);
 
+    /** Agrega una selección luego de validar la disponibilidad de todas sus entradas. */
+    CarritoDTO agregarItems(List<AgregarItemRequest> solicitudes, Long idComprador);
+
     /**
      * El carrito de quien opera: sus lineas, el total y cuanto le queda. Devuelve un carrito
      * vacio si todavia no agrego nada, nunca un error.

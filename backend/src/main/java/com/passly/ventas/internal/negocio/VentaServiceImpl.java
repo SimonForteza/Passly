@@ -83,6 +83,23 @@ class VentaServiceImpl implements VentaService {
     }
 
     @Override
+    public CarritoDTO agregarItems(List<AgregarItemRequest> solicitudes, Long idComprador) {
+        carrito.verComo(idComprador);
+        java.util.Map<Long,Integer> cantidades=new java.util.LinkedHashMap<>();
+        for (var solicitud : solicitudes) cantidades.merge(solicitud.idTipoEntrada(),solicitud.cantidad(),Integer::sum);
+        var disponibilidad=cantidades.entrySet().stream().map(entrada -> {
+            var dato=eventoService.consultarDisponibilidad(entrada.getKey());
+            if (!dato.hayDisponibilidad() || dato.cupoDisponible()<entrada.getValue())
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.CONFLICT,"Cambió la disponibilidad. Revisá tu selección.");
+            return dato;
+        }).toList();
+        for (var dato : disponibilidad) carrito.agregarItem(idComprador,dato.idTipoEntrada(),dato.idEvento(),
+                dato.nombreTipoEntrada(),dato.precio(),cantidades.get(dato.idTipoEntrada()));
+        return carrito.verComo(idComprador);
+    }
+
+    @Override
     public CarritoDTO verCarrito(Long idComprador) {
         return carrito.verComo(idComprador);
     }
@@ -113,7 +130,15 @@ class VentaServiceImpl implements VentaService {
             // compensa best-effort; si revertir tambien fallara, queda un cobro huerfano y solo
             // un log en ERROR (PasarelaDePago.revertir, Javadoc) -- deuda declarada, no un caso
             // cubierto. El carrito no se vacia: sigue intacto para reintentar.
-            pasarelaDePago.revertir(comprobante.id());
+            try {
+                pasarelaDePago.revertir(comprobante.id());
+            } catch (RuntimeException fallaLaReversion) {
+                fallaLaConfirmacion.addSuppressed(fallaLaReversion);
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
+                        "El cobro fue aprobado, pero la compra necesita revisión. No vuelvas a pagar todavía.",
+                        fallaLaConfirmacion);
+            }
             throw fallaLaConfirmacion;
         }
     }

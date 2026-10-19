@@ -8,13 +8,16 @@ import { EstadoError } from '../layout/EstadoError';
 import { ApiError } from '../lib/http/ApiError';
 import { obtenerProductora } from './api';
 import type { ProductoraDTO } from './types';
+import { useOrganizaciones } from './OrganizacionContext';
 
 // Página pública de una productora (PAS-26): lo que ve quien llega desde una productora, sin
 // sesión. Solo eventos publicados — es la misma cartelera filtrada (GET /api/eventos?productora=),
 // no el backoffice, que vive en /productoras/:id/eventos y sí incluye borradores.
 export function PaginaProductoraPage() {
   const { id } = useParams();
+  const { organizaciones } = useOrganizaciones();
   const idProductora = Number(id);
+  const propia = organizaciones.find((p) => p.id === idProductora);
   const idValido = Number.isInteger(idProductora) && idProductora > 0;
   const [productora, setProductora] = useState<ProductoraDTO | null>(null);
   const [eventos, setEventos] = useState<EventoDTO[]>([]);
@@ -47,10 +50,14 @@ export function PaginaProductoraPage() {
   if (!idValido || (error instanceof ApiError && error.status === 404)) {
     return (
       <section className="stack-grande">
-        <Link className="volver" to="/">← Cartelera</Link>
+        <Link className="volver" to="/">
+          ← Cartelera
+        </Link>
         <div className="panel estado-vacio">
           <h3>Esta productora no existe</h3>
-          <p className="texto-secundario">Revisá el link o buscá sus eventos en la cartelera.</p>
+          <p className="texto-secundario">
+            Revisá el link o buscá sus eventos en la cartelera.
+          </p>
         </div>
       </section>
     );
@@ -60,13 +67,30 @@ export function PaginaProductoraPage() {
 
   return (
     <section className="stack-grande">
-      <Link className="volver" to="/">← Cartelera</Link>
+      <Link className="volver" to="/">
+        ← Cartelera
+      </Link>
 
+      {propia ? (
+        <div className="aviso-informativo">
+          Esta es la página que ve el público.{' '}
+          <Link to={`/productoras/${propia.id}/gestion`}>
+            Volver al panel de la productora
+          </Link>
+        </div>
+      ) : null}
       {error ? <EstadoError error={error} /> : null}
 
       {productora ? (
         <>
           <div className="encabezado-pagina">
+            {productora.logoUrl ? (
+              <img
+                className="vista-logo"
+                src={productora.logoUrl}
+                alt={'Logo de ' + productora.nombreComercial}
+              />
+            ) : null}
             <div>
               <p className="eyebrow">Productora</p>
               <h2>{productora.nombreComercial}</h2>
@@ -84,7 +108,11 @@ export function PaginaProductoraPage() {
           ) : (
             <div className="grilla-tarjetas">
               {eventos.map((evento) => (
-                <TarjetaEvento key={evento.id} evento={evento} mostrarOrganizador={false} />
+                <TarjetaEvento
+                  key={evento.id}
+                  evento={evento}
+                  mostrarOrganizador={false}
+                />
               ))}
             </div>
           )}

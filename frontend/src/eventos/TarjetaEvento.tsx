@@ -11,7 +11,12 @@ const FORMATO_FECHA = new Intl.DateTimeFormat('es-AR', {
 
 function precioDesde(evento: EventoDTO): number | null {
   if (evento.tiposEntrada.length === 0) return null;
-  return Math.min(...evento.tiposEntrada.map((tipo) => tipo.precio));
+  const disponibles = evento.tiposEntrada.filter(
+    (tipo) => tipo.cupoDisponible > 0,
+  );
+  return disponibles.length
+    ? Math.min(...disponibles.map((tipo) => tipo.precio))
+    : null;
 }
 
 // La tarjeta de un evento publicado en una grilla: la usan la cartelera y la página pública de
@@ -28,7 +33,9 @@ export function TarjetaEvento({
   return (
     <article className="panel tarjeta-evento">
       <div>
-        {mostrarOrganizador ? <p className="eyebrow">{evento.organizador.nombreComercial}</p> : null}
+        {mostrarOrganizador ? (
+          <p className="eyebrow">{evento.organizador.nombreComercial}</p>
+        ) : null}
         <h3>{evento.nombre}</h3>
         <p className="texto-secundario">
           {FORMATO_FECHA.format(new Date(evento.fechaHora))} · {evento.lugar}
@@ -36,7 +43,11 @@ export function TarjetaEvento({
       </div>
       <div className="tarjeta-evento-pie">
         <span className="texto-secundario">
-          {desde !== null ? `Desde $${desde.toLocaleString('es-AR')}` : 'Sin entradas cargadas'}
+          {desde !== null
+            ? `Desde $${desde.toLocaleString('es-AR')}`
+            : evento.tiposEntrada.length
+              ? 'Entradas agotadas'
+              : 'Entradas próximamente'}
         </span>
         <Link className="boton boton-primario" to={`/eventos/${evento.id}`}>
           Ver entradas

@@ -1,0 +1,71 @@
+# PAS-31 — REST Client de VS Code. Backend con perfil demo, cookies habilitadas.
+@base = http://localhost:8080
+@comprador = comprador@passly.test
+@validador = validador@passly.test
+@clave = passly1234
+# Ajustar ids con GET /api/eventos; comprar una entrada de Aurora.
+@evento = 1
+@otroEvento = 2
+@tipoEntrada = 1
+
+### Agregar entrada al carrito (misma cookie para la compra)
+POST {{base}}/api/ventas/carrito/items
+Authorization: Basic {{comprador}} {{clave}}
+Content-Type: application/json
+
+{"idTipoEntrada": {{tipoEntrada}}, "cantidad": 1}
+
+### Comprar de verdad: crea orden y tickets
+# @name compra
+POST {{base}}/api/ventas/ordenes
+Authorization: Basic {{comprador}} {{clave}}
+Content-Type: application/json
+
+{
+  "tarjeta": {
+    "numero": "4242424242424242",
+    "titular": "Carla Compradora",
+    "vencimiento": "12/29",
+    "codigoSeguridad": "123"
+  }
+}
+
+### Obtener contenido firmado del ticket de la orden
+# @name tickets
+GET {{base}}/api/tickets/ordenes/{{compra.response.body.$.id}}
+Authorization: Basic {{comprador}} {{clave}}
+
+### VALIDO (repetir sin cambiar nada -> YA_USADO con el primer usadoEn)
+POST {{base}}/api/accesos/validaciones
+Authorization: Basic {{validador}} {{clave}}
+Content-Type: application/json
+
+{"idEvento": {{evento}}, "contenidoQr": "{{tickets.response.body.$[0].contenidoQr}}"}
+
+### OTRO_EVENTO. Olga opera el evento de Nocturna; el ticket es de Aurora. No consume.
+POST {{base}}/api/accesos/validaciones
+Authorization: Basic organizador2@passly.test {{clave}}
+Content-Type: application/json
+
+{"idEvento": {{otroEvento}}, "contenidoQr": "{{tickets.response.body.$[0].contenidoQr}}"}
+
+### INVALIDO: firma adulterada
+POST {{base}}/api/accesos/validaciones
+Authorization: Basic {{validador}} {{clave}}
+Content-Type: application/json
+
+{"idEvento": {{evento}}, "contenidoQr": "{{tickets.response.body.$[0].contenidoQr}}adulterado"}
+
+### 403: comprador
+POST {{base}}/api/accesos/validaciones
+Authorization: Basic {{comprador}} {{clave}}
+Content-Type: application/json
+
+{"idEvento": {{evento}}, "contenidoQr": "{{tickets.response.body.$[0].contenidoQr}}"}
+
+### 403: Vera pertenece a Aurora, no a Nocturna
+POST {{base}}/api/accesos/validaciones
+Authorization: Basic {{validador}} {{clave}}
+Content-Type: application/json
+
+{"idEvento": {{otroEvento}}, "contenidoQr": "{{tickets.response.body.$[0].contenidoQr}}"}

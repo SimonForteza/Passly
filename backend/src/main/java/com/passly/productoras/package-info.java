@@ -16,5 +16,5 @@
  * pedido. Esa es toda la superficie de contacto, y esta anotacion la fija por escrito.
  */
 @org.springframework.modulith.ApplicationModule(
-        allowedDependencies = {"usuarios", "usuarios :: dto"})
+        allowedDependencies = {"usuarios", "usuarios :: dto", "notificaciones"})
 package com.passly.productoras;
