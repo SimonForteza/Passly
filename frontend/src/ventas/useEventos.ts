@@ -9,13 +9,17 @@ const cache = new Map<number, EventoDTO | null>();
 
 export function useEventos(idsEventos: number[]) {
   const clave = [...new Set(idsEventos)].sort((a, b) => a - b).join(',');
-  const [eventos, setEventos] = useState<Map<number, EventoDTO | null>>(() => new Map(cache));
+  const [eventos, setEventos] = useState<Map<number, EventoDTO | null>>(
+    () => new Map(cache),
+  );
 
   useEffect(() => {
     if (!clave) return;
     let vigente = true;
-    const faltantes = clave.split(',').map(Number).filter((id) => !cache.has(id));
-    if (faltantes.length === 0) return;
+    const faltantes = clave
+      .split(',')
+      .map(Number)
+      .filter((id) => !cache.has(id));
 
     Promise.all(
       faltantes.map((id) =>
@@ -36,6 +40,9 @@ export function useEventos(idsEventos: number[]) {
   return eventos;
 }
 
-export function nombreDeEvento(eventos: Map<number, EventoDTO | null>, idEvento: number): string {
+export function nombreDeEvento(
+  eventos: Map<number, EventoDTO | null>,
+  idEvento: number,
+): string {
   return eventos.get(idEvento)?.nombre ?? `Evento #${idEvento}`;
 }

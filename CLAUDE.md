@@ -51,10 +51,18 @@ prioridad.
 | 2. Llegar por link | ✅ backend + web | ~~`GET /api/eventos/{id}` devuelve también borradores~~ ✅ PAS-25 (borrador → 404 salvo para quien lo gestiona); ~~el registro no vuelve al evento de origen~~ ✅ PAS-25; ~~no hay página pública de la productora~~ ✅ PAS-26 (`/productoras/{id}`) | ~~PAS-25~~, ~~PAS-26~~ |
 | 3. Cartelera | ✅ backend + web | ~~Búsqueda/filtro por productora en la UI~~ ✅ PAS-26 (búsqueda por nombre o lugar; filtro `?productora=` en la URL) | ~~PAS-26~~ |
 | 4. Pago integrado + QR | ⚠️ parcial | Ventas cobra con `PasarelaDePagoSimulada`, no con `PagoService`; `PagoService` no expone `revertir`; el checkout no pide tarjeta. El QR ya se emite (PAS-20) | PAS-29, PAS-30 |
-| 5. Validación | ❌ | `ServicioDeAccesos` no existe; no hay pantalla del validador | PAS-31 |
+| 5. Validación | ✅ | Accesos valida QR con uso único atómico y pantalla web responsive | PAS-31 |
 
 Para el Checkpoint 2 además: diagrama SOA (PAS-27), doc funcional + manual + Figma (PAS-28) y
 el proceso async real con Artemis (PAS-32). **Cada issue, al cerrarse, actualiza esta tabla y la §9.**
+
+### Alta de productoras, invitaciones y compra como invitado (18/10)
+
+- Cualquier cuenta puede crear una productora. El alta la hace dueña y habilita capacidad de organizador dentro de la misma transacción; el registro público general sigue creando compradores.
+- Los dueños invitan por email a STAFF o VALIDADOR. El enlace dura siete días, admite una aceptación y requiere iniciar sesión con el email invitado. La cola `notificaciones.correo` guarda entrega pendiente y reintentos; Docker Compose levanta Mailpit (`http://localhost:8025`, SMTP local `:1025`). En producción se configura `PASSLY_SMTP_*`.
+- Una compra sin cuenta conserva su carrito en la sesión, cobra por el adaptador vigente, emite los mismos QR y manda un enlace privado de orden. El enlace dura hasta 30 días después del último evento. Se puede reemplazar desde la pantalla de recuperación; número de orden y email se responden de forma genérica y con límite por hora.
+- Las órdenes de cuenta conservan su comprador. Órdenes y tickets invitados guardan `comprador_id` nulo; la orden mantiene nombre y email históricos. El acceso privado guarda solamente el hash del token. El intento usa `Idempotency-Key`; estados ambiguos no vuelven a cobrar automáticamente y necesitan conciliación.
+- La migración aditiva `backend/src/main/resources/db/migraciones/20261018-altas-invitados.sql` se ejecuta antes de Hibernate y conserva órdenes existentes. No recrear el volumen local.
 
 ### Enlaces
 
@@ -293,7 +301,11 @@ públicos; que alcancen para operar todo el sistema prueba que esos contratos es
 completos.
 
 **Aspiracional — todavía no existen** (se crean rebanada por rebanada, §4.1):
-`accesos/`, `notificaciones/`, `facturacion/`.
+`notificaciones/`.
+
+**Accesos implementado (PAS-31):** `AccesoService`, `dto/` con NamedInterface e `internal/{web,negocio,datos}`. Su package-info permite tickets, tickets :: dto, eventos, eventos :: dto y productoras.
+
+**Facturacion implementada parcialmente (PAS-32):** contrato publico y `internal/{web,negocio,datos}`; `allowedDependencies = {}`. Ver actualizacion PAS-32 al final.
 
 **Reglas duras:**
 
@@ -397,9 +409,9 @@ presentación (Controller + DTO) → negocio (Service) → datos (Repository + E
 | **`ServicioDeVentas` / `VentaService`** | Orquesta la compra. Mantiene el **carrito (~5 min)** mientras el comprador paga. Es el **Facade** — **implementado (PAS-8)** | **stateful** |
 | `ServicioDePagos` / `PagoService` | Adapter REST hacia la pasarela de pago | stateless |
 | **`ServicioDeTickets` / `TicketService`** | Emite un ticket por unidad con QR firmado y permite consultarlos por orden — **implementado (PAS-20)** | **stateless** |
-| `ServicioDeAccesos` / `AccesoService` | Valida el QR en puerta y garantiza el uso único | stateless |
+| `ServicioDeAccesos` / `AccesoService` | Valida QR en puerta y audita intentos — **implementado (PAS-31)** | stateless |
 | `ServicioDeNotificaciones` / `NotificacionService` | Envío multicanal: ticket, recordatorios, cancelaciones | stateless |
-| `ServicioDeFacturacion` / `FacturacionService` | Adapter SOAP hacia AFIP, con reintento ante rechazo | stateless |
+| `ServicioDeFacturacion` / `FacturacionService` | Registro JMS idempotente PENDIENTE_AFIP implementado; Adapter SOAP pendiente | stateless |
 
 **Grafo de dependencias:**
 
@@ -409,14 +421,14 @@ presentación (Controller + DTO) → negocio (Service) → datos (Repository + E
 | **Ventas** | **Usuarios** | **Síncrona, implementada** — datos del comprador en la orden |
 | Ventas | Pagos | Síncrona — cobro. Hoy resuelto **adentro** de Ventas con un Port/Adapter propio (`PasarelaDePago` / `PasarelaDePagoSimulada`, §4.9). `ServicioDePagos` (PAS-7) ya existe como módulo, pero todavía no está cableado: falta escribir el adapter real y declarar la dependencia en el `package-info` de `ventas` — sin tocar el resto de `VentaServiceImpl` |
 | **Ventas** | **Tickets** | **Síncrona, implementada** — emisión dentro de la transacción |
-| Ventas | Facturación | **Asincrónica** — cola P2P `orden.pagada` |
+| Ventas | Facturación | **Asincrónica, implementada** — cola P2P `orden.pagada` (PAS-32) |
 | Tickets | Notificaciones, Accesos | **Asincrónica** — tópico `ticket.emitido` |
-| Accesos | Tickets | Síncrona — verificación de firma y marcado |
+| Accesos | Tickets | **Síncrona, implementada** — firma, pertenencia al evento y uso único atómico |
 | **Eventos** | **Productoras** | Síncrona — quién puede gestionar, y el nombre comercial para la cartelera |
 | **Productoras** | **Usuarios** | Síncrona — identidad y rol global al incorporar un miembro |
 | **Usuarios** | — | **Sin dependencias salientes** |
 
-**`ServicioDeUsuarios` y `ServicioDeTickets` son las raíces del grafo.** Ninguno tiene
+**Usuarios, Tickets y Facturacion son raices sin dependencias salientes.** Ninguno tiene
 dependencias salientes. El grafo de negocio implementado ya **no es una cadena**: es un grafo
 acíclico con `ventas` en la cima, que llega a `usuarios` por dos caminos — directo, y vía
 `eventos → productoras → usuarios` — y también depende de Tickets, declarado en los
@@ -521,6 +533,7 @@ passly (base)
 ├── ventas.orden, ventas.item_orden
 ├── tickets.ticket
 ├── accesos.validacion
+├── facturacion.factura
 └── ...
 ```
 
@@ -674,9 +687,9 @@ cambio de contrato de `UsuarioDTO` en esta entrega.
   como anónimo tanto `Authentication == null` como un `AnonymousAuthenticationToken` (cuyo
   `getName()` es `"anonymousUser"` y rompería el parseo del id). `CANCELADO` **no** se oculta:
   ya fue público y puede tener órdenes (ver §9, PAS-25).
-- **Fuera de alcance de PAS-8:** las ops sensibles de `VALIDADOR` (marcar ticket usado)
-  viven en un componente que todavía no existe (`ServicioDeAccesos`). Agregará su
-  `@PreAuthorize` sobre la misma infra de autenticación.
+- **Validacion en puerta implementada (PAS-31):** Accesos exige `@PreAuthorize` para
+  VALIDADOR/ORGANIZADOR y `puedeValidarEntradas` para la membresia de la productora del
+  evento. Tickets custodia el cambio atomico a USADO y Accesos audita el intento.
 
 > **Estado:** Eventos, Productoras y Ventas resuelven "quién opera" con la identidad de
 > Spring Security (`Authentication#getName()`, ver arriba). Ningún endpoint del backend
@@ -768,7 +781,7 @@ passly/
 ├── CLAUDE.md              ← este archivo
 ├── CLAUDE.local.md        ← rutas y entorno personales (gitignored)
 ├── README.md              ← qué es Passly y cómo levantarlo
-├── docker-compose.yml     ← Postgres local de desarrollo (Artemis se suma en la Obligatoria 2)
+├── docker-compose.yml     ← Postgres y Artemis local de desarrollo (PAS-32)
 ├── db/init/               ← scripts de inicialización del contenedor (CREATE SCHEMA por componente)
 ├── .env.example           ← plantilla de variables de entorno, sin secretos
 ├── docs/
@@ -1199,3 +1212,18 @@ se diseñaron por lo que el negocio necesita y no por la pantalla del momento.
   el login se arma sobre él: valida las credenciales y, con la respuesta 200, obtiene el `rol`
   de un usuario ya existente. El registro sigue auto-iniciando la sesión con el `UsuarioDTO`
   que devuelve `POST /api/usuarios`.
+
+## Actualizacion PAS-32 — Checkpoint 2
+
+**Mensajeria asincrona implementada:** Ventas → Facturacion por cola P2P `orden.pagada` en Artemis Docker. Es el primero de los dos procesos async del checklist (el topico queda pendiente).
+`facturacion/` tiene contrato FacturacionService, `internal/{web,negocio,datos}`, esquema `facturacion.factura` y `allowedDependencies = {}`: no existe arista Java Facturacion → Ventas. Usa un record local para deserializar el contrato JSON.
+Docker Compose ya incluye broker durable, consola, redelivery y DLQ. La factura queda PENDIENTE_AFIP; el puerto ClienteAfip tiene solo un adapter que loguea, sin SOAP.
+AFTER_COMMIT evita mensajes de compras revertidas; una restriccion unica + INSERT ON CONFLICT evita duplicados bajo concurrencia. Ver docs/mensajeria.md y docs/ddl-facturacion.sql.
+**Deuda tecnica: envio post-commit sin outbox.** Si JMS falla, la compra sigue confirmada y se loguea ERROR con su id; no propagar hacia la compensacion del pago. Puede faltar factura y requiere conciliacion manual. Agregar outbox o Event Publication Registry en una entrega posterior.
+
+## Actualizacion PAS-31 — ServicioDeAccesos
+
+Accesos implementado con esquema `accesos.validacion`, DTO propio y frontend `/validar` con camara + ingreso manual. Ver docs/accesos.md y docs/ddl-accesos.sql.
+La operacion sensible del VALIDADOR ya esta implementada: `@PreAuthorize` por rol y `ProductoraService.puedeValidarEntradas` por membresia DUENIO/STAFF/VALIDADOR. El usuario sale del principal autenticado.
+Tickets conserva la custodia de su estado: UPDATE condicional EMITIDO→USADO, con usadoEn y chequeo de firma/evento antes de consumir. Dos solicitudes concurrentes producen un VALIDO y un YA_USADO; el segundo conserva el primer usadoEn. Auditoria y consumo comparten transaccion.
+Tickets y Usuarios siguen sin dependencias; Facturacion tambien es independiente de otros componentes. Accesos no accede a internos de Tickets. La suscripcion a ticket.emitido queda para la Obligatoria 2.

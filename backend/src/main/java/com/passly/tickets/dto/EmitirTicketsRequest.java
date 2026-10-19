@@ -9,7 +9,7 @@ import java.util.List;
 /** Solicitud completa de emision de tickets para una orden confirmada. */
 public record EmitirTicketsRequest(
         @NotNull Long idOrden,
-        @NotNull Long idComprador,
+        Long idComprador,
         @NotEmpty List<@Valid LineaDeEmisionDTO> lineas
 ) {
     public EmitirTicketsRequest {

@@ -56,6 +56,28 @@ class TicketServiceImpl implements TicketService {
     }
 
     @Override
+    @Transactional
+    public com.passly.tickets.dto.UsoTicketDTO validarYUsar(String contenidoQr, Long idEvento) {
+        var invalido = new com.passly.tickets.dto.UsoTicketDTO(
+                com.passly.tickets.dto.UsoTicketDTO.Resultado.INVALIDO, null, null, null, null);
+        if (!generadorDeQr.esValido(contenidoQr)) return invalido;
+        var encontrado = repository.findByContenidoQr(contenidoQr);
+        if (encontrado.isEmpty()) return invalido;
+        Ticket ticket = encontrado.get();
+        if (!ticket.getEventoId().equals(idEvento)) {
+            // El contenido existe, pero no se entrega informacion del evento ajeno.
+            return new com.passly.tickets.dto.UsoTicketDTO(
+                    com.passly.tickets.dto.UsoTicketDTO.Resultado.OTRO_EVENTO, ticket.getId(), null, null, null);
+        }
+        int consumidos = repository.consumir(contenidoQr, idEvento, java.time.OffsetDateTime.now());
+        Ticket actualizado = repository.findByContenidoQr(contenidoQr).orElseThrow();
+        return new com.passly.tickets.dto.UsoTicketDTO(consumidos == 1
+                ? com.passly.tickets.dto.UsoTicketDTO.Resultado.VALIDO
+                : com.passly.tickets.dto.UsoTicketDTO.Resultado.YA_USADO,
+                actualizado.getId(), actualizado.getEventoId(), actualizado.getNombreTipoEntrada(), actualizado.getUsadoEn());
+    }
+
+    @Override
     public boolean esContenidoQrValido(String contenidoQr) {
         return generadorDeQr.esValido(contenidoQr);
     }

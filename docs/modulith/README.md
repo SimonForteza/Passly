@@ -94,3 +94,5 @@ commiteado — es evidencia de que el test reacciona, no parte del codigo final.
 
 `.github/workflows/modulith-boundaries.yml` corre este mismo test en cada push/PR. No necesita
 Postgres/Docker: `ApplicationModules.verify()` solo introspecciona el bytecode compilado.
+
+Actualizacion PAS-31/PAS-32: se regeneraron los modulos Tickets, Accesos y Facturacion. Accesos depende de Tickets, Eventos y Productoras; Facturacion no tiene dependencia Java de Ventas, aunque recibe sus mensajes JMS.

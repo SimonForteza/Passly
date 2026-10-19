@@ -86,6 +86,12 @@ class EstructuraDeModulosTest {
     }
 
     @Test
+    void facturacionNoDependeDeVentas() {
+        var facturacion = MODULOS.getModuleByName("facturacion").orElseThrow();
+        assertThat(facturacion.getAllDependencies(MODULOS).isEmpty()).isTrue();
+    }
+
+    @Test
     void generarDocumentacion() {
         new Documenter(MODULOS).writeDocumentation();
     }

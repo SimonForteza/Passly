@@ -41,8 +41,16 @@ class UsuarioServiceImpl implements UsuarioService {
     }
 
     @Override
+    public UsuarioDTO habilitarCapacidad(Long idUsuario, com.passly.usuarios.Rol capacidad) {
+        Usuario usuario = usuarioRepository.bloquearPorId(idUsuario)
+                .orElseThrow(() -> new UsuarioNoEncontradoException(idUsuario));
+        usuario.habilitarCapacidad(capacidad);
+        return mapper.aDTO(usuario);
+    }
+
+    @Override
     public UsuarioDTO registrarUsuario(CrearUsuarioRequest solicitud) {
-        if (usuarioRepository.existsByEmail(solicitud.email())) {
+        if (usuarioRepository.existsByEmailIgnoreCase(solicitud.email().trim())) {
             throw new EmailYaRegistradoException(solicitud.email());
         }
 
@@ -51,7 +59,7 @@ class UsuarioServiceImpl implements UsuarioService {
         String passwordHash = passwordEncoder.encode(solicitud.password());
 
         Usuario usuario = new Usuario(
-                solicitud.email(),
+                solicitud.email().trim().toLowerCase(java.util.Locale.ROOT),
                 solicitud.nombre(),
                 passwordHash,
                 solicitud.rol()
@@ -71,7 +79,7 @@ class UsuarioServiceImpl implements UsuarioService {
     @Override
     @Transactional(readOnly = true)
     public UsuarioDTO consultarUsuarioPorEmail(String email) {
-        Usuario usuario = usuarioRepository.findByEmail(email)
+        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(email.trim())
                 .orElseThrow(() -> new UsuarioNoEncontradoException(email));
         return mapper.aDTO(usuario);
     }
@@ -89,7 +97,7 @@ class UsuarioServiceImpl implements UsuarioService {
     public Optional<CredencialDTO> buscarCredencialPorEmail(String email) {
         // Unico lugar donde el hash sale del componente: se arma el CredencialDTO a mano y no con
         // UsuarioMapper (que a proposito nunca lee el hash). El texto plano no interviene aca.
-        return usuarioRepository.findByEmail(email)
+        return usuarioRepository.findByEmailIgnoreCase(email.trim())
                 .map(u -> new CredencialDTO(u.getId(), u.getEmail(), u.getPasswordHash(), u.getRol()));
     }
 }

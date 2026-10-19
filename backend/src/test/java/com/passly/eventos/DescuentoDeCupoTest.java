@@ -124,10 +124,9 @@ class DescuentoDeCupoTest {
     /**
      * Dispara una carrera real entre dos descuentos concurrentes sobre el mismo tipo de
      * entrada: dos hilos liberados a la vez por un {@link CyclicBarrier}, cada uno pidiendo 3 de
-     * un cupo de 5 (3+3=6 &gt; 5, pero ninguno lo ve venir porque cada uno lee el cupo *antes*
-     * de que el otro escriba). Postgres serializa las dos escrituras por el lock de fila: la
-     * segunda en llegar encuentra la version ya cambiada y Hibernate la traduce a
-     * {@code ObjectOptimisticLockingFailureException}, no a una sobreventa silenciosa.
+     * un cupo de 5 (3+3=6 &gt; 5). Si ambas transacciones leen antes de escribir, la version
+     * detecta el conflicto. Si la segunda lee despues del primer commit, la regla de cupo
+     * rechaza el descuento. Las dos intercalaciones son validas: solo una escritura gana.
      *
      * <p>Es el {@code @Version} de {@code TipoEntrada}, puesto desde antes de que Ventas
      * existiera "porque ServicioDeVentas va a decrementar cupoDisponible con concurrencia
@@ -166,7 +165,9 @@ class DescuentoDeCupoTest {
         Exception fallo = resultados.stream().filter(Objects::nonNull).findFirst().orElse(null);
 
         assertThat(exitosos).isEqualTo(1);
-        assertThat(fallo).isInstanceOf(ObjectOptimisticLockingFailureException.class);
+        // La barrera sincroniza el inicio, no las lecturas dentro de la transaccion.
+        // Si el segundo lee tras el commit, la regla de cupo rechaza sin conflicto de version.
+        assertThat(fallo).isInstanceOfAny(ObjectOptimisticLockingFailureException.class, CupoInsuficienteException.class);
 
         // El unico ganador dejo el cupo en 2 (5 - 3): ni en 5 (nadie escribio) ni en -1 (los dos
         // escribieron sin verse).

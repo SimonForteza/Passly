@@ -1,0 +1,27 @@
+/* Inter/Anton y colores de Passly; el resultado es el foco del puesto de acceso. */
+.validador { max-width: 760px; margin: 0 auto; display: grid; gap: 24px; padding-bottom: 32px; }
+.validador-titulo > span, .validador-puesto > span { color: var(--color-texto-secundario); font-size: .875rem; }
+.validador-titulo h1 { font-size: clamp(2rem, 6vw, 3.5rem); margin-top: 8px; }
+.validador-titulo p, .validador-manual p { color: var(--color-texto-secundario); line-height: 1.5; }
+.validador-puesto { padding: 16px 0; border-block: 1px solid var(--color-border); display: grid; gap: 8px; }
+.validador-puesto strong { font-size: 1.25rem; }
+.validador-boton { min-height: 48px; padding: 12px 20px; border: 1px solid var(--color-border-fuerte); border-radius: 8px; background: var(--color-surface); color: var(--color-texto); font-size: 1rem; cursor: pointer; }
+.validador-boton:focus-visible { outline: 3px solid var(--color-texto); outline-offset: 3px; }
+.validador-boton:disabled { opacity: .55; cursor: default; }
+.validador-boton-principal { background: var(--color-acento); border-color: var(--color-acento); }
+.validador-manual { display: grid; gap: 12px; }
+.validador-manual p { margin: 0; font-size: .875rem; }
+.validador-camara { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 14px; overflow: hidden; text-align: center; }
+.validador-camara video { display: block; width: 100%; max-height: 45vh; object-fit: cover; }
+.validador-camara p { padding-inline: 16px; }
+.validador-resultado { position: fixed; inset: 0; z-index: 1000; overflow: auto; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 18px; padding: 28px; text-align: center; background: #0d2a18; color: #fafafa; }
+.validador-resultado h2 { font-size: clamp(3rem, 12vw, 6rem); }
+.validador-resultado p { font-size: clamp(1.1rem, 3vw, 1.6rem); margin: 0; max-width: 40ch; }
+.validador-resultado strong { font-size: 1.6rem; }
+.validador-simbolo { font-size: 4rem; line-height: 1; color: #22c55e; }
+.resultado-ya_usado { background: #362309; }
+.resultado-ya_usado .validador-simbolo { color: #f5a623; }
+.resultado-invalido, .resultado-otro_evento { background: #400c16; }
+.resultado-invalido .validador-simbolo, .resultado-otro_evento .validador-simbolo { color: #ff8b99; }
+@media (max-width: 480px) { .validador { gap: 18px; } .validador-boton { width: 100%; } }
+@media (orientation: landscape) and (max-height: 500px) { .validador-resultado { gap: 10px; padding: 16px; } .validador-simbolo { font-size: 2rem; } .validador-resultado h2 { font-size: 2.5rem; } }

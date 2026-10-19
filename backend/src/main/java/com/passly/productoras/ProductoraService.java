@@ -106,4 +106,7 @@ public interface ProductoraService {
      * productora inexistente dan {@code false}.
      */
     boolean puedeGestionarEventos(Long idProductora, Long idUsuario);
+
+    /** DUENIO, STAFF o VALIDADOR de esta productora; no miembro responde false. */
+    boolean puedeValidarEntradas(Long idProductora, Long idUsuario);
 }

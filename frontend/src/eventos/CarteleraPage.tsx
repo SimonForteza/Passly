@@ -29,7 +29,9 @@ export function CarteleraPage() {
     setCargando(true);
     setError(null);
 
-    const idProductora = filtroProductora ? Number(filtroProductora) : undefined;
+    const idProductora = filtroProductora
+      ? Number(filtroProductora)
+      : undefined;
 
     Promise.all([listarEventos(idProductora), listarProductoras()])
       .then(([listaEventos, listaProductoras]) => {
@@ -59,7 +61,9 @@ export function CarteleraPage() {
 
   const termino = normalizar(busqueda.trim());
   const visibles = termino
-    ? eventos.filter((evento) => normalizar(`${evento.nombre} ${evento.lugar}`).includes(termino))
+    ? eventos.filter((evento) =>
+        normalizar(`${evento.nombre} ${evento.lugar}`).includes(termino),
+      )
     : eventos;
 
   return (
@@ -68,7 +72,9 @@ export function CarteleraPage() {
         <div>
           <p className="eyebrow">Cartelera</p>
           <h2>Próximos eventos</h2>
-          <p className="texto-secundario">Entradas con QR único para la noche.</p>
+          <p className="texto-secundario">
+            Encontrá tu próximo evento y llevá tus entradas con QR.
+          </p>
         </div>
       </div>
 
@@ -84,7 +90,10 @@ export function CarteleraPage() {
         </label>
         <label>
           Productora
-          <select value={filtroProductora} onChange={(evento) => cambiarFiltro(evento.target.value)}>
+          <select
+            value={filtroProductora}
+            onChange={(evento) => cambiarFiltro(evento.target.value)}
+          >
             <option value="">Todas las productoras</option>
             {productoras.map((productora) => (
               <option key={productora.id} value={productora.id}>
@@ -103,7 +112,9 @@ export function CarteleraPage() {
         <div className="panel estado-vacio">
           <h3>No hay eventos publicados</h3>
           <p className="texto-secundario">
-            {filtroProductora ? 'Esta productora no tiene eventos publicados por ahora.' : 'Volvé a mirar más tarde.'}
+            {filtroProductora
+              ? 'Esta productora no tiene eventos publicados por ahora.'
+              : 'Volvé a mirar más tarde.'}
           </p>
         </div>
       ) : visibles.length === 0 ? (

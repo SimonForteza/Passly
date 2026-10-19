@@ -11,10 +11,27 @@ export function PerfilPage() {
     <section style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <div>
         <h2>Mi perfil</h2>
-        <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.5rem 1.25rem', marginTop: '1rem' }}>
+        <dl
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'auto 1fr',
+            gap: '0.5rem 1.25rem',
+            marginTop: '1rem',
+          }}
+        >
           <Dato etiqueta="Nombre" valor={usuario.nombre} />
           <Dato etiqueta="Email" valor={usuario.email} />
-          <Dato etiqueta="Rol" valor={usuario.rol} />
+          <Dato
+            etiqueta="Tipo de cuenta"
+            valor={
+              {
+                COMPRADOR: 'Comprador',
+                ORGANIZADOR: 'Organizador',
+                VALIDADOR: 'Validador',
+                ADMIN: 'Administrador',
+              }[usuario.rol]
+            }
+          />
         </dl>
       </div>
 

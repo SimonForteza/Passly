@@ -3,14 +3,32 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError } from '../lib/http/ApiError';
 import { useAuth } from '../lib/auth/AuthContext';
 import { obtenerUsuarioActual } from './api';
-import { BotonPrimario, CampoTexto, PantallaAuth, estilos } from './componentes';
+import {
+  BotonPrimario,
+  CampoTexto,
+  PantallaAuth,
+  estilos,
+} from './componentes';
 
 export function LoginPage() {
   const { iniciarSesion } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   // Si RutaPrivada nos mando aca, volvemos a la pantalla que se quiso abrir; si no, a la cartelera.
-  const destino = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/';
+  const origen = (
+    location.state as {
+      from?: { pathname: string; search?: string; hash?: string };
+    } | null
+  )?.from;
+  const contexto =
+    (location.state as { contexto?: string } | null)?.contexto ??
+    (origen?.pathname === '/productoras/nueva'
+      ? 'Ingresá para crear tu productora. Después continuás con sus datos.'
+      : '');
+  const destino =
+    origen?.pathname?.startsWith('/') && !origen.pathname.startsWith('//')
+      ? `${origen.pathname}${origen.search ?? ''}${origen.hash ?? ''}`
+      : '/';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,6 +62,7 @@ export function LoginPage() {
   return (
     <PantallaAuth>
       <h2>Ingresar</h2>
+      {contexto ? <p className="texto-secundario">{contexto}</p> : null}
       <form onSubmit={enviar} style={estilos.formulario}>
         <CampoTexto
           etiqueta="Email"
@@ -78,13 +97,20 @@ export function LoginPage() {
           </p>
         )}
 
-        <BotonPrimario cargando={cargando}>{cargando ? 'Ingresando…' : 'Ingresar'}</BotonPrimario>
+        <BotonPrimario cargando={cargando}>
+          {cargando ? 'Ingresando…' : 'Ingresar'}
+        </BotonPrimario>
       </form>
 
-      <p style={{ color: 'var(--color-texto-secundario)', marginTop: '1.5rem' }}>
+      <p
+        style={{ color: 'var(--color-texto-secundario)', marginTop: '1.5rem' }}
+      >
         {/* El state viaja al registro para que quien llegó por el link de un evento vuelva a él
             después del alta (PAS-25). */}
-        ¿No tenés cuenta? <Link to="/registro" state={location.state}>Crear una</Link>
+        ¿No tenés cuenta?{' '}
+        <Link to="/registro" state={location.state}>
+          Crear una
+        </Link>
       </p>
     </PantallaAuth>
   );
