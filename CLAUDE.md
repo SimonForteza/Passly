@@ -53,7 +53,7 @@ prioridad.
   | 4. Pago integrado + QR | ✅ | La compra autenticada y la invitada usan la pasarela de prueba, muestran errores de pago y conservan la tarjeta solo en memoria; cada entrada genera un QR. | ~~PAS-29~~, ~~PAS-30~~ |
   | 5. Validación | ✅ | Accesos valida QR con uso único atómico y pantalla web responsive. | ~~PAS-31~~ |
 
-Para el Checkpoint 2 además: diagrama SOA (PAS-27), doc funcional + manual + Figma (PAS-28) y
+Para el Checkpoint 2 además: ~~diagrama SOA (PAS-27)~~ ✅ `docs/integraciones.md`, doc funcional + manual + Figma (PAS-28) y
 el proceso async real con Artemis (PAS-32). **Cada issue, al cerrarse, actualiza esta tabla y la §9.**
 
 ### Alta de productoras, invitaciones y compra como invitado (18/10)
@@ -591,6 +591,11 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
   organizador. Varios suscriptores independientes. **Esa es la justificación de
   por qué es tópico y no cola.**
 
+> **Detalle completo en [`docs/integraciones.md`](docs/integraciones.md)** (PAS-27): inventario de
+> todas las integraciones con canal, sync/async, estado real y justificación; el diagrama SOA
+> (`docs/diagramas/integracion-soa.mmd`); y qué pasa si cae cada externo. Esa tabla es la fuente
+> del estado de cada integración — al mergear el tópico o el SOAP, se actualiza allá.
+
 ### 4.11 Seguridad y transacciones
 
 - **Roles:** `COMPRADOR`, `ORGANIZADOR`, `VALIDADOR`, `ADMIN`.
@@ -795,6 +800,9 @@ passly/
 │   │                        salud, cartelera con filtro, flujo feliz (incl. republicar → 409),
 │   │                        errores (401/403/404/409), productoras, y **aislamiento entre
 │   │                        productoras** — el guion central de la demo
+│   ├── integraciones.md   ← inventario SOA: cada integración, canal, sync/async, estado (PAS-27)
+│   ├── diagramas/         ← integracion-soa.mmd (fuente Mermaid) + .png/.svg exportados
+│   ├── entrega-c2/        ← PDF del Checkpoint 2 + pdf.css + README con el comando para regenerarlo
 │   └── modulith/          ← salida de Documenter (PAS-9): components.puml (diagrama global),
 │                            un module-*.puml/.adoc por módulo, y el README que explica cómo
 │                            regenerarlos y la corrida real de "romper una regla a propósito"
@@ -824,14 +832,15 @@ passly/
 │                            PaginaProductoraPage — página PÚBLICA /productoras/:id (PAS-26)
 └── (aspiracional — todavía no existen):
     ├── docs/arquitectura.md, docs/componentes.md, docs/patrones.md,
-    │   docs/integraciones.md, docs/entregas.md  ← se escriben a medida que se decide
+    │   docs/entregas.md  ← se escriben a medida que se decide
     └── app-validador/     ← app móvil del validador
 ```
 
 > `CLAUDE.local.md` es un archivo personal opcional (gitignored); puede no existir
 > en un clon recién hecho. Los `.md` de `docs/` listados como aspiracionales todavía
 > no están escritos: hoy `docs/` contiene los DDL de referencia (`ddl-eventos.sql`,
-> `ddl-productoras.sql`, `ddl-pagos.sql`, `ddl-ventas.sql`), `http/`, `modulith/` y `adr/`.
+> `ddl-productoras.sql`, `ddl-pagos.sql`, `ddl-ventas.sql`), `http/`, `modulith/` y `adr/`,
+> más `integraciones.md`, `diagramas/` y `entrega-c2/` (PAS-27).
 
 ---
 
