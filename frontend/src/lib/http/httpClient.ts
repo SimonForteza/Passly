@@ -1,4 +1,4 @@
-import { getHeaderAutorizacion } from '../auth/session';
+import { avisarSesionVencida, getToken } from '../auth/session';
 import { ApiError, type ProblemDetail } from './ApiError';
 
 const BASE_URL = import.meta.env.DEV
@@ -7,7 +7,8 @@ const BASE_URL = import.meta.env.DEV
 
 // Cola de los requests autenticados. Spring Security le cambia el id a la sesion en CADA request
 // autenticado (ChangeSessionIdAuthenticationStrategy, CLAUDE.md 4.7) y Tomcat descarta el id
-// viejo en el acto. Si dos requests autenticados salen en paralelo con la misma cookie, el que
+// viejo en el acto. Pasar de Basic a JWT no lo cambio: verificado en PAS-33, con Bearer el
+// JSESSIONID sigue rotando, asi que la cola se queda. Si dos requests autenticados salen en paralelo con la misma cookie, el que
 // llega segundo trae un JSESSIONID que ya no existe: si ese request toca el carrito
 // (@SessionScope), el contenedor le crea una sesion nueva y el carrito aparece vacio. Encolarlos
 // garantiza que cada uno salga con la cookie que dejo el anterior. Los anonimos no rotan nada y
@@ -20,26 +21,32 @@ function encolar<T>(tarea: () => Promise<T>): Promise<T> {
   return resultado;
 }
 
-function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+export interface OpcionesRequest extends RequestInit {
+  /**
+   * No manda el token guardado. Lo usa el login: el backend responde 401 a cualquier token
+   * invalido aunque la ruta sea publica, y un token viejo en sessionStorage no tiene que poder
+   * impedir que alguien vuelva a iniciar sesion.
+   */
+  anonimo?: boolean;
+}
+
+function request<T>(path: string, opciones: OpcionesRequest = {}): Promise<T> {
+  const { anonimo, ...init } = opciones;
   const headers = new Headers(init.headers);
   headers.set('Accept', 'application/json');
   if (init.body) headers.set('Content-Type', 'application/json');
 
-  // El header explicito gana: el login valida credenciales pegandole a /api/usuarios/me con un
-  // Basic armado a mano (todavia no hay sesion guardada), y no queremos que la sesion actual —
-  // si la hubiera — lo pise.
-  if (!headers.has('Authorization')) {
-    const autorizacion = getHeaderAutorizacion();
-    if (autorizacion) headers.set('Authorization', autorizacion);
-  }
+  const token = anonimo ? null : getToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
 
-  const enviar = () => enviarRequest<T>(path, { ...init, headers });
-  return headers.has('Authorization') ? encolar(enviar) : enviar();
+  const enviar = () => enviarRequest<T>(path, { ...init, headers }, token);
+  return token ? encolar(enviar) : enviar();
 }
 
 async function enviarRequest<T>(
   path: string,
   init: RequestInit & { headers: Headers },
+  token: string | null,
 ): Promise<T> {
   const { headers } = init;
   const respuesta = await fetch(`${BASE_URL}${path}`, {
@@ -61,6 +68,12 @@ async function enviarRequest<T>(
     : undefined;
 
   if (!respuesta.ok) {
+    // 401 con token = el backend rechazo el token (vencido, adulterado o de una cuenta que ya no
+    // existe). Se cierra la sesion y App.tsx manda al login con "from". Solo si el token rechazado
+    // es el que sigue guardado: si en el medio alguien inicio sesion de nuevo, no se la borramos.
+    if (respuesta.status === 401 && token && getToken() === token) {
+      avisarSesionVencida();
+    }
     throw new ApiError(
       (cuerpo ?? {
         status: respuesta.status,
@@ -76,10 +89,10 @@ async function enviarRequest<T>(
 }
 
 export const httpClient = {
-  get<T>(path: string, init: RequestInit = {}): Promise<T> {
+  get<T>(path: string, init: OpcionesRequest = {}): Promise<T> {
     return request<T>(path, { ...init, method: 'GET' });
   },
-  post<T>(path: string, body?: unknown, init: RequestInit = {}): Promise<T> {
+  post<T>(path: string, body?: unknown, init: OpcionesRequest = {}): Promise<T> {
     return request<T>(path, {
       ...init,
       method: 'POST',

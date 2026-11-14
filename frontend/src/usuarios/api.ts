@@ -1,6 +1,5 @@
-import { construirHeaderBasic } from '../lib/auth/session';
 import { httpClient } from '../lib/http/httpClient';
-import type { CrearUsuarioRequest, UsuarioDTO } from './types';
+import type { CrearUsuarioRequest, RespuestaDeLogin, UsuarioDTO } from './types';
 
 export function crearUsuario(request: CrearUsuarioRequest): Promise<UsuarioDTO> {
   return httpClient.post<UsuarioDTO>('/api/usuarios', request);
@@ -14,14 +13,16 @@ export function listarUsuarios(): Promise<UsuarioDTO[]> {
   return httpClient.get<UsuarioDTO[]>('/api/usuarios');
 }
 
+/** "Quien soy": el UsuarioDTO del titular del token guardado. */
+export function obtenerUsuarioActual(): Promise<UsuarioDTO> {
+  return httpClient.get<UsuarioDTO>('/api/usuarios/me');
+}
+
 /**
- * "Quien soy": el UsuarioDTO del autenticado. Con credenciales explicitas valida un login por
- * email+clave (el header Basic va armado a mano porque todavia no hay sesion guardada); sin
- * ellas usa la sesion actual. Un 401 => credenciales invalidas.
+ * POST /api/auth/login (PAS-33): canjea email + password por un JWT. Unico request en el que viaja
+ * el password; despues solo viaja el token. Credenciales invalidas => 401, con el mismo mensaje
+ * exista o no la cuenta.
  */
-export function obtenerUsuarioActual(credenciales?: { email: string; password: string }): Promise<UsuarioDTO> {
-  const init = credenciales
-    ? { headers: { Authorization: construirHeaderBasic(credenciales.email, credenciales.password) } }
-    : undefined;
-  return httpClient.get<UsuarioDTO>('/api/usuarios/me', init);
+export function iniciarSesion(email: string, password: string): Promise<RespuestaDeLogin> {
+  return httpClient.post<RespuestaDeLogin>('/api/auth/login', { email, password }, { anonimo: true });
 }
