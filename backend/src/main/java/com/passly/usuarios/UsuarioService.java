@@ -49,8 +49,7 @@ public interface UsuarioService {
     /**
      * Devuelve un usuario por su email, que es la clave natural de la cuenta.
      *
-     * <p>Existe por dos consumidores distintos: PAS-6 lo necesita para el login (el username de
-     * Spring Security es el email), y los componentes que resuelven un usuario del que solo
+     * <p>Existe por dos consumidores distintos: el login (se inicia sesion con el email), y los componentes que resuelven un usuario del que solo
      * conocen el email en vez del id generado.
      *
      * @throws UsuarioNoEncontradoException si no existe
@@ -67,7 +66,8 @@ public interface UsuarioService {
      * <p>Es el contrato que consume {@code seguridad} para autenticar: entrega el hash BCrypt
      * (nunca el texto plano) dentro de un {@link CredencialDTO}, sin filtrar la entidad. Devuelve
      * {@code Optional} a proposito, para no acoplar este componente a las excepciones de Spring
-     * Security: el {@code empty} lo traduce {@code seguridad} a un {@code UsernameNotFoundException}.
+     * Security: el {@code empty} lo traduce {@code seguridad} al mismo 401 que una contraseña
+     * incorrecta en {@code POST /api/auth/login} (PAS-33).
      */
     Optional<CredencialDTO> buscarCredencialPorEmail(String email);
 }

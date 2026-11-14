@@ -10,8 +10,8 @@ import com.passly.usuarios.Rol;
  * el {@link com.passly.usuarios.dto.UsuarioDTO} general no lo incluye. El hash viaja hasheado con
  * BCrypt, nunca en texto plano, y su unico consumidor previsto es el proveedor de autenticacion.
  *
- * <p><b>Sobre {@code idUsuario}:</b> {@code seguridad} lo usa como {@code username} del
- * {@code UserDetails} en vez del email (ver {@code DetalleDeUsuarioParaAutenticacion}). Asi, una
+ * <p><b>Sobre {@code idUsuario}:</b> {@code seguridad} lo pone como {@code sub} del JWT que emite
+ * al iniciar sesion, en vez del email (ver {@code ServicioDeLogin}). Asi, una
  * vez autenticado, cualquier controller de cualquier modulo obtiene el id numerico del actuante
  * leyendo {@code Authentication#getName()} — un tipo de Spring, no de Passly — sin tener que
  * depender de Usuarios para resolver email a id. Eventos en particular no puede: su
