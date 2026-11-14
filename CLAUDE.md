@@ -142,7 +142,7 @@ se reintenta desde la cola.
 | Acceso a datos | **Spring Data JPA + Hibernate** | Patrón DAO y transacciones declarativas |
 | Mensajería | **ActiveMQ Artemis (Docker)** | Broker JMS nativo, alineado con la Unidad V |
 | SOAP | **Spring Web Services + JAXB** | Generación y consumo de contratos WSDL |
-| Seguridad | **Spring Security** | Autorización por rol declarativa. Autenticación: HTTP Basic hasta la O1; **la consigna del 16/11 exige JWT** (PAS-33/PAS-34) |
+| Seguridad | **Spring Security** (+ OAuth2 Resource Server) | Autorización por rol declarativa. Autenticación: **JWT HS256** emitido por `POST /api/auth/login` (PAS-33; HTTP Basic hasta la O1). El frontend pasa a Bearer en PAS-34 |
 | Build | **Maven** | — |
 | App web | **React + Vite + TypeScript** (implementado, PAS-14) | Consume el backend por REST. Responsive obligatorio |
 | App móvil | **React Native** (a confirmar) | Cámara para escaneo de QR. Debe adaptarse a distintos tamaños y orientaciones |
@@ -518,13 +518,13 @@ mostrar el `@PreDestroy` en el acto durante la demo.
 **La tensión con `SessionCreationPolicy.STATELESS` (PAS-6), y por qué no es una
 contradicción.** Esa política solo le dice a *Spring Security* que no cree ni lea
 `HttpSession` para guardar el `SecurityContext`: cada request se re-autentica con su
-propio header Basic. No le dice nada al *servlet container*, que sigue creando una
+propio header `Authorization: Bearer` (JWT desde PAS-33; antes, Basic). No le dice nada al *servlet container*, que sigue creando una
 sesión en cuanto algo la pide — y eso es exactamente lo que hace el proxy de un bean
 `@SessionScope`. La autenticación sigue siendo stateless; el carrito, no.
 
 **Consecuencia real, no cosmética, y la mitigación.** Con nada que asocie el
 `JSESSIONID` al principal autenticado, alguien que reutilizara la cookie de sesión
-de otro junto con sus propias credenciales Basic vería el carrito ajeno. El carrito
+de otro junto con su propio token vería el carrito ajeno. El carrito
 guarda el id del comprador en su primera operación y lo valida en cada llamada
 siguiente (`CarritoDeOtroCompradorException` → 409) en vez de confiar en la sesión
 a secas — barato, y convierte un riesgo real en una decisión explicada.
@@ -533,7 +533,7 @@ a secas — barato, y convierte un riesgo real en una decisión explicada.
 Security cambia el `JSESSIONID` en **cada** request autenticado
 (`ChangeSessionIdAuthenticationStrategy`, protección contra *session fixation* —
 corre incluso bajo `STATELESS`, porque solo mira si ya existe una sesión, no la
-política de creación). El dato del carrito persiste porque el contenedor migra los
+política de creación; **verificado en vivo que sigue pasando con JWT**, PAS-33). El dato del carrito persiste porque el contenedor migra los
 atributos de la sesión al nuevo id, pero la cookie de la respuesta anterior deja de
 servir de inmediato. Un navegador real no lo nota (reenvía siempre la cookie más
 reciente); probar el flujo a mano con `curl` sin encadenar `-b`/`-c` en *cada*
@@ -621,26 +621,41 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
 ### 4.11 Seguridad y transacciones
 
 - **Roles:** `COMPRADOR`, `ORGANIZADOR`, `VALIDADOR`, `ADMIN`.
-- **Autenticación (PAS-6):** **HTTP Basic**, sesión **STATELESS**, CSRF off (API REST).
-  Vive en el módulo `seguridad/`, que autentica contra `usuarios` por el contrato
-  `usuarios :: autenticacion` (`CredencialDTO`, que lleva el hash) y **reutiliza el mismo
-  `@Bean PasswordEncoder` de `usuarios`** (inyectado por tipo, sin declarar un segundo bean).
-  Se eligió Basic y no JWT: para la Obligatoria 1, JWT sería complejidad sin beneficio.
-  **Esa decisión queda superada por la consigna del 16/11, que exige autenticación con JWT**
-  (PAS-33 backend, PAS-34 frontend). Lo que no cambia: los `@PreAuthorize` por rol y que
-  `Authentication#getName()` devuelva el **id** del usuario (el `sub` del token), que es lo que
-  leen todos los módulos.
-- **El `UserDetails` lleva el id numérico como username, no el email.** El login sigue siendo
-  por email (es lo que el cliente manda en el header Basic), pero
-  `DetalleDeUsuarioParaAutenticacion` arma el `UserDetails` con
-  `User.withUsername(String.valueOf(credencial.idUsuario()))`. Como `Authentication#getName()`
-  después del login devuelve ese username, cualquier controller de cualquier módulo obtiene el id
-  de quien opera con un tipo de Spring Security — sin depender de `usuarios` para resolver
-  email → id. Esto no es un detalle menor: `eventos` tiene declarado en su `package-info` que
-  **no puede depender de `usuarios`** (§4.6), así que la resolución tiene que pasar por acá, una
-  sola vez, dentro de `seguridad` (que sí depende de `usuarios` legítimamente). El mismo
-  mecanismo habilita `GET /api/usuarios/me` (PAS-15): lee el id del propio principal y devuelve
-  el `UsuarioDTO` del autenticado — el "quién soy" sobre el que se arma el login del frontend.
+- **Autenticación: JWT (PAS-33; hasta la O1 fue HTTP Basic, PAS-6).** Sesión **STATELESS**,
+  CSRF off (API REST). `POST /api/auth/login` (`seguridad/internal/AutenticacionController`)
+  canjea email + contraseña por un **JWT HS256** (emisor `passly`, 2 h, `PASSLY_JWT_SECRET` de
+  ≥ 32 bytes). Todo lo demás viaja con `Authorization: Bearer`, y el *resource server* de Spring
+  Security valida firma, algoritmo (solo HS256: `alg: none` u otro → 401), emisor y vencimiento
+  antes de que el request llegue a un controller. Para verificar la contraseña, `seguridad` usa
+  el contrato `usuarios :: autenticacion` (`CredencialDTO`, que lleva el hash) y **el mismo
+  `@Bean PasswordEncoder` de `usuarios`** (inyectado por tipo, sin un segundo bean). Si el email
+  no existe, compara igual contra un hash de relleno: mismo mensaje y mismo tiempo de respuesta
+  que una clave incorrecta (nada de enumeración de usuarios).
+  - *Por qué se cambió:* en la O1 se eligió Basic porque JWT era complejidad sin beneficio. La
+    consigna del 16/11 exige JWT, y además deja de viajar la contraseña en cada request (con Basic
+    el frontend la guardaba en `sessionStorage` para armar el header; PAS-34 lo elimina).
+  - *Por qué HS256 y no RS256:* el mismo proceso firma y valida. Un par de claves solo se
+    justifica si un tercero tiene que verificar tokens sin poder emitirlos.
+- **El `sub` del token es el id numérico, no el email.** `ConvertidorDeJwtAAutenticacion` arma
+  la `Authentication` con ese id como nombre, así que `Authentication#getName()` sigue
+  devolviendo el id, igual que con Basic, donde el `UserDetails` lo llevaba como username.
+  Cualquier controller obtiene el id de quien opera con un tipo de Spring Security, sin depender
+  de `usuarios` para resolver email → id. No es un detalle menor: `eventos` tiene declarado en su
+  `package-info` que **no puede depender de `usuarios`** (§4.6), así que la resolución tiene que
+  pasar por acá, una sola vez, dentro de `seguridad` (que sí depende de `usuarios`
+  legítimamente). Pasar a JWT **no cambió ningún controller**. `GET /api/usuarios/me` (PAS-15)
+  sigue siendo el "quién soy" con un token ya emitido.
+- **El rol se lee vigente de Usuarios en cada request, no del claim `rol` del token** (decisión
+  para el oral). El rol global cambia durante la sesión: crear una productora habilita
+  `ORGANIZADOR` y aceptar una invitación puede habilitar `ORGANIZADOR` o `VALIDADOR`. Si la
+  authority saliera del token, quien acaba de crear su productora seguiría como `COMPRADOR` hasta
+  volver a iniciar sesión, y crear su primer evento le daría 403. El token prueba **quién es**;
+  **qué puede hacer** se consulta en la fuente de verdad (una lectura por id, sin el BCrypt que
+  Basic corría en cada request). Además, si la cuenta deja de existir, su token deja de servir.
+  Cubierto por `AutenticacionJwtTest.elRolSeLeeActualizadoAunqueElTokenSeaAnterior`.
+- **Un token inválido da 401 incluso en una ruta pública** (la cartelera): el filtro de Bearer
+  valida todo token que recibe. Un token adulterado no se ignora en silencio; el cliente que
+  tenga uno vencido lo descarta (PAS-34).
 
 **Los dos ejes de la autorización** (implementado). Rol y alcance responden preguntas
 distintas y por eso son dos enums, no uno:
@@ -1269,6 +1284,18 @@ binding de un objeto anidado. `tarjeta.ts` expone `quitarPrefijoTarjeta` para es
 400 real no habría coloreado ningún campo a pesar de que el payload de error ya traía el mensaje
 correcto.
 
+**JWT (PAS-33).** `POST /api/auth/login` canjea email + contraseña por un JWT HS256 (emisor
+`passly`, 2 h, clave `PASSLY_JWT_SECRET` de al menos 32 bytes; ver §4.11). El backend dejó de
+aceptar HTTP Basic: el resource server de Spring Security valida firma, emisor y vencimiento, y
+`ConvertidorDeJwtAAutenticacion` arma la `Authentication` con `sub` = id del usuario, así que
+ningún controller cambió. **Decisión para el oral:** el rol no sale del claim `rol` sino que se
+lee de Usuarios en cada request, porque cambia durante la sesión (crear productora habilita
+`ORGANIZADOR`); con el claim, quien acaba de crear su productora recibiría 403 hasta volver a
+loguearse. Tests: `AutenticacionJwtTest` (token adulterado, otra clave, `alg: none`, vencido,
+otro emisor, cuenta inexistente, rol leído en vivo) y `RespuestaNoAutenticadaTest`, que corre
+contra Tomcat real porque MockMvc no detectaba que el 401 salía en ISO-8859-1 (acentos rotos).
+Los `.http` de `docs/http/` hacen login primero y reusan el token.
+
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 
 1. ~~`ServicioDeEventos` — primer componente implementado~~ ✅ hecho
@@ -1316,8 +1343,9 @@ correcto.
   se deja anotado por si aparece.
 - **Validador: web ahora, móvil después** (ver §2). La consigna nueva no menciona la app móvil;
   confirmar si sigue dentro de las historias comprometidas.
-- **Rotación de `JSESSIONID`** (`sessionFixation().none()`, ver PAS-18 en §9): se revisa al pasar
-  a JWT (PAS-33/PAS-34).
+- **Rotación de `JSESSIONID`** (`sessionFixation().none()`, ver PAS-18 en §9): con JWT **sigue
+  rotando** en cada request autenticado (verificado en PAS-33; el carrito conserva los datos).
+  PAS-34 decide entre mantener la cola serial del frontend o desactivar la rotación.
 
 ### Deuda técnica declarada
 

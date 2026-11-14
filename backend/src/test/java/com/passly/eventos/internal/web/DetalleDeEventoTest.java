@@ -17,7 +17,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.authority.AuthorityUtils;
+import com.jayway.jsonpath.JsonPath;
+import java.nio.charset.StandardCharsets;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -29,9 +33,9 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.anonymous;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -39,9 +43,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code GET /api/eventos/{id}}, el destino del link compartible (PAS-25): un BORRADOR solo lo ve
  * quien gestiona la productora dueña; para todos los demas responde 404, no 403 (CLAUDE.md 4.11).
  *
- * <p>Las requests autenticadas pasan por HTTP Basic de verdad (no {@code @WithMockUser}), porque lo
- * que se prueba depende de que el principal lleve el id numerico como username, tal como lo arma
- * {@code seguridad}. Mismo fixture por contratos publicos que {@code EdicionDeEventoTest}.
+ * <p>Las requests autenticadas pasan por un login real y un JWT (no {@code @WithMockUser}), porque
+ * lo que se prueba depende de que el principal lleve el id numerico como nombre, tal como lo arma
+ * {@code seguridad} a partir del token (PAS-33). Mismo fixture por contratos publicos que {@code EdicionDeEventoTest}.
  *
  * <p>Vive en {@code internal.web} para poder llamar al controller directo con un
  * {@link AnonymousAuthenticationToken}: segun como Spring resuelva el parametro, el anonimo puede
@@ -113,7 +117,7 @@ class DetalleDeEventoTest {
         Fixture fixture = crearBorrador();
 
         mockMvc.perform(get("/api/eventos/{id}", fixture.evento.id())
-                        .with(httpBasic(fixture.organizador.email(), CLAVE)))
+                        .with(conToken(fixture.organizador.email())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("BORRADOR"));
     }
@@ -124,7 +128,7 @@ class DetalleDeEventoTest {
         Fixture otra = crearBorrador();
 
         mockMvc.perform(get("/api/eventos/{id}", fixture.evento.id())
-                        .with(httpBasic(otra.organizador.email(), CLAVE)))
+                        .with(conToken(otra.organizador.email())))
                 .andExpect(status().isNotFound());
     }
 
@@ -145,11 +149,25 @@ class DetalleDeEventoTest {
         eventoService.publicarEvento(fixture.evento.id(), fixture.organizador.id());
 
         mockMvc.perform(get("/api/eventos/{id}", fixture.evento.id())
-                        .with(httpBasic(otra.organizador.email(), CLAVE)))
+                        .with(conToken(otra.organizador.email())))
                 .andExpect(status().isOk());
     }
 
     private record Fixture(EventoDTO evento, UsuarioDTO organizador) {
+    }
+
+    /** Inicia sesion de verdad contra {@code POST /api/auth/login} y manda el JWT como Bearer. */
+    private RequestPostProcessor conToken(String email) throws Exception {
+        String cuerpo = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + email + "\",\"password\":\"" + CLAVE + "\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String token = JsonPath.read(cuerpo, "$.token");
+        return request -> {
+            request.addHeader("Authorization", "Bearer " + token);
+            return request;
+        };
     }
 
     private Fixture crearBorrador() {

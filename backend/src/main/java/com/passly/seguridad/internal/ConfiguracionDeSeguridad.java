@@ -3,6 +3,7 @@ package com.passly.seguridad.internal;
 import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -11,13 +12,10 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
@@ -25,12 +23,18 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
- * Configuracion de seguridad de Passly: autenticacion <b>HTTP Basic</b>, sesion
- * <b>STATELESS</b> y method security habilitado para los {@code @PreAuthorize} de los controllers.
+ * Configuracion de seguridad de Passly: autenticacion con <b>JWT</b> (header
+ * {@code Authorization: Bearer}), sesion <b>STATELESS</b> y method security habilitado para los
+ * {@code @PreAuthorize} de los controllers.
  *
- * <p><b>Por que HTTP Basic y no JWT:</b> la Obligatoria 1 pide autorizacion por rol declarativa,
- * no gestion de sesiones distribuida. Basic sobre una API stateless alcanza; JWT seria
- * complejidad sin beneficio para el alcance actual.
+ * <p><b>De HTTP Basic a JWT (PAS-33).</b> Hasta la Obligatoria 1 la API usaba Basic: cada request
+ * mandaba email y contraseña, y el backend corria BCrypt en cada una. La consigna de la 2.a entrega
+ * exige JWT. Ahora la contraseña viaja una sola vez, a {@code POST /api/auth/login}
+ * ({@link AutenticacionController}), que devuelve un token firmado; el resto de las requests
+ * presenta ese token y el resource server de Spring Security lo valida (firma HS256, emisor y
+ * vencimiento, ver {@link ConfiguracionDeJwt}). Lo que no cambio: el reparto rol / membresia, los
+ * {@code @PreAuthorize}, y que {@code Authentication#getName()} sea el id del usuario
+ * ({@link ConvertidorDeJwtAAutenticacion}).
  *
  * <p><b>Reparto de responsabilidades:</b> este filter chain decide solo entre <i>anonimo</i> y
  * <i>autenticado</i> (grano grueso). <b>Que rol</b> puede cada operacion sensible se declara con
@@ -39,7 +43,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  * <p><b>STATELESS y el carrito de ServicioDeVentas (PAS-8), la tension que hay que saber
  * explicar.</b> Esta politica solo le dice a <i>Spring Security</i> que no cree ni lea
  * {@code HttpSession} para guardar el {@code SecurityContext}: cada request se re-autentica con
- * su propio header Basic. No le dice nada al <i>servlet container</i>, que sigue creando una
+ * su propio token. No le dice nada al <i>servlet container</i>, que sigue creando una
  * sesion en cuanto algo la pide -- y eso es exactamente lo que hace el proxy de un bean
  * {@code @SessionScope} como {@code CarritoDeCompra}. La autenticacion sigue siendo stateless; el
  * carrito, no. Consecuencia real, no cosmetica: con nada que asocie el {@code JSESSIONID} al
@@ -49,20 +53,24 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  *
  * <p><b>CORS (PAS-14).</b> La app web (Vite, otro origen) llama a esta API con
  * {@code credentials: 'include'} porque necesita la cookie de sesion del carrito ademas del
- * header Basic. Sin una {@link CorsConfigurationSource} explicita el navegador bloquea esas
+ * header {@code Authorization}. Sin una {@link CorsConfigurationSource} explicita el navegador bloquea esas
  * llamadas antes de que lleguen al filtro de arriba -- no es una migracion de arquitectura,
  * es la contraparte obligatoria de exponer la API a un cliente que corre en otro puerto. El
  * origen permitido sale de {@code passly.web.origen} (mismo patron de externalizacion que
  * {@code passly.pagos.pasarela.base-url}), con default al puerto de Vite en desarrollo.
  *
- * <p><b>Sin desafio {@code WWW-Authenticate} en el 401 (app web, PAS-15/16).</b> El
- * {@link org.springframework.security.web.authentication.www.BasicAuthenticationEntryPoint} por
- * defecto de {@code httpBasic()} manda {@code WWW-Authenticate: Basic} en cada 401 -- correcto
- * para un cliente HTTP puro (curl, Postman), pero el navegador intercepta ese header incluso en
- * una llamada {@code fetch} y muestra su propio popup nativo de usuario/contrasena <i>antes</i> de
- * que el JS de la SPA vea la respuesta. Como la app web ya resuelve el 401 con su propia pantalla
- * de login (mensaje "Email o contraseña inválidos."), {@link #puntoDeEntradaNoAutenticado} devuelve
- * el mismo 401 sin ese header, para que el navegador no interfiera.
+ * <p><b>El 401, en {@code ProblemDetail} y con {@code WWW-Authenticate: Bearer}.</b> Con Basic el
+ * desafio se omitia a proposito, porque {@code WWW-Authenticate: Basic} hacia que el navegador
+ * mostrara su popup nativo de usuario y contraseña antes que la pantalla de login de la SPA. El
+ * desafio {@code Bearer} (RFC 6750) no dispara ningun popup, asi que
+ * {@link #puntoDeEntradaNoAutenticado} lo vuelve a mandar, con el cuerpo en {@code ProblemDetail}
+ * como el resto de los errores de la API. Aplica tanto a la falta de token en una ruta protegida
+ * como a un token invalido o vencido.
+ *
+ * <p><b>Un token invalido da 401 incluso en una ruta publica</b> (la cartelera, por ejemplo): el
+ * filtro de Bearer valida todo token que reciba, antes de mirar si la ruta lo exige. Es el
+ * comportamiento por defecto de Spring Security y es el correcto: un token adulterado no se ignora
+ * en silencio. El cliente que tenga un token vencido tiene que descartarlo (PAS-34).
  */
 @Configuration
 @EnableMethodSecurity
@@ -72,7 +80,8 @@ class ConfiguracionDeSeguridad {
     SecurityFilterChain filtros(
             HttpSecurity http,
             CorsConfigurationSource fuenteDeConfiguracionCors,
-            AuthenticationEntryPoint puntoDeEntradaNoAutenticado
+            AuthenticationEntryPoint puntoDeEntradaNoAutenticado,
+            ConvertidorDeJwtAAutenticacion convertidorDeJwt
     ) throws Exception {
         http
                 // Ver Javadoc de la clase: sin esto el navegador bloquea las llamadas de la app
@@ -80,12 +89,12 @@ class ConfiguracionDeSeguridad {
                 .cors(cors -> cors.configurationSource(fuenteDeConfiguracionCors))
                 // Desde PAS-8 SI hay una cookie de sesion (el carrito de Ventas es @SessionScope),
                 // pero CSRF sigue apagado con sentido: la identidad la sigue dando el header
-                // Authorization, que un formulario cross-site no puede setear. La cookie habilita
+                // Authorization (Bearer), que un formulario cross-site no puede setear. La cookie habilita
                 // "session riding" sobre el carrito, no falsificar quien opera -- por eso el
                 // carrito valida a su dueño en cada operacion (ver Javadoc de la clase).
                 .csrf(csrf -> csrf.disable())
                 // Spring Security no crea ni lee HttpSession para el SecurityContext: cada
-                // request se autentica de nuevo con su Basic. No impide que la app pida sesion
+                // request se autentica de nuevo con su token. No impide que la app pida sesion
                 // por otro motivo (ver Javadoc de la clase).
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
@@ -99,6 +108,8 @@ class ConfiguracionDeSeguridad {
                         // Alta publica: el POST es anonimo; que solo pueda crear COMPRADOR lo impone
                         // el @PreAuthorize del controller, no este filtro.
                         .requestMatchers(HttpMethod.POST, "/api/usuarios").permitAll()
+                        // Login (PAS-33): canjea email + contraseña por un JWT. Publico por definicion.
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         // Healthcheck sin credenciales, para probes y demo.
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         // El mock de la pasarela de pago (PAS-7/PAS-29, com.passly.pagos.internal.pasarelamock)
@@ -110,19 +121,28 @@ class ConfiguracionDeSeguridad {
                         .requestMatchers(HttpMethod.POST, "/mock/pasarela-pago/**").permitAll()
                         // Todo lo demas exige, al menos, estar autenticado.
                         .anyRequest().authenticated())
-                .httpBasic(basic -> basic.authenticationEntryPoint(puntoDeEntradaNoAutenticado));
+                // Resource server: valida el JWT del header Authorization y arma la Authentication
+                // con el id como nombre y el rol vigente de Usuarios (ConvertidorDeJwtAAutenticacion).
+                .oauth2ResourceServer(recurso -> recurso
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(convertidorDeJwt))
+                        .authenticationEntryPoint(puntoDeEntradaNoAutenticado))
+                // Sin token en una ruta protegida: el mismo 401 que un token invalido.
+                .exceptionHandling(errores -> errores.authenticationEntryPoint(puntoDeEntradaNoAutenticado));
 
         return http.build();
     }
 
-    /** Ver Javadoc de la clase: mismo 401 que el entry point por defecto, sin {@code WWW-Authenticate}. */
+    /** Ver Javadoc de la clase: 401 en {@code ProblemDetail}, con el desafio {@code Bearer}. */
     @Bean
     AuthenticationEntryPoint puntoDeEntradaNoAutenticado(ObjectMapper mapper) {
         return (HttpServletRequest request, HttpServletResponse response, AuthenticationException ex) -> {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setHeader("WWW-Authenticate", "Bearer");
             response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+            // Sin esto el writer sale en ISO-8859-1 (default del servlet) y las tildes se rompen.
+            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
             ProblemDetail detalle = ProblemDetail.forStatusAndDetail(
-                    HttpStatus.UNAUTHORIZED, "Credenciales invalidas o ausentes.");
+                    HttpStatus.UNAUTHORIZED, "Sesión ausente, inválida o vencida. Iniciá sesión de nuevo.");
             mapper.writeValue(response.getWriter(), detalle);
         };
     }
@@ -139,27 +159,11 @@ class ConfiguracionDeSeguridad {
         configuracion.setAllowedOrigins(List.of(origenWeb));
         configuracion.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuracion.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Invitacion-Token", "X-Orden-Token", "Idempotency-Key"));
-        // El carrito depende de la cookie de sesion ademas del header Basic (ver Javadoc).
+        // El carrito depende de la cookie de sesion ademas del header Authorization (ver Javadoc).
         configuracion.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource fuente = new UrlBasedCorsConfigurationSource();
         fuente.registerCorsConfiguration("/**", configuracion);
         return fuente;
-    }
-
-    /**
-     * Provider de autenticacion contra {@code usuarios}. Combina el {@link UserDetailsService} que
-     * resuelve la credencial por email con el {@link PasswordEncoder} <b>reutilizado</b> del
-     * componente {@code usuarios} (inyectado por tipo): asi hashear en el alta y verificar en el
-     * login usan siempre el mismo algoritmo, sin declarar un segundo encoder.
-     */
-    @Bean
-    DaoAuthenticationProvider proveedorDeAutenticacion(
-            UserDetailsService userDetailsService,
-            PasswordEncoder passwordEncoder
-    ) {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
-        provider.setPasswordEncoder(passwordEncoder);
-        return provider;
     }
 }

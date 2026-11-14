@@ -104,8 +104,8 @@ class ProductoraController {
     }
 
     /**
-     * El {@code UserDetails} de {@code seguridad} usa el id numerico como username (ver
-     * {@code DetalleDeUsuarioParaAutenticacion}), asi que {@link Authentication#getName()} ya es el
+     * {@code seguridad} arma la autenticacion con el id numerico como nombre (el {@code sub} del
+     * JWT, ver {@code ConvertidorDeJwtAAutenticacion}), asi que {@link Authentication#getName()} ya es el
      * id del actuante — sin resolverlo contra Usuarios, que este modulo no puede importar.
      */
     private static Long idDelActuante(Authentication authentication) {

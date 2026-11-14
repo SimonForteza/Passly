@@ -32,7 +32,7 @@ diseño**.
 |---|---|---|---|
 | Componentes en capas desplegados | ✅ | — | — |
 | Primer flujo de punta a punta | ✅ compra → QR → validación | — | — |
-| Seguridad base: **autenticación con JWT** (backend) | ❌ hoy es HTTP Basic | [PAS-33](https://linear.app/passly/issue/PAS-33) | Juan |
+| Seguridad base: **autenticación con JWT** (backend) | ✅ `POST /api/auth/login` + Bearer (en revisión) | [PAS-33](https://linear.app/passly/issue/PAS-33) | Juan |
 | Seguridad base: **JWT en la app web** | ❌ el front guarda el password en `sessionStorage` | [PAS-34](https://linear.app/passly/issue/PAS-34) | Juan |
 | Control de acceso por rol | ✅ `@PreAuthorize` + membresía por productora | — | — |
 | **Patrón State** en la entidad central, **409** ante transición inválida | 🟡 hay 409, pero con enum + `if`, no con State. No existe "cancelar" | [PAS-35](https://linear.app/passly/issue/PAS-35) | Simón |
@@ -120,7 +120,7 @@ equipo tiene que leer el PDF de Criterios de Testing**, no solo el QA.
 
 - `ddl-auto: update` → Flyway o `validate`. Ayuda al build reproducible.
 - Compensación del cobro best-effort (CLAUDE.md §10).
-- Rotación de `JSESSIONID`: se revisa en PAS-33/PAS-34 al pasar a JWT.
+- Rotación de `JSESSIONID`: con JWT sigue rotando (verificado en PAS-33); PAS-34 decide cola serial o `sessionFixation().none()`.
 
 ---
 

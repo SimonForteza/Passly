@@ -85,6 +85,15 @@ passly:
     # Secreto usado para firmar el contenido de los QR. El valor por defecto solo facilita la
     # demo local; en un ambiente real se reemplaza por una variable segura y estable.
     secreto-qr: ${PASSLY_QR_SECRET:passly-dev-secret-cambiar-en-produccion-2026}
+  seguridad:
+    jwt:
+      # Clave HMAC (HS256) con la que se firman y verifican los JWT de POST /api/auth/login
+      # (PAS-33). Minimo 32 bytes: si es mas corta, el backend no arranca. Mismo criterio que el
+      # secreto de los QR: el default solo sirve para la demo local; en cualquier ambiente real
+      # se define PASSLY_JWT_SECRET. Cambiarla invalida todos los tokens emitidos.
+      secreto: ${PASSLY_JWT_SECRET:passly-dev-jwt-secret-solo-para-desarrollo-local-2026}
+      # Vida del token. Al vencer, el cliente vuelve a iniciar sesion (no hay refresh token).
+      duracion: ${PASSLY_JWT_DURACION:2h}
   pagos:
     pasarela:
       # URL de la pasarela de pago externa. Hoy apunta al mock que corre en este mismo proceso

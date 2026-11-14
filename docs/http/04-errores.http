@@ -3,6 +3,19 @@
 @clave = passly1234
 @aurora = 1
 
+# --- Login (PAS-33) -------------------------------------------------------------
+# La API ya no acepta HTTP Basic: correr PRIMERO estos requests. Cada uno canjea email +
+# contrasena por un JWT, y el resto del archivo lo manda como
+# "Authorization: Bearer {{loginX.response.body.$.token}}". El token dura 2 h; si vence,
+# volver a correr el login.
+
+### Login de organizador@passly.test
+# @name loginOrganizador
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{organizador}}", "password": "{{clave}}" }
+
 ### Evento inexistente -> 404 ProblemDetail (GET publico, sin credenciales)
 GET {{baseUrl}}/api/eventos/999999
 
@@ -14,7 +27,7 @@ GET {{baseUrl}}/api/productoras/999999
 # que para ver el 400 de validacion hay que estar autenticado y autorizado primero.
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
-Authorization: Basic {{organizador}} {{clave}}
+Authorization: Bearer {{loginOrganizador.response.body.$.token}}
 
 { "nombre": "" }
 
@@ -36,7 +49,7 @@ Content-Type: application/json
 # 403 en vez de 404 evita filtrar que ids existen.
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
-Authorization: Basic {{organizador}} {{clave}}
+Authorization: Bearer {{loginOrganizador.response.body.$.token}}
 
 {
   "idProductora": 999999,
@@ -50,7 +63,7 @@ Authorization: Basic {{organizador}} {{clave}}
 # El patron acepta solo los 11 digitos, para no guardar el mismo CUIT en dos formatos.
 POST {{baseUrl}}/api/productoras
 Content-Type: application/json
-Authorization: Basic {{organizador}} {{clave}}
+Authorization: Bearer {{loginOrganizador.response.body.$.token}}
 
 {
   "nombreComercial": "Con Guiones SRL",

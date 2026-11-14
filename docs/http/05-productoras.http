@@ -9,6 +9,40 @@
 @clave = passly1234
 @aurora = 1
 
+# --- Login (PAS-33) -------------------------------------------------------------
+# La API ya no acepta HTTP Basic: correr PRIMERO estos requests. Cada uno canjea email +
+# contrasena por un JWT, y el resto del archivo lo manda como
+# "Authorization: Bearer {{loginX.response.body.$.token}}". El token dura 2 h; si vence,
+# volver a correr el login.
+
+### Login de organizador@passly.test
+# @name loginOmar
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{omar}}", "password": "{{clave}}" }
+
+### Login de organizador2@passly.test
+# @name loginOlga
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{olga}}", "password": "{{clave}}" }
+
+### Login de comprador@passly.test
+# @name loginCarla
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{carla}}", "password": "{{clave}}" }
+
+### Login de validador@passly.test
+# @name loginVera
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{vera}}", "password": "{{clave}}" }
+
 ### 1. Las productoras del sistema (publico)
 GET {{baseUrl}}/api/productoras
 
@@ -18,22 +52,22 @@ GET {{baseUrl}}/api/productoras/{{aurora}}
 ### 3. El padron de Aurora, pedido por Omar que es su DUENIO
 # Aparecen Omar (DUENIO) y Vera (VALIDADOR).
 GET {{baseUrl}}/api/productoras/{{aurora}}/miembros
-Authorization: Basic {{omar}} {{clave}}
+Authorization: Bearer {{loginOmar.response.body.$.token}}
 
 ### 4. El mismo padron pedido por Olga, que es de otra productora -> 403
 # Quien trabaja en una productora no es informacion de catalogo.
 GET {{baseUrl}}/api/productoras/{{aurora}}/miembros
-Authorization: Basic {{olga}} {{clave}}
+Authorization: Bearer {{loginOlga.response.body.$.token}}
 
 ### 5. Las productoras de Omar
 GET {{baseUrl}}/api/productoras/mias
-Authorization: Basic {{omar}} {{clave}}
+Authorization: Bearer {{loginOmar.response.body.$.token}}
 
 ### 6. Crear una productora nueva (Omar es ORGANIZADOR, queda DUENIO)
 # @name crearProductora
 POST {{baseUrl}}/api/productoras
 Content-Type: application/json
-Authorization: Basic {{omar}} {{clave}}
+Authorization: Bearer {{loginOmar.response.body.$.token}}
 
 {
   "nombreComercial": "Productora de Prueba",
@@ -45,7 +79,7 @@ Authorization: Basic {{omar}} {{clave}}
 # Es el cruce de los dos ejes: el rol global habilita o no la membresia.
 POST {{baseUrl}}/api/productoras
 Content-Type: application/json
-Authorization: Basic {{carla}} {{clave}}
+Authorization: Bearer {{loginCarla.response.body.$.token}}
 
 {
   "nombreComercial": "Trucha SRL"
@@ -55,7 +89,7 @@ Authorization: Basic {{carla}} {{clave}}
 # Si dos productoras pudieran llamarse igual, el comprador no sabria de quien es la fiesta.
 POST {{baseUrl}}/api/productoras
 Content-Type: application/json
-Authorization: Basic {{olga}} {{clave}}
+Authorization: Bearer {{loginOlga.response.body.$.token}}
 
 {
   "nombreComercial": "Aurora Producciones"
@@ -65,7 +99,7 @@ Authorization: Basic {{olga}} {{clave}}
 # STAFF exige ORGANIZADOR global, y Carla es COMPRADOR.
 POST {{baseUrl}}/api/productoras/{{aurora}}/miembros
 Content-Type: application/json
-Authorization: Basic {{omar}} {{clave}}
+Authorization: Bearer {{loginOmar.response.body.$.token}}
 
 {
   "email": "{{carla}}",
@@ -75,7 +109,7 @@ Authorization: Basic {{omar}} {{clave}}
 ### 10. Vera ya es miembro de Aurora -> 409
 POST {{baseUrl}}/api/productoras/{{aurora}}/miembros
 Content-Type: application/json
-Authorization: Basic {{omar}} {{clave}}
+Authorization: Bearer {{loginOmar.response.body.$.token}}
 
 {
   "email": "{{vera}}",
@@ -85,7 +119,7 @@ Authorization: Basic {{omar}} {{clave}}
 ### 11. Vera es miembro pero no DUENIO: no puede incorporar gente -> 403
 POST {{baseUrl}}/api/productoras/{{aurora}}/miembros
 Content-Type: application/json
-Authorization: Basic {{vera}} {{clave}}
+Authorization: Bearer {{loginVera.response.body.$.token}}
 
 {
   "email": "{{vera}}",

@@ -70,8 +70,8 @@ class UsuarioController {
     }
 
     /**
-     * El {@code UserDetails} de {@code seguridad} usa el id numerico como username (ver
-     * {@code DetalleDeUsuarioParaAutenticacion}), asi que {@link Authentication#getName()} ya es el
+     * {@code seguridad} arma la autenticacion con el id numerico como nombre (el {@code sub} del
+     * JWT, ver {@code ConvertidorDeJwtAAutenticacion}), asi que {@link Authentication#getName()} ya es el
      * id del actuante — mismo patron que el resto de los controllers (CLAUDE.md 4.11).
      */
     private static Long idDelActuante(Authentication authentication) {

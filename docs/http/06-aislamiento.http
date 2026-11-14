@@ -15,6 +15,33 @@
 @nocturna = 2
 @recitalDeAurora = 3
 
+# --- Login (PAS-33) -------------------------------------------------------------
+# La API ya no acepta HTTP Basic: correr PRIMERO estos requests. Cada uno canjea email +
+# contrasena por un JWT, y el resto del archivo lo manda como
+# "Authorization: Bearer {{loginX.response.body.$.token}}". El token dura 2 h; si vence,
+# volver a correr el login.
+
+### Login de organizador@passly.test
+# @name loginOmar
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{omar}}", "password": "{{clave}}" }
+
+### Login de organizador2@passly.test
+# @name loginOlga
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{olga}}", "password": "{{clave}}" }
+
+### Login de validador@passly.test
+# @name loginVera
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{vera}}", "password": "{{clave}}" }
+
 ### 1. La cartelera muestra fiestas de las dos productoras, cada una atribuida
 GET {{baseUrl}}/api/eventos
 
@@ -23,34 +50,34 @@ GET {{baseUrl}}/api/eventos?productora={{nocturna}}
 
 ### 3. Omar ve los eventos de Aurora INCLUIDO el borrador
 GET {{baseUrl}}/api/productoras/{{aurora}}/eventos
-Authorization: Basic {{omar}} {{clave}}
+Authorization: Bearer {{loginOmar.response.body.$.token}}
 
 ### 4. Olga pide el backoffice de Aurora -> 403
 # Es de Nocturna: los borradores de Aurora no son asunto suyo.
 GET {{baseUrl}}/api/productoras/{{aurora}}/eventos
-Authorization: Basic {{olga}} {{clave}}
+Authorization: Bearer {{loginOlga.response.body.$.token}}
 
 ### 5. Olga intenta publicar el borrador de Aurora -> 403
 # EL caso que justifica todo el trabajo.
 POST {{baseUrl}}/api/eventos/{{recitalDeAurora}}/publicacion
-Authorization: Basic {{olga}} {{clave}}
+Authorization: Bearer {{loginOlga.response.body.$.token}}
 
 ### 6. Vera SI es miembro de Aurora, pero es VALIDADOR -> 403
 # Pertenecer a una productora no es lo mismo que poder publicar sus fiestas.
 POST {{baseUrl}}/api/eventos/{{recitalDeAurora}}/publicacion
-Authorization: Basic {{vera}} {{clave}}
+Authorization: Bearer {{loginVera.response.body.$.token}}
 
 ### 7. Sin identidad -> 401 (no 400: lo que falta es quien opera)
 POST {{baseUrl}}/api/eventos/{{recitalDeAurora}}/publicacion
 
 ### 8. Omar es DUENIO de Aurora -> 200, el borrador se publica
 POST {{baseUrl}}/api/eventos/{{recitalDeAurora}}/publicacion
-Authorization: Basic {{omar}} {{clave}}
+Authorization: Bearer {{loginOmar.response.body.$.token}}
 
 ### 9. Olga intenta crear un evento a nombre de Aurora -> 403
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
-Authorization: Basic {{olga}} {{clave}}
+Authorization: Bearer {{loginOlga.response.body.$.token}}
 
 {
   "idProductora": {{aurora}},
@@ -65,7 +92,7 @@ Authorization: Basic {{olga}} {{clave}}
 ### 10. Olga a nombre de SU productora -> 201
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
-Authorization: Basic {{olga}} {{clave}}
+Authorization: Bearer {{loginOlga.response.body.$.token}}
 
 {
   "idProductora": {{nocturna}},
