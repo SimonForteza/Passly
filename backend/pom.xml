@@ -70,14 +70,24 @@
 
 		<!-- ============ Seguridad (PAS-6) ============ -->
 		<!--
-		Starter completo de Spring Security: filter chain, HTTP Basic, method security
-		(@EnableMethodSecurity / @PreAuthorize) y el AuthenticationManager. La configuracion
-		concreta (SecurityFilterChain, UserDetailsService) vive en el modulo seguridad/.
+		Starter completo de Spring Security: filter chain y method security
+		(@EnableMethodSecurity / @PreAuthorize). La configuracion concreta (SecurityFilterChain,
+		emision y validacion del JWT) vive en el modulo seguridad/.
 		La version la gestiona el BOM de Boot.
 		-->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		<!--
+		Autenticacion con JWT (PAS-33, consigna de la 2.a entrega): el resource server valida el
+		header "Authorization: Bearer" en cada request, y spring-security-oauth2-jose (Nimbus, que
+		viene con este starter) firma los tokens que emite POST /api/auth/login. En Boot 4 el
+		starter se llama spring-boot-starter-security-oauth2-resource-server.
+		-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
 		</dependency>
 		<!--
 		spring-security-crypto ya viene transitivo dentro del starter de arriba; lo dejamos

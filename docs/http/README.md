@@ -18,12 +18,15 @@ independiente: se abre, aparece un link `Send Request` arriba de cada `###`, y s
 | [11-link-compartible.http](11-link-compartible.http) | el link compartible de un evento (PAS-25): publicado -> 200 para todos; **borrador -> 404 (no 403)** para anonimos, compradores y organizadores de otra productora; 200 para quien gestiona la productora dueña |
 | [12-ventas-invitados.http](12-ventas-invitados.http) | compra como invitado con `ServicioDePagos`: tarjeta aprobada, rechazada y caída ambigua; consulta de la orden solo con token privado |
 
-## Autenticacion (PAS-6)
+## Autenticacion (PAS-6, JWT desde PAS-33)
 
-La API usa **HTTP Basic**. Los endpoints publicos no piden credenciales: `GET /actuator/health`,
+La API usa **JWT**: `POST /api/auth/login` con `{ "email", "password" }` devuelve
+`{ token, tipo: "Bearer", expiraEn, usuario }`, y el resto de los requests manda
+`Authorization: Bearer <token>`. El token dura 2 h (`PASSLY_JWT_DURACION`). HTTP Basic ya no se
+acepta. Los endpoints publicos no piden credenciales: `GET /actuator/health`,
 la cartelera (`GET /api/eventos`, `GET /api/eventos/{id}` -- este ultimo con una salvedad: un
 borrador solo lo ve quien gestiona su productora, ver `11-link-compartible.http`) y el alta publica (`POST /api/usuarios`,
-que solo puede crear `COMPRADOR`). Todo lo demas exige estar autenticado, y las operaciones
+que solo puede crear `COMPRADOR`), ademas del propio login. Todo lo demas exige estar autenticado, y las operaciones
 sensibles exigen ademas un rol (`@PreAuthorize`): crear/publicar eventos -> `ORGANIZADOR` **que
 ademas pueda gestionar la productora indicada** (PAS-13); crear usuarios privilegiados y listar
 usuarios -> `ADMIN`.
@@ -37,8 +40,18 @@ El perfil `demo` siembra un usuario por rol, todos con contrasena `passly1234`:
 | VALIDADOR | `validador@passly.test` |
 | ADMIN | `admin@passly.test` |
 
-En los `.http`, REST Client arma el header a partir de `Authorization: Basic usuario contrasena`
-(separados por un espacio). Con `curl`, el equivalente es `-u usuario:contrasena`.
+En los `.http`, cada archivo empieza con un bloque **Login**: uno o mas requests con
+`# @name loginX` que hay que correr primero. El resto los referencia con
+`Authorization: Bearer {{loginX.response.body.$.token}}`. Con `curl`:
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"comprador@passly.test","password":"passly1234"}' | jq -r .token)
+curl http://localhost:8080/api/usuarios/me -H "Authorization: Bearer $TOKEN"
+```
+
+Un token adulterado, vencido, firmado con otra clave o con `alg: none` da **401**, incluso en una
+ruta publica (el filtro valida todo token que recibe). Casos cubiertos en `AutenticacionJwtTest`.
 
 ## Antes de correrlas
 
@@ -54,9 +67,9 @@ no agrega una columna `not null` a una tabla que ya tiene filas. Despues, `up -d
 ## Como se resuelve "quien opera"
 
 Eventos y Productoras resuelven la identidad de quien opera de la misma forma: no hay ningun
-header propio, y la resuelve Spring Security a partir de `Authorization: Basic`. El
-`UserDetails` que arma el modulo `seguridad` usa el **id numerico** del usuario como username
-(no el email), asi que cada controller lee `Authentication#getName()` para obtener el id del
+header propio, y la resuelve Spring Security a partir del JWT. El modulo `seguridad` pone el
+**id numerico** del usuario como `sub` del token y como nombre de la `Authentication` (no el
+email), asi que cada controller lee `Authentication#getName()` para obtener el id del
 actuante sin depender de Usuarios para resolverlo — dependencia que ninguno de los dos
 `package-info` declara y que haria fallar el build (CLAUDE.md 4.4).
 
@@ -70,20 +83,25 @@ La lectura publica (cartelera, ficha de productora) no pide identidad, que es ju
 punto de un marketplace.
 
 Usuarios expone ademas `GET /api/usuarios/me` (PAS-15): con el mismo mecanismo
-(`Authentication#getName()` = id) devuelve el `UsuarioDTO` del autenticado, rol incluido. Es lo
-que usa el login de la app web para validar email + password y traer el rol, ya que HTTP Basic
-no tiene un endpoint de login propio.
+(`Authentication#getName()` = id) devuelve el `UsuarioDTO` del autenticado, rol incluido. Con
+Basic era lo que usaba el login de la app web; desde PAS-33 el login es `POST /api/auth/login`,
+que ya devuelve el `UsuarioDTO`, y `/me` queda como "quien soy" con un token ya emitido.
+
+**El rol se lee en cada request, no del token.** Crear una productora o aceptar una invitacion
+cambia el rol global en el acto; si la autorizacion usara el claim `rol` del token, habria que
+volver a iniciar sesion para que el cambio valga. El token prueba quien es; el rol vigente sale
+de Usuarios (`ConvertidorDeJwtAAutenticacion`).
 
 ## El carrito de Ventas necesita cookies (08-ventas.http)
 
 A diferencia de todo lo demas en este directorio, el carrito de `ServicioDeVentas` (PAS-8) es
-**estado conversacional en memoria**, atado a la sesion HTTP (`@SessionScope`), no solo a las
-credenciales Basic. REST Client mantiene el `JSESSIONID` entre requests del mismo archivo por
+**estado conversacional en memoria**, atado a la sesion HTTP (`@SessionScope`), no solo al token. REST Client mantiene el `JSESSIONID` entre requests del mismo archivo por
 defecto (`rest-client.rememberCookiesForSubsequentRequests`).
 
 Con `curl` a mano hace falta `-b`/`-c` con el mismo archivo de cookies en **todas** las
 llamadas del flujo del carrito, y ademas empezar de una cookie vacia: Spring Security cambia
-el `JSESSIONID` en **cada** request autenticado (proteccion contra session fixation), asi que
+el `JSESSIONID` en **cada** request autenticado (proteccion contra session fixation; verificado
+que sigue pasando con JWT, PAS-33), asi que
 la cookie de la respuesta anterior es la unica valida para la siguiente -- una de dos
 respuestas atras ya no sirve, aunque la sesion siga viva del lado del servidor. Es un detalle
 no obvio que vale la pena poder explicar en el oral.

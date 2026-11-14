@@ -28,15 +28,16 @@ modulo. Ventas cobra a traves de `PagoService` (PAS-29): el checkout manda la ta
 pasa por el Adapter REST real hacia la pasarela (mockeada), y si la confirmacion falla despues de
 cobrar, el cobro se revierte. La compra ya emite un ticket con QR firmado por cada unidad adquirida.
 
-La identidad de quien opera la resuelve **Spring Security** (HTTP Basic, sesion STATELESS; la
-consigna del 16/11 exige pasar a **JWT**, PAS-33/PAS-34):
+La identidad de quien opera la resuelve **Spring Security** con **JWT** (PAS-33): `POST
+/api/auth/login` devuelve un token HS256 de 2 h y cada request lo manda como
+`Authorization: Bearer`. La sesion de seguridad es STATELESS:
 ningun endpoint depende de un header propio para saber quien esta operando. La autorizacion
 por rol es declarativa con `@PreAuthorize` en los controllers (ver [CLAUDE.md](CLAUDE.md) 4.11).
 
 La app web (`frontend/`) integra identidad, productoras, cartelera/backoffice, carrito, checkout,
-ordenes y visualizacion de los QR emitidos. El login no usa
-un endpoint de "login" (Basic no lo tiene): valida email + password contra
-`GET /api/usuarios/me`.
+ordenes y visualizacion de los QR emitidos. **Hasta que se mergee PAS-34 el frontend sigue
+mandando HTTP Basic**, que el backend ya no acepta: para probar la app web contra este backend
+hace falta PAS-34.
 
 ## Documentación para usuarios y prototipo
 
@@ -90,10 +91,15 @@ curl http://localhost:8080/api/eventos               # cartelera, cada evento co
 curl "http://localhost:8080/api/eventos?productora=1" # solo las fiestas de Aurora
 curl http://localhost:8080/actuator/modulith         # modelo de modulos detectado
 
+# Login: canjea email + password por un JWT (necesita jq)
+login() { curl -s -X POST http://localhost:8080/api/auth/login -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$1\",\"password\":\"passly1234\"}" | jq -r .token; }
+OLGA=$(login organizador2@passly.test); OMAR=$(login organizador@passly.test)
+
 # El corazon de la demo: Olga es de otra productora -> 403
-curl -i -X POST http://localhost:8080/api/eventos/3/publicacion -u organizador2@passly.test:passly1234
+curl -i -X POST http://localhost:8080/api/eventos/3/publicacion -H "Authorization: Bearer $OLGA"
 # Omar es el dueno de Aurora -> 200
-curl -i -X POST http://localhost:8080/api/eventos/3/publicacion -u organizador@passly.test:passly1234
+curl -i -X POST http://localhost:8080/api/eventos/3/publicacion -H "Authorization: Bearer $OMAR"
 ```
 
 Guion completo de demo como archivos `.http` listos para la extension REST Client de VS Code

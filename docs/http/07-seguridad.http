@@ -6,7 +6,7 @@
 @aurora = 1
 
 # Matriz de autorizacion por rol (PAS-6). Usuarios sembrados por el perfil demo, todos con
-# contrasena "passly1234". REST Client arma el Basic con "usuario contrasena" (separados por espacio).
+# contrasena "passly1234". Cada uno inicia sesion una vez (bloque Login) y usa su JWT como Bearer.
 #
 # Comportamiento por defecto de Spring Security ante una denegacion de @PreAuthorize:
 #   - principal ANONIMO  -> 401 (invoca el AuthenticationEntryPoint: "identificate")
@@ -15,6 +15,33 @@
 # privilegiado recibe 401, no 403.
 
 # ============ Op sensible 1: crear evento (solo ORGANIZADOR que pueda gestionar la productora) ============
+
+# --- Login (PAS-33) -------------------------------------------------------------
+# La API ya no acepta HTTP Basic: correr PRIMERO estos requests. Cada uno canjea email +
+# contrasena por un JWT, y el resto del archivo lo manda como
+# "Authorization: Bearer {{loginX.response.body.$.token}}". El token dura 2 h; si vence,
+# volver a correr el login.
+
+### Login de comprador@passly.test
+# @name loginComprador
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "comprador@passly.test", "password": "{{clave}}" }
+
+### Login de organizador@passly.test
+# @name loginOrganizador
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "organizador@passly.test", "password": "{{clave}}" }
+
+### Login de admin@passly.test
+# @name loginAdmin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "admin@passly.test", "password": "{{clave}}" }
 
 ### Anonimo -> 401 (el filter chain exige estar autenticado)
 POST {{baseUrl}}/api/eventos
@@ -26,7 +53,7 @@ Content-Type: application/json
 ### COMPRADOR autenticado -> 403 (autenticado pero rol equivocado)
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
-Authorization: Basic comprador@passly.test {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 { "idProductora": {{aurora}}, "nombre": "X", "fechaHora": "2030-01-01T20:00:00Z", "lugar": "CABA",
   "tiposEntrada": [ { "nombre": "General", "precio": 1000, "cupoTotal": 10 } ] }
@@ -34,7 +61,7 @@ Authorization: Basic comprador@passly.test {{clave}}
 ### ORGANIZADOR que gestiona Aurora -> 201 Created
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
-Authorization: Basic organizador@passly.test {{clave}}
+Authorization: Bearer {{loginOrganizador.response.body.$.token}}
 
 { "idProductora": {{aurora}}, "nombre": "Evento del organizador", "fechaHora": "2030-01-01T20:00:00Z", "lugar": "CABA",
   "tiposEntrada": [ { "nombre": "General", "precio": 1000, "cupoTotal": 10 } ] }
@@ -56,7 +83,7 @@ Content-Type: application/json
 ### ADMIN crea ORGANIZADOR -> 201
 POST {{baseUrl}}/api/usuarios
 Content-Type: application/json
-Authorization: Basic admin@passly.test {{clave}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
 
 { "email": "org.real@x.test", "nombre": "Organizador Real", "password": "passly1234", "rol": "ORGANIZADOR" }
 
@@ -67,24 +94,47 @@ GET {{baseUrl}}/api/usuarios
 
 ### COMPRADOR -> 403
 GET {{baseUrl}}/api/usuarios
-Authorization: Basic comprador@passly.test {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 ### ADMIN -> 200
 GET {{baseUrl}}/api/usuarios
-Authorization: Basic admin@passly.test {{clave}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
 
 # ============ "Quien soy": GET /api/usuarios/me (login del frontend, PAS-15) ============
-# No hay endpoint de "login" con Basic; el frontend valida email+clave pidiendo el propio
-# usuario. No esta en permitAll, asi que un anonimo recibe 401 (= credenciales invalidas para
-# la UI). Autenticado devuelve el UsuarioDTO propio, con el rol -- lo que el login necesita.
+# Con Basic no habia endpoint de login y el frontend validaba email+clave pidiendo el propio
+# usuario. Desde PAS-33 el login es POST /api/auth/login (devuelve token + UsuarioDTO); /me sigue
+# sirviendo para "quien soy" con un token ya emitido. Sin token -> 401.
 
-### Anonimo -> 401 (credenciales invalidas desde la vista del login)
+### Anonimo -> 401 (sin token)
 GET {{baseUrl}}/api/usuarios/me
 
 ### COMPRADOR autenticado -> 200 con su propio UsuarioDTO
 GET {{baseUrl}}/api/usuarios/me
-Authorization: Basic comprador@passly.test {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 ### ADMIN autenticado -> 200 con su propio UsuarioDTO
 GET {{baseUrl}}/api/usuarios/me
-Authorization: Basic admin@passly.test {{clave}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+# ============ JWT (PAS-33): login y tokens invalidos ============
+# Lo que la catedra prueba en vivo. Todos los rechazos son 401 en ProblemDetail, con
+# "WWW-Authenticate: Bearer". La lista completa (alg none, otra clave, vencido, otro emisor,
+# cuenta inexistente) esta automatizada en AutenticacionJwtTest.
+
+### Login con clave incorrecta -> 401 "Email o contraseña inválidos." (mismo mensaje si el email no existe)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "comprador@passly.test", "password": "otra-clave" }
+
+### Token adulterado (se cambio un caracter del payload) -> 401
+GET {{baseUrl}}/api/usuarios/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyIiwiaXNzIjoicGFzc2x5In0.firma-que-no-corresponde
+
+### Token sin firma (alg: none) -> 401
+GET {{baseUrl}}/api/usuarios/me
+Authorization: Bearer eyJhbGciOiJub25lIn0.eyJzdWIiOiIxIiwiaXNzIjoicGFzc2x5IiwiZXhwIjo0MTAyNDQ0ODAwfQ.
+
+### HTTP Basic ya no se acepta -> 401
+GET {{baseUrl}}/api/usuarios/me
+Authorization: Basic comprador@passly.test passly1234

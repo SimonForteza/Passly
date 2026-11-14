@@ -17,18 +17,38 @@
 @tipoEntradaConCupo = 1
 @idCarla = 1
 
+# --- Login (PAS-33) -------------------------------------------------------------
+# La API ya no acepta HTTP Basic: correr PRIMERO estos requests. Cada uno canjea email +
+# contrasena por un JWT, y el resto del archivo lo manda como
+# "Authorization: Bearer {{loginX.response.body.$.token}}". El token dura 2 h; si vence,
+# volver a correr el login.
+
+### Login de comprador@passly.test
+# @name loginComprador
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{comprador}}", "password": "{{clave}}" }
+
+### Login de organizador@passly.test
+# @name loginOrganizador
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{organizador}}", "password": "{{clave}}" }
+
 ### 1. Disponibilidad antes de tocar el carrito
 GET {{baseUrl}}/api/tipos-entrada/{{tipoEntradaConCupo}}/disponibilidad
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 ### 2. El carrito arranca vacio -- 200 siempre, nunca un error
 GET {{baseUrl}}/api/ventas/carrito
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 ### 3. Agregar 2 entradas
 POST {{baseUrl}}/api/ventas/carrito/items
 Content-Type: application/json
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 {
   "idTipoEntrada": {{tipoEntradaConCupo}},
@@ -38,7 +58,7 @@ Authorization: Basic {{comprador}} {{clave}}
 ### 4. Agregar 1 mas del mismo tipo -- suma en la misma linea (cantidad: 3), no duplica
 POST {{baseUrl}}/api/ventas/carrito/items
 Content-Type: application/json
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 {
   "idTipoEntrada": {{tipoEntradaConCupo}},
@@ -51,7 +71,7 @@ Authorization: Basic {{comprador}} {{clave}}
 # que no sea uno de los dos "magicos" de 09-pagos.http aprueba.
 POST {{baseUrl}}/api/ventas/ordenes
 Content-Type: application/json
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 {
   "tarjeta": {
@@ -64,15 +84,15 @@ Authorization: Basic {{comprador}} {{clave}}
 
 ### 5b. Un ticket individual por unidad, cada uno con UUID y QR Base64 diferentes
 GET {{baseUrl}}/api/tickets/ordenes/{{confirmarCompra.response.body.$.id}}
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 ### 6. El cupo bajo de verdad (era 200, ahora 197)
 GET {{baseUrl}}/api/tipos-entrada/{{tipoEntradaConCupo}}/disponibilidad
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 ### 7. El carrito quedo vacio: la compra se confirmo
 GET {{baseUrl}}/api/ventas/carrito
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 # ============================================================================
 # El guion central: el rollback. Se crea un evento nuevo, de cupos chicos, en vez de
@@ -86,7 +106,7 @@ Authorization: Basic {{comprador}} {{clave}}
 # @name crearEventoDeDemo
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
-Authorization: Basic {{organizador}} {{clave}}
+Authorization: Bearer {{loginOrganizador.response.body.$.token}}
 
 {
   "idProductora": 1,
@@ -105,16 +125,16 @@ Authorization: Basic {{organizador}} {{clave}}
 
 ### 9. Disponibilidad ANTES del intento -- anotar estos dos numeros (10 y 2)
 GET {{baseUrl}}/api/tipos-entrada/{{idConSobra}}/disponibilidad
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 ### 10.
 GET {{baseUrl}}/api/tipos-entrada/{{idSinCupo}}/disponibilidad
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 ### 11. Carrito nuevo: 3 de ConSobra (hay de sobra)
 POST {{baseUrl}}/api/ventas/carrito/items
 Content-Type: application/json
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 {
   "idTipoEntrada": {{idConSobra}},
@@ -124,7 +144,7 @@ Authorization: Basic {{comprador}} {{clave}}
 ### 12. Y 5 de SinCupo -- solo hay 2. El carrito no lo rechaza: no reserva cupo (CLAUDE.md 4.7)
 POST {{baseUrl}}/api/ventas/carrito/items
 Content-Type: application/json
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 {
   "idTipoEntrada": {{idSinCupo}},
@@ -134,7 +154,7 @@ Authorization: Basic {{comprador}} {{clave}}
 ### 13. Confirmar -> 409: CupoInsuficienteException en la segunda linea
 POST {{baseUrl}}/api/ventas/ordenes
 Content-Type: application/json
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 {
   "tarjeta": {
@@ -149,27 +169,27 @@ Authorization: Basic {{comprador}} {{clave}}
 # El UPDATE de la primera linea se emitio de verdad (visible en la consola con show-sql: true,
 # ANTES de la excepcion) y la transaccion lo revirtio igual -- no es que nunca se escribio.
 GET {{baseUrl}}/api/tipos-entrada/{{idConSobra}}/disponibilidad
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 ### 15.
 GET {{baseUrl}}/api/tipos-entrada/{{idSinCupo}}/disponibilidad
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 ### 16. El carrito sobrevive con sus dos lineas: no se vacio porque la compra no se confirmo
 GET {{baseUrl}}/api/ventas/carrito
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 ### 17. Abandonar: invalida la sesion -> @PreDestroy del carrito en el acto (ver la consola)
 DELETE {{baseUrl}}/api/ventas/carrito
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 ### 18. Mis ordenes (solo la que se confirmo en el paso 5)
 GET {{baseUrl}}/api/ventas/compradores/{{idCarla}}/ordenes
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 ### 19. Otro comprador no puede ver las ordenes de Carla -> 403 (rol + identidad, no solo rol)
 GET {{baseUrl}}/api/ventas/compradores/{{idCarla}}/ordenes
-Authorization: Basic {{organizador}} {{clave}}
+Authorization: Bearer {{loginOrganizador.response.body.$.token}}
 
 ### 20. Sin credenciales -> 401
 GET {{baseUrl}}/api/ventas/carrito
@@ -182,7 +202,7 @@ GET {{baseUrl}}/api/ventas/carrito
 ### 21. Agregar una entrada para los dos escenarios de abajo
 POST {{baseUrl}}/api/ventas/carrito/items
 Content-Type: application/json
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 {
   "idTipoEntrada": {{tipoEntradaConCupo}},
@@ -192,7 +212,7 @@ Authorization: Basic {{comprador}} {{clave}}
 ### 22. Confirmar con la tarjeta de rechazo -> 402, el carrito y el cupo quedan intactos
 POST {{baseUrl}}/api/ventas/ordenes
 Content-Type: application/json
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 {
   "tarjeta": {
@@ -206,7 +226,7 @@ Authorization: Basic {{comprador}} {{clave}}
 ### 23. Confirmar con la tarjeta "pasarela caida" -> 503, el carrito y el cupo quedan intactos
 POST {{baseUrl}}/api/ventas/ordenes
 Content-Type: application/json
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 {
   "tarjeta": {

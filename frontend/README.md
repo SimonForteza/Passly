@@ -19,7 +19,7 @@ npm run dev
 ## Pantallas
 
 - **Usuarios (PAS-15):** registro (`/registro`, siempre crea `COMPRADOR`, sin selector de rol),
-  login (`/login`, valida email + password contra `GET /api/usuarios/me`), perfil propio
+  login (`/login`, canjea email + password por un JWT en `POST /api/auth/login`, PAS-34), perfil propio
   (`/perfil`) y logout. El perfil incluye un alta de roles privilegiados
   (`ORGANIZADOR`/`VALIDADOR`/`ADMIN`) visible sólo para `ADMIN`.
 - **Productoras (PAS-16):** alta, listado de las productoras del usuario y padrón de miembros,
@@ -43,3 +43,18 @@ npm run dev
   `productoras/PaginaProductoraPage`; en esta última se omite el nombre de la productora
   (`mostrarOrganizador={false}`) porque ya está en el encabezado. Si cambia cómo se ve un
   evento en una grilla, se cambia acá.
+
+## Autenticación (JWT, PAS-34)
+
+- `lib/auth/session.ts` guarda en `sessionStorage` `{ usuario, token, expiraEn }`. **El password
+  no se guarda nunca:** viaja solo en `POST /api/auth/login`.
+- `lib/http/httpClient.ts` agrega `Authorization: Bearer <token>` a cada request. Si una request
+  con token devuelve **401** (token vencido o adulterado), borra la sesión y la app vuelve a
+  `/login` con `from`, para retomar donde estaba.
+- El login se manda sin token (`{ anonimo: true }`): el backend responde 401 a cualquier token
+  inválido, aunque la ruta sea pública.
+- No hay refresh token. El token dura 2 h; al vencer, se vuelve a iniciar sesión.
+- Los requests autenticados siguen en una cola serial, porque el backend rota el `JSESSIONID` en
+  cada request autenticado y el carrito vive en esa sesión (CLAUDE.md §4.7).
+- Para probarlo a mano: en DevTools → Application → Session Storage, cambiar un carácter del
+  `token` de `passly.sesion`; la siguiente acción manda al login.
