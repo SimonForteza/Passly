@@ -10,7 +10,7 @@
 
 Passly debe resolver un flujo de venta y validacion de entradas que atraviesa varios componentes: usuarios, eventos, ventas, pagos, tickets, accesos, notificaciones y facturacion. La consigna academica exige interfaces explicitas, transacciones declarativas, integraciones sincronicas y asincronicas, seguridad por rol y una demostracion en vivo.
 
-El equipo necesita fronteras claras entre componentes, pero dispone de un equipo pequeno, un cronograma corto y un unico producto. En el corte actual, Ventas cobra mediante una pasarela simulada antes de abrir la transaccion local; `ConfirmacionDeCompra` coordina dentro de esa transaccion el descuento de cupo y la persistencia de la orden. La emision de tickets y el cableado con el Adapter real de Pagos siguen pendientes y no se presentan como atomicos ni implementados.
+El equipo necesita fronteras claras entre componentes, pero dispone de un equipo pequeno, un cronograma corto y un unico producto. Al 14/11, Ventas cobra con el Adapter real de Pagos (`PasarelaDePagoReal` -> `PagoService`, PAS-29) antes de abrir la transaccion local; `ConfirmacionDeCompra` coordina dentro de esa transaccion el descuento de cupo, la persistencia de la orden y la emision de tickets (PAS-20). La facturacion sale despues del commit por la cola JMS `orden.pagada` (PAS-32). *(Este parrafo se actualizo el 14/11: la version original, de la Obligatoria 1, describia la pasarela simulada y los tickets como pendientes.)*
 
 ## Fuerzas y restricciones
 
@@ -63,7 +63,7 @@ Spring Modulith verifica que no existan accesos indebidos ni ciclos entre modulo
 ## Evidencia en el repositorio
 
 - `backend/src/test/java/com/passly/EstructuraDeModulosTest.java` verifica las fronteras.
-- Usuarios, Productoras, Eventos, Seguridad, Ventas y Pagos exponen contratos y encapsulan sus implementaciones bajo `internal`.
+- Usuarios, Productoras, Eventos, Seguridad, Ventas, Pagos, Tickets, Accesos, Notificaciones y Facturacion exponen contratos y encapsulan sus implementaciones bajo `internal` (al 14/11).
 - Los DTO compartibles se publican mediante `@NamedInterface("dto")`.
 - Cada `package-info.java` declara sus dependencias permitidas y `EstructuraDeModulosTest` comprueba el grafo aciclico actual, con Ventas en la cima y Usuarios como raiz.
 - El build genera documentacion de modulos y el workflow `modulith-boundaries.yml` ejecuta la verificacion de fronteras en GitHub Actions.

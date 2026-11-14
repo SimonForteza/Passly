@@ -11,20 +11,25 @@ pasarela integrada, cada entrada sale con un QR firmado, y en la puerta un valid
 lo marca como usado. El detalle de los cinco recorridos y qué falta para cada uno está en
 CLAUDE.md §1 ("Visión de producto").
 
+> **Qué falta para aprobar:** [docs/plan-entregas.md](docs/plan-entregas.md). Tiene los
+> requisitos de la 2.ª entrega (**16/11**), el 3er checkpoint (**30/11**) y la final (**07/12**),
+> el estado de cada uno y su issue en Linear (PAS-33 a PAS-40 para el 16/11).
+
 ## Estado actual
 
 Passly es **multi-productora**: un comprador elige entre fiestas de distintos organizadores y
 cada productora publica y gestiona solo las suyas.
 
-Nueve modulos backend implementados: `usuarios`, `productoras`, `eventos`, `seguridad`, `ventas`,
-`pagos`, `tickets`, `accesos` y `facturacion` (esta ultima sin SOAP todavia). Spring Modulith verifica sus fronteras en el build y las dependencias estan
+Diez modulos backend implementados: `usuarios`, `productoras`, `eventos`, `seguridad`, `ventas`,
+`pagos`, `tickets`, `accesos`, `notificaciones` (cola de correo) y `facturacion` (esta ultima sin SOAP todavia). Spring Modulith verifica sus fronteras en el build y las dependencias estan
 **declaradas** modulo por modulo. El grafo de negocio es aciclico: `ventas` depende directamente
 de `eventos`, `usuarios`, `tickets` y `pagos`; `eventos -> productoras -> usuarios`; `pagos` y `tickets` no dependen de otro
 modulo. Ventas cobra a traves de `PagoService` (PAS-29): el checkout manda la tarjeta, el cobro
 pasa por el Adapter REST real hacia la pasarela (mockeada), y si la confirmacion falla despues de
 cobrar, el cobro se revierte. La compra ya emite un ticket con QR firmado por cada unidad adquirida.
 
-La identidad de quien opera la resuelve **Spring Security** (HTTP Basic, sesion STATELESS):
+La identidad de quien opera la resuelve **Spring Security** (HTTP Basic, sesion STATELESS; la
+consigna del 16/11 exige pasar a **JWT**, PAS-33/PAS-34):
 ningun endpoint depende de un header propio para saber quien esta operando. La autorizacion
 por rol es declarativa con `@PreAuthorize` en los controllers (ver [CLAUDE.md](CLAUDE.md) 4.11).
 

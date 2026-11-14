@@ -35,14 +35,12 @@ cp backend/target/spring-modulith-docs/{components.puml,module-*.puml,module-*.a
 | `module-<nombre>.adoc` | Descripcion en prosa de cada modulo: paquete base, Spring beans expuestos, y el Javadoc real de la interfaz publica y del `package-info` (por eso cita cosas como "CLAUDE.md 4.3, regla 1" tal cual estan escritas en el codigo) |
 | [`all-docs.adoc`](all-docs.adoc) | Agrega todo lo anterior en un solo documento AsciiDoc (`include::` a cada `module-*.adoc`) |
 
-**Por que `Pagos` no aparece en `components.puml`.** No es un bug del diagrama: hoy ningun
-modulo declara una dependencia hacia `pagos` en su `package-info`, y `pagos` tampoco depende de
-nadie (`allowedDependencies = {}`) — es exactamente lo que CLAUDE.md 4.6 declara como pendiente:
-`ventas` todavia cobra con `PasarelaDePagoSimulada`, no con el `ServicioDePagos` real. Un modulo
-sin ninguna arista no tiene nada que dibujar en la vista global, pero sigue teniendo su propio
-`module-pagos.puml` (una caja sola, sin flechas) y su `module-pagos.adoc`. El dia que se cablee
-`VentaServiceImpl` a `PagoService`, regenerar esto va a hacer aparecer la arista
-`Ventas -> Pagos` sin que nadie tenga que actualizar un diagrama a mano.
+**`Pagos` en `components.puml` (historia, resuelta en PAS-29).** Mientras `ventas` cobraba con
+`PasarelaDePagoSimulada`, ningun modulo dependia de `pagos` y el diagrama global no tenia arista
+hacia el. Desde PAS-29, `ventas` declara `"pagos", "pagos :: dto"` y cobra con
+`PasarelaDePagoReal` -> `PagoService`; al regenerar, la arista `Ventas -> Pagos` aparecio sola,
+sin tocar el diagrama a mano. Si los `.puml` de esta carpeta no la muestran, es que no se
+regeneraron despues de ese merge: correr `generarDocumentacion()` y copiar la salida.
 
 ## Como renderizar los `.puml`
 
