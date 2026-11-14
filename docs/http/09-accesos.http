@@ -8,9 +8,36 @@
 @otroEvento = 2
 @tipoEntrada = 1
 
+# --- Login (PAS-33) -------------------------------------------------------------
+# La API ya no acepta HTTP Basic: correr PRIMERO estos requests. Cada uno canjea email +
+# contrasena por un JWT, y el resto del archivo lo manda como
+# "Authorization: Bearer {{loginX.response.body.$.token}}". El token dura 2 h; si vence,
+# volver a correr el login.
+
+### Login de comprador@passly.test
+# @name loginComprador
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{comprador}}", "password": "{{clave}}" }
+
+### Login de validador@passly.test
+# @name loginValidador
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{validador}}", "password": "{{clave}}" }
+
+### Login de organizador2@passly.test
+# @name loginOrganizador2
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "organizador2@passly.test", "password": "{{clave}}" }
+
 ### Agregar entrada al carrito (misma cookie para la compra)
 POST {{base}}/api/ventas/carrito/items
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 Content-Type: application/json
 
 {"idTipoEntrada": {{tipoEntrada}}, "cantidad": 1}
@@ -18,7 +45,7 @@ Content-Type: application/json
 ### Comprar de verdad: crea orden y tickets
 # @name compra
 POST {{base}}/api/ventas/ordenes
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 Content-Type: application/json
 
 {
@@ -33,39 +60,39 @@ Content-Type: application/json
 ### Obtener contenido firmado del ticket de la orden
 # @name tickets
 GET {{base}}/api/tickets/ordenes/{{compra.response.body.$.id}}
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 
 ### VALIDO (repetir sin cambiar nada -> YA_USADO con el primer usadoEn)
 POST {{base}}/api/accesos/validaciones
-Authorization: Basic {{validador}} {{clave}}
+Authorization: Bearer {{loginValidador.response.body.$.token}}
 Content-Type: application/json
 
 {"idEvento": {{evento}}, "contenidoQr": "{{tickets.response.body.$[0].contenidoQr}}"}
 
 ### OTRO_EVENTO. Olga opera el evento de Nocturna; el ticket es de Aurora. No consume.
 POST {{base}}/api/accesos/validaciones
-Authorization: Basic organizador2@passly.test {{clave}}
+Authorization: Bearer {{loginOrganizador2.response.body.$.token}}
 Content-Type: application/json
 
 {"idEvento": {{otroEvento}}, "contenidoQr": "{{tickets.response.body.$[0].contenidoQr}}"}
 
 ### INVALIDO: firma adulterada
 POST {{base}}/api/accesos/validaciones
-Authorization: Basic {{validador}} {{clave}}
+Authorization: Bearer {{loginValidador.response.body.$.token}}
 Content-Type: application/json
 
 {"idEvento": {{evento}}, "contenidoQr": "{{tickets.response.body.$[0].contenidoQr}}adulterado"}
 
 ### 403: comprador
 POST {{base}}/api/accesos/validaciones
-Authorization: Basic {{comprador}} {{clave}}
+Authorization: Bearer {{loginComprador.response.body.$.token}}
 Content-Type: application/json
 
 {"idEvento": {{evento}}, "contenidoQr": "{{tickets.response.body.$[0].contenidoQr}}"}
 
 ### 403: Vera pertenece a Aurora, no a Nocturna
 POST {{base}}/api/accesos/validaciones
-Authorization: Basic {{validador}} {{clave}}
+Authorization: Bearer {{loginValidador.response.body.$.token}}
 Content-Type: application/json
 
 {"idEvento": {{otroEvento}}, "contenidoQr": "{{tickets.response.body.$[0].contenidoQr}}"}

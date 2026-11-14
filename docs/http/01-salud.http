@@ -1,5 +1,18 @@
 @baseUrl = http://localhost:8080
 
+# --- Login (PAS-33) -------------------------------------------------------------
+# La API ya no acepta HTTP Basic: correr PRIMERO estos requests. Cada uno canjea email +
+# contrasena por un JWT, y el resto del archivo lo manda como
+# "Authorization: Bearer {{loginX.response.body.$.token}}". El token dura 2 h; si vence,
+# volver a correr el login.
+
+### Login de admin@passly.test
+# @name loginAdmin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "admin@passly.test", "password": "passly1234" }
+
 ### Health (publico, sin credenciales)
 GET {{baseUrl}}/actuator/health
 
@@ -7,4 +20,4 @@ GET {{baseUrl}}/actuator/health
 # Solo /actuator/health quedo publico; el resto de actuator pide credenciales. Cualquier
 # usuario de demo sirve.
 GET {{baseUrl}}/actuator/modulith
-Authorization: Basic admin@passly.test passly1234
+Authorization: Bearer {{loginAdmin.response.body.$.token}}

@@ -1,7 +1,7 @@
 @baseUrl = http://localhost:8080
 
-# Credenciales de demo (perfil demo). REST Client arma el header Basic a partir de
-# "usuario contrasena" separados por un espacio. Crear y publicar exigen rol ORGANIZADOR (PAS-6)
+# Credenciales de demo (perfil demo): se canjean por un JWT en el bloque Login (PAS-33).
+# Crear y publicar exigen rol ORGANIZADOR (PAS-6)
 # y ademas poder gestionar la productora indicada (PAS-13) -- Omar es DUENIO de Aurora.
 @organizador = organizador@passly.test
 @clave = passly1234
@@ -10,14 +10,27 @@
 # (docker compose down -v && up -d). Si no coincide, sale de GET /api/productoras.
 @aurora = 1
 
+# --- Login (PAS-33) -------------------------------------------------------------
+# La API ya no acepta HTTP Basic: correr PRIMERO estos requests. Cada uno canjea email +
+# contrasena por un JWT, y el resto del archivo lo manda como
+# "Authorization: Bearer {{loginX.response.body.$.token}}". El token dura 2 h; si vence,
+# volver a correr el login.
+
+### Login de organizador@passly.test
+# @name loginOrganizador
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{organizador}}", "password": "{{clave}}" }
+
 ### 1. Crear evento a nombre de Aurora (nace en BORRADOR) -- exige ORGANIZADOR que gestione Aurora
 # La identidad de quien opera ya no viaja en un header propio: la resuelve Spring Security a
-# partir del Basic auth. El idProductora es a nombre de quien se publica -- son dos cosas
+# partir del JWT (su sub es el id del usuario). El idProductora es a nombre de quien se publica -- son dos cosas
 # distintas, por eso una sale de la autenticacion y la otra va en el body.
 # @name crearEvento
 POST {{baseUrl}}/api/eventos
 Content-Type: application/json
-Authorization: Basic {{organizador}} {{clave}}
+Authorization: Bearer {{loginOrganizador.response.body.$.token}}
 
 {
   "idProductora": {{aurora}},
@@ -34,22 +47,22 @@ Authorization: Basic {{organizador}} {{clave}}
 # Un borrador solo lo ve quien gestiona la productora (PAS-25): sin credenciales esto daria 404.
 # El caso anonimo vs organizador esta en 11-link-compartible.http.
 GET {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}
-Authorization: Basic {{organizador}} {{clave}}
+Authorization: Bearer {{loginOrganizador.response.body.$.token}}
 
 ### 3. Publicar el evento -- exige ORGANIZADOR que gestione Aurora
 POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
-Authorization: Basic {{organizador}} {{clave}}
+Authorization: Bearer {{loginOrganizador.response.body.$.token}}
 
 ### 4. Cartelera (publica, sin credenciales): ahora aparece, y cada evento dice de que productora es
 GET {{baseUrl}}/api/eventos
 
 ### 5. Republicar -> 409 Conflict (la regla de negocio real) -- exige ORGANIZADOR
 POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
-Authorization: Basic {{organizador}} {{clave}}
+Authorization: Bearer {{loginOrganizador.response.body.$.token}}
 
 ### 6. Disponibilidad del tipo de entrada creado -- exige estar autenticado (PAS-6), sin importar el rol
 GET {{baseUrl}}/api/tipos-entrada/{{crearEvento.response.body.$.tiposEntrada[0].id}}/disponibilidad
-Authorization: Basic {{organizador}} {{clave}}
+Authorization: Bearer {{loginOrganizador.response.body.$.token}}
 
 ### 7. Sin credenciales no hay identidad -> 401
 POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
