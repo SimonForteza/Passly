@@ -154,7 +154,14 @@ llamadas a externos quedan **fuera** de ese límite a propósito:
       si Accesos deja de consultar a Tickets en proceso (I9)
 - [ ] Adapter SOAP hacia AFIP: pasar E5 a *implementada* y reemplazar `ClienteAfipPendiente`
 - [ ] App móvil del validador: agregarla como cliente de E2
-- [ ] Outbox para `orden.pagada`, si se implementa: actualizar la fila "Broker caído" de §6
+- [ ] Outbox para `orden.pagada`: actualizar la fila "Broker caído" de §6. **Obligatorio para el
+      30/11** ("si se apaga el broker, no se pierden mensajes")
+- [ ] SOAP: manejo de **Fault** y protección contra **XXE** (consigna del 30/11)
+- [ ] Pasarela: **timeout de 5 s con fallback** (hoy hay timeout, sin fallback) (30/11)
+- [ ] API REST: **Idempotency-Key** en la compra autenticada y **ETag** (30/11)
+- [ ] Gateway de la **funcionalidad de IA**: sumarla como integración nueva (30/11)
+
+> El plan completo con fechas y responsables está en [plan-entregas.md](plan-entregas.md).
 
 Al cambiar un estado, actualizar **la tabla, el `.mmd` (y regenerar el PNG/SVG) y el PDF de
 `entrega-c2/`** en el mismo commit.

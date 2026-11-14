@@ -17,6 +17,10 @@ todo doble uso.
 Es el **TP Integrador de Desarrollo de Aplicaciones II** (3.4.218, comisión
 Lunes TM, 2.º cuatrimestre 2026).
 
+> **Qué falta y para cuándo: [`docs/plan-entregas.md`](docs/plan-entregas.md)** (actualizado el
+> 14/11 con la consigna nueva del profe: 2.ª entrega **16/11**, 3er checkpoint **30/11** y final
+> **07/12**). Ese archivo manda sobre el cronograma y el checklist de este documento.
+
 **Lo que se evalúa no es la cantidad de código sino la calidad de las decisiones
 de arquitectura y la capacidad de defenderlas oralmente.** Cada integrante debe
 poder explicar cualquier parte del sistema, no solo la que programó. Un sistema
@@ -54,7 +58,10 @@ prioridad.
   | 5. Validación | ✅ | Accesos valida QR con uso único atómico y pantalla web responsive. | ~~PAS-31~~ |
 
 Para el Checkpoint 2 además: ~~diagrama SOA (PAS-27)~~ ✅ `docs/integraciones.md`, ~~doc funcional + manual + Figma (PAS-28)~~ ✅ `docs/funcional.md`, `docs/manual-de-usuario.md` y
-el proceso async real con Artemis (PAS-32). **Cada issue, al cerrarse, actualiza esta tabla y la §9.**
+~~el proceso async real con Artemis (PAS-32)~~ ✅. Los cinco recorridos de la visión están cerrados.
+**Lo que sigue ya no es producto sino la consigna nueva** (JWT, State, ADR por patrón, SOAP,
+tópico, resiliencia, IA y testing): está en [`docs/plan-entregas.md`](docs/plan-entregas.md),
+issues PAS-33 a PAS-40 para el 16/11. **Cada issue, al cerrarse, actualiza ese plan y la §9.**
 
 ### Alta de productoras, invitaciones y compra como invitado (18/10)
 
@@ -135,9 +142,9 @@ se reintenta desde la cola.
 | Acceso a datos | **Spring Data JPA + Hibernate** | Patrón DAO y transacciones declarativas |
 | Mensajería | **ActiveMQ Artemis (Docker)** | Broker JMS nativo, alineado con la Unidad V |
 | SOAP | **Spring Web Services + JAXB** | Generación y consumo de contratos WSDL |
-| Seguridad | **Spring Security** | Autorización por rol declarativa |
+| Seguridad | **Spring Security** | Autorización por rol declarativa. Autenticación: HTTP Basic hasta la O1; **la consigna del 16/11 exige JWT** (PAS-33/PAS-34) |
 | Build | **Maven** | — |
-| App web | **React + Vite** (a confirmar) | Consume el backend por REST. Responsive obligatorio |
+| App web | **React + Vite + TypeScript** (implementado, PAS-14) | Consume el backend por REST. Responsive obligatorio |
 | App móvil | **React Native** (a confirmar) | Cámara para escaneo de QR. Debe adaptarse a distintos tamaños y orientaciones |
 
 **Nota de versión (post-31/08):** el scaffold inicial se armó sobre Spring Boot 4.1.1 /
@@ -303,8 +310,10 @@ datos de demo son un **cliente** del sistema, como la app web, y usan solo contr
 públicos; que alcancen para operar todo el sistema prueba que esos contratos están
 completos.
 
-**Aspiracional — todavía no existen** (se crean rebanada por rebanada, §4.1):
-`notificaciones/`.
+**Notificaciones implementado como cola de correo (18/10):** `notificaciones/` guarda cada mail
+en `notificaciones.correo` dentro de la transacción que lo origina (invitaciones, compra como
+invitado) y un worker `@Scheduled` lo envía por SMTP con reintentos. **Todavía no es suscriptor
+del tópico `ticket.emitido`**, que no existe (ver `docs/plan-entregas.md`, 30/11).
 
 **Accesos implementado (PAS-31):** `AccesoService`, `dto/` con NamedInterface e `internal/{web,negocio,datos}`. Su package-info permite tickets, tickets :: dto, eventos, eventos :: dto y productoras.
 
@@ -356,6 +365,11 @@ convención del equipo, está verificada en el build."*
 `Documenter` genera además el diagrama de dependencias desde el código, lo que
 mantiene la documentación sincronizada con la implementación real.
 
+> **Nota (14/11):** este bloque se escribió con cinco módulos. Hoy son diez (nueve de negocio más
+> `seguridad`), más el paquete `demo`. Los `allowedDependencies` vigentes están en el
+> `package-info.java` de cada módulo y en el grafo de §4.6. El texto de abajo vale como historia
+> del episodio para el oral.
+>
 > **Estado: el andamiaje ya rinde, con cinco módulos.** El test vive en
 > `backend/src/test/java/com/passly/EstructuraDeModulosTest.java` y corre verde
 > (4 tests): `noHayViolacionesDeFrontera()`, `usuariosEsLaRaizDelGrafoDeDependencias()`,
@@ -413,7 +427,7 @@ presentación (Controller + DTO) → negocio (Service) → datos (Repository + E
 | `ServicioDePagos` / `PagoService` | Adapter REST hacia la pasarela de pago | stateless |
 | **`ServicioDeTickets` / `TicketService`** | Emite un ticket por unidad con QR firmado y permite consultarlos por orden — **implementado (PAS-20)** | **stateless** |
 | `ServicioDeAccesos` / `AccesoService` | Valida QR en puerta y audita intentos — **implementado (PAS-31)** | stateless |
-| `ServicioDeNotificaciones` / `NotificacionService` | Envío multicanal: ticket, recordatorios, cancelaciones | stateless |
+| `ServicioDeNotificaciones` | Cola de correo con reintentos (invitaciones, compra como invitado) — **implementado (18/10)**. Suscripción al tópico `ticket.emitido`: pendiente | stateless |
 | `ServicioDeFacturacion` / `FacturacionService` | Registro JMS idempotente PENDIENTE_AFIP implementado; Adapter SOAP pendiente | stateless |
 
 **Grafo de dependencias:**
@@ -425,7 +439,9 @@ presentación (Controller + DTO) → negocio (Service) → datos (Repository + E
 | **Ventas** | **Pagos** | **Síncrona, implementada (PAS-29)** — cobro y reversión vía `PagoService`, detrás del Port `PasarelaDePago` (`PasarelaDePagoReal`, §4.9) |
 | **Ventas** | **Tickets** | **Síncrona, implementada** — emisión dentro de la transacción |
 | Ventas | Facturación | **Asincrónica, implementada** — cola P2P `orden.pagada` (PAS-32) |
-| Tickets | Notificaciones, Accesos | **Asincrónica** — tópico `ticket.emitido` |
+| Ventas | Notificaciones | **Síncrona, implementada (18/10)** — encola el correo de la compra como invitado en la misma transacción |
+| Productoras | Notificaciones | **Síncrona, implementada (18/10)** — encola el correo de invitación |
+| Tickets | Notificaciones, Accesos | **Asincrónica — PENDIENTE** (tópico `ticket.emitido`, 30/11). Hoy Accesos consulta a Tickets en proceso |
 | Accesos | Tickets | **Síncrona, implementada** — firma, pertenencia al evento y uso único atómico |
 | **Eventos** | **Productoras** | Síncrona — quién puede gestionar, y el nombre comercial para la cartelera |
 | **Productoras** | **Usuarios** | Síncrona — identidad y rol global al incorporar un miembro |
@@ -573,11 +589,16 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
 | **Facade** | `ServicioDeVentas` | Esconde la orquestación de inventario, pago, emisión y facturación tras una sola operación de compra |
 | **Adapter** | `ServicioDePagos` (REST) y `ServicioDeFacturacion` (SOAP) | Interfaz común de "proveedor externo" sobre dos protocolos incompatibles |
 | **DAO** | Capa de datos de todos los componentes | Desacopla la lógica del mecanismo de persistencia |
+| **State** *(exigido por la consigna del 16/11 — PAS-35)* | `Evento`: BORRADOR / PUBLICADO / CANCELADO | Cada estado decide qué operaciones admite; una transición inválida responde **409**. Hoy está resuelto con enum + `if` y hay que llevarlo al patrón |
 | **Strategy** *(reserva)* | Política de precios | Early-bird, general, cortesía, dinámico — intercambiables |
 | **Factory** *(reserva)* | Creación de tickets/facturas | Según tipo de entrada |
 
 > "Reserva" = candidatos extra por si se descarta alguno. De cada patrón hay que
 > saber **qué problema resuelve** y **por qué se descartaron las alternativas**.
+>
+> **La consigna del 16/11 pide un ADR por patrón.** Hoy `docs/adr/` solo tiene los dos de
+> arquitectura (ADR-001 y ADR-002). Los de Facade, Adapter/Port, DAO, State y el componente
+> stateful se escriben en PAS-36.
 
 ### 4.10 Integraciones
 
@@ -605,6 +626,10 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
   `usuarios :: autenticacion` (`CredencialDTO`, que lleva el hash) y **reutiliza el mismo
   `@Bean PasswordEncoder` de `usuarios`** (inyectado por tipo, sin declarar un segundo bean).
   Se eligió Basic y no JWT: para la Obligatoria 1, JWT sería complejidad sin beneficio.
+  **Esa decisión queda superada por la consigna del 16/11, que exige autenticación con JWT**
+  (PAS-33 backend, PAS-34 frontend). Lo que no cambia: los `@PreAuthorize` por rol y que
+  `Authentication#getName()` devuelva el **id** del usuario (el `sub` del token), que es lo que
+  leen todos los módulos.
 - **El `UserDetails` lleva el id numérico como username, no el email.** El login sigue siendo
   por email (es lo que el cliente manda en el header Basic), pero
   `DetalleDeUsuarioParaAutenticacion` arma el `UserDetails` con
@@ -723,25 +748,33 @@ cambio de contrato de `UsuarioDTO` en esta entrega.
 
 ## 5. Checklist §6 — la vara de evaluación
 
-- [ ] 6+ componentes de negocio, cada uno con interfaz explícita y documentada
-- [ ] 1 stateful + 1 stateless, ambos justificados por escrito
-- [ ] Arquitectura en capas explícita en cada componente
-- [ ] 3+ patrones de diseño distintos, aplicados y justificados
-- [ ] 1 integración SOAP con WSDL (legado) → AFIP
-- [ ] 1 integración REST (partner moderno) → pasarela de pago
-- [ ] 2 procesos async: 1 cola P2P + 1 tópico pub/sub
-- [ ] Seguridad declarativa (auth + rol) en 2+ operaciones sensibles
-- [ ] Transacciones declarativas en 1 flujo crítico multipaso
-- [ ] Stack consistente y justificado (Spring Boot)
-- [ ] Repo Git con historial incremental, no un volcado final
+Estado al 14/11 sobre `main`. Los requisitos nuevos de la consigna del profe (JWT, State, ADR
+por patrón, resiliencia, IA, testing, G1 a G9) están en
+[`docs/plan-entregas.md`](docs/plan-entregas.md).
+
+- [x] 6+ componentes de negocio, cada uno con interfaz explícita y documentada (9)
+- [x] 1 stateful + 1 stateless, ambos justificados por escrito (§4.7)
+- [x] Arquitectura en capas explícita en cada componente (`web`/`negocio`/`datos`)
+- [x] 3+ patrones de diseño distintos, aplicados y justificados (Facade, Adapter/Port, DAO).
+  **Falta:** State (PAS-35) y un ADR por patrón (PAS-36)
+- [ ] 1 integración SOAP con WSDL (legado) → AFIP — **pendiente, 30/11** (con Fault y XXE)
+- [x] 1 integración REST (partner moderno) → pasarela de pago (PAS-7, PAS-29)
+- [ ] 2 procesos async: ~~1 cola P2P~~ ✅ (PAS-32) + 1 tópico pub/sub — **tópico pendiente, 30/11**
+- [x] Seguridad declarativa (auth + rol) en 2+ operaciones sensibles. **Falta:** pasar a JWT (PAS-33/PAS-34)
+- [x] Transacciones declarativas en 1 flujo crítico multipaso (`ConfirmacionDeCompra`)
+- [x] Stack consistente y justificado (Spring Boot)
+- [x] Repo Git con historial incremental, no un volcado final
 
 ### Puntos extra (§7)
 
-- [ ] Resiliencia: si un externo cae, el resto sigue funcionando (Circuit Breaker opcional)
+- [ ] Resiliencia: si un externo cae, el resto sigue funcionando (Circuit Breaker opcional).
+  **Pasó a ser obligatorio para el 30/11:** timeout de 5 s con fallback, DLQ, sin pérdida de
+  mensajes con el broker apagado
 - [ ] Heterogeneidad: un componente en otra tecnología que igual se integra
-- [ ] Escalabilidad: escalar un componente bajo carga y medir la mejora
-- [ ] **2 ADR** — los dos ya identificados: (a) monolito modular vs. microservicios,
-  (b) esquema por componente vs. base por componente
+- [ ] Escalabilidad: escalar un componente bajo carga y medir la mejora. Para el 07/12 se mide
+  **p95 < 500 ms**
+- [x] **2 ADR** de arquitectura: (a) monolito modular vs. microservicios, (b) esquema por
+  componente vs. base por componente
 
 ---
 
@@ -752,15 +785,17 @@ sobre la anterior. No se puede mostrar menos que en la entrega previa.
 
 | # | Fecha | Carácter | Qué se entrega |
 |---|---|---|---|
-| Checkpoint 1 | **31/08** | Formativo, no obligatorio | 6+ componentes con interfaces + diagrama + stack justificado + **1 componente desplegado y corriendo** + doc 2-4 pág |
-| Obligatoria 1 | **14/09** | Obligatoria, defensa oral | 3+ componentes andando + 1 stateful/1 stateless + 3 patrones + seguridad por rol + doc 5-8 pág |
-| Checkpoint 2 | **19/10** (la comisión mencionó 20/10 — confirmar) | Formativo, no obligatorio | Diagrama SOA + 1 proceso async real + doc funcional + manual de usuario + **prototipo Figma** |
-| Obligatoria 2 | **09/11** | Obligatoria, defensa oral | 2 async (cola + tópico) + SOAP/AFIP + REST + transacciones + doc 8-12 pág con diagramas de secuencia |
-| Prueba individual | a confirmar | Verificación individual | Cada integrante responde sobre cualquier parte del sistema |
-| Final | **21/12 o 30/11** (confirmar) | Obligatoria, defensa oral | Sistema completo punta a punta + doc 10-15 pág + repo con historial de todos |
+| Checkpoint 1 | **31/08** ✅ | Formativo, no obligatorio | 6+ componentes con interfaces + diagrama + stack justificado + **1 componente desplegado y corriendo** + doc 2-4 pág |
+| Obligatoria 1 | **14/09** ✅ | Obligatoria, defensa oral | 3+ componentes andando + 1 stateful/1 stateless + 3 patrones + seguridad por rol + doc 5-8 pág |
+| Checkpoint 2 | **19/10** ✅ | Formativo, no obligatorio | Diagrama SOA + 1 proceso async real + doc funcional + manual de usuario + **prototipo Figma** |
+| **2.ª Entrega Parcial** | **16/11** | Obligatoria, en vivo | Núcleo funcionando: capas, flujo punta a punta, patrones con ADR, **State con 409**, **JWT** + rol, mensajería, primeros tests unitarios, Jira al día, feedback del diseño |
+| **3er Checkpoint** | **30/11** | Integración completa + ensayo de testing | SOAP (Fault + XXE), REST, mensajería, resiliencia, Idempotency-Key + ETag, Problem Details, **IA vía gateway**, QA designado, CI con cobertura, plan de pruebas, trazabilidad, defectos, manual, ensayo G1-G9 |
+| **Final** | **07/12** | Obligatoria, defensa individual | G1-G9 eliminatorias + ejes A-E (mín. 4 en cada uno) |
+| Recuperatorio | a confirmar | — | Correcciones marcadas: qué se corrigió y dónde |
 
-Detalle exhaustivo previsto en `docs/entregas.md` (aspiracional: ese archivo
-todavía no existe; ver §8).
+**Esta tabla reemplaza a la anterior** (que tenía la Obligatoria 2 el 09/11 y el final el 21/12
+o el 30/11). Viene del mensaje del profe recibido en noviembre. El detalle de cada entrega, con
+el estado de cada requisito, está en [`docs/plan-entregas.md`](docs/plan-entregas.md).
 
 ---
 
@@ -770,7 +805,9 @@ todavía no existe; ver §8).
   **todos** los integrantes. Nada de un único commit final.
 - **Jira / Trello / Azure DevOps:** tablero al día **en todo momento**, no la
   víspera. Acceso de lectura al docente desde la primera entrega; puede pedirlo
-  sin aviso.
+  sin aviso. **El equipo usa Linear** (`linear.app/passly`, equipo `PAS`), pero la consigna
+  nueva dice **"Jira"** explícitamente (16/11, QA designado para el 30/11 y G4 eliminatoria
+  el 07/12). Confirmar con el profe si Linear vale (PAS-39).
 - **Documentación = subproducto del trabajo.** Los `.md` de `docs/` se escriben a
   medida que se decide, y en cada entrega se exportan a PDF. Es el 15% de la
   rúbrica, obtenido sin trabajo extra.
@@ -801,6 +838,9 @@ passly/
 │   │                        salud, cartelera con filtro, flujo feliz (incl. republicar → 409),
 │   │                        errores (401/403/404/409), productoras, y **aislamiento entre
 │   │                        productoras** — el guion central de la demo
+│   ├── plan-entregas.md   ← QUÉ FALTA: requisitos del 16/11, 30/11 y 07/12 con estado e issue
+│   ├── adr/               ← ADR-001 y ADR-002 (arquitectura); los de patrones, en PAS-36
+│   ├── mensajeria.md, accesos.md, invitaciones-y-compra-invitada.md, correcciones-ux-flujos.md
 │   ├── integraciones.md   ← inventario SOA: cada integración, canal, sync/async, estado (PAS-27)
 │   ├── funcional.md       ← historias de usuario con estado real + diagrama de casos de uso (PAS-28)
 │   ├── manual-de-usuario.md ← manual por rol, sin jerga, con capturas de la app real (PAS-28)
@@ -834,11 +874,13 @@ passly/
 │       │                    TarjetaEvento — la tarjeta compartida con la página de productora (PAS-26)
 │       └── productoras/   ← ProductorasPage, BackofficePage (padrón) y
 │                            PaginaProductoraPage — página PÚBLICA /productoras/:id (PAS-26)
-└── (aspiracional — todavía no existen):
-    ├── docs/arquitectura.md, docs/componentes.md, docs/patrones.md,
-    │   docs/entregas.md  ← se escriben a medida que se decide
-    └── app-validador/     ← app móvil del validador
+└── (aspiracional — todavía no existe):
+    └── app-validador/     ← app móvil del validador (hoy es la pantalla web /validar)
 ```
+
+> Los archivos `docs/arquitectura.md`, `docs/componentes.md`, `docs/patrones.md` y
+> `docs/entregas.md` que se habían previsto no se escribieron: el estado vive en
+> `docs/plan-entregas.md` y los patrones, en los ADR (PAS-36).
 
 > `CLAUDE.local.md` es un archivo personal opcional (gitignored); puede no existir
 > en un clon recién hecho. Los `.md` de `docs/` listados como aspiracionales todavía
@@ -851,9 +893,10 @@ passly/
 
 ## 9. Estado actual
 
-> **Corte al 18/10:** todo lo de abajo describe `main` hasta PAS-20 inclusive. Lo que falta para
-> cumplir la visión de producto está en la tabla de brecha de §1; cada issue nuevo que se cierre
-> agrega acá su párrafo (qué se hizo, qué decisión vale para el oral) y tacha su fila en §1.
+> **Corte al 14/11:** lo de abajo describe `main` hasta PAS-32 inclusive (último merge: 19/10).
+> PAS-31 y PAS-32 están al final, en sus propias secciones. **Lo que falta está en
+> [`docs/plan-entregas.md`](docs/plan-entregas.md)**; cada issue nuevo que se cierre agrega acá
+> su párrafo (qué se hizo, qué decisión vale para el oral) y tacha su fila en ese plan.
 
 **Entrega del 31/08 lista:** informe con arquitectura, 8 componentes con
 interfaces, stack justificado y diagramas.
@@ -1141,7 +1184,8 @@ de que haga falta. Un evento ya pasado tampoco se oculta: la fecha no cambia el 
 *Hallazgo fuera de alcance:* Ventas **no** verifica que el evento esté publicado al agregar
 al carrito. `consultarDisponibilidad` responde para cualquier tipo de entrada, así que
 alguien que adivine el id de un tipo de entrada de un borrador podría comprarlo. Se deja
-anotado para un issue propio.
+anotado para un issue propio. **Sigue presente al 14/11 (también en la compra como invitado y
+para eventos cancelados): issue PAS-37.**
 
 **Página pública de productora (PAS-26):** `/productoras/:id` es una ruta **pública**
 (`PaginaProductoraPage`) con el nombre comercial, la descripción y la grilla de los eventos
@@ -1235,7 +1279,8 @@ correcto.
    desarrollado en paralelo~~ ✅ hecho
 6. ~~`ServicioDeVentas` — el stateful, con callbacks de ciclo de vida~~ ✅ hecho
 7. ~~`ServicioDeTickets` — firma criptográfica del QR~~ ✅ hecho
-8. El resto, según lo que pida cada entrega
+8. ~~`ServicioDeAccesos`, Notificaciones (cola de correo) y Facturación (cola JMS)~~ ✅ hecho
+9. Lo que sigue lo marca la consigna nueva: ver [`docs/plan-entregas.md`](docs/plan-entregas.md)
 
 ---
 
@@ -1244,10 +1289,17 @@ correcto.
 - **Stack de la app móvil:** decidido como React Native, falta confirmarlo con el equipo.
   El de la app web ya no es una duda: **React + Vite + TypeScript, implementado en
   `frontend/` (PAS-14)**.
-- **Fecha de la Entrega Final:** la tabla del TP dice **21/12**; el detalle de esa
-  misma entrega dice **30/11**. Confirmar con la cátedra por Teams.
-- **Nota mínima de la final:** la tabla dice **mín. 4**; el detalle dice
-  **mín. 8 → aprobación directa**. Confirmar.
+- ~~**Fecha de la Entrega Final:** 21/12 o 30/11~~ **Resuelto:** el profe fijó 2.ª entrega el
+  **16/11**, 3er checkpoint el **30/11** y final el **07/12** (§6).
+- ~~**Nota mínima de la final**~~ **Resuelto:** hay que cumplir G1 a G9 y sacar **al menos 4 en
+  cada eje** (A 25 %, B 25 %, C 20 %, D 20 %, E 10 %). Un eje por debajo de 4 desaprueba aunque
+  el promedio alcance.
+- **¿Linear vale como "Jira"?** La consigna nombra Jira. Confirmar con el profe (PAS-39).
+- **¿Qué funcionalidad de IA?** La consigna del 30/11 pide "la funcionalidad de IA funcionando a
+  través de su gateway" y el eje E (10 %) la testea. No hay nada definido ni implementado.
+  Revisar qué se comprometió en la entrega del diseño.
+- **Numeración exacta de G1 a G9 y umbrales de cada eje:** están en el PDF de Criterios de
+  Testing, que todo el equipo tiene que leer.
 - **¿Separar `ServicioDeInventario` de `ServicioDeVentas`?** Sigue sin resolverse, y
   PAS-8 se implementó sin esa separación: Ventas es a la vez Facade y titular del
   carrito, dos responsabilidades en un componente. El cupo en sí no está duplicado —
@@ -1262,14 +1314,15 @@ correcto.
   productora quisiera difundir un evento únicamente por su link (sin listarlo), haría falta un
   atributo de visibilidad (`PUBLICO` / `SOLO_CON_LINK`). No forma parte de la visión del 18/10;
   se deja anotado por si aparece.
-- **Validador: web ahora, móvil después** (ver §2). Confirmar con la cátedra que una pantalla web
-  responsive con cámara alcanza para el Checkpoint 2.
-- **Rotación de `JSESSIONID`** (`sessionFixation().none()`, ver PAS-18 en §9): sigue pendiente de
-  decisión del equipo.
+- **Validador: web ahora, móvil después** (ver §2). La consigna nueva no menciona la app móvil;
+  confirmar si sigue dentro de las historias comprometidas.
+- **Rotación de `JSESSIONID`** (`sessionFixation().none()`, ver PAS-18 en §9): se revisa al pasar
+  a JWT (PAS-33/PAS-34).
 
 ### Deuda técnica declarada
 
-- **`ddl-auto: update` → migrar a Flyway (o `validate`) antes de la Obligatoria 2.**
+- **`ddl-auto: update` → migrar a Flyway (o `validate`).** Al 14/11 sigue pendiente; ahora pesa
+  para el **build reproducible con un solo comando** (G1 a G9 del 07/12).
   Hoy Hibernate crea y evoluciona las tablas al arrancar (`ddl-auto: update` en
   `application.yml`). Sirve para el desarrollo diario, pero no versiona el esquema
   ni sabe borrar columnas. El plan —declarado hasta ahora solo en comentarios de
@@ -1300,7 +1353,7 @@ correcto.
 `facturacion/` tiene contrato FacturacionService, `internal/{web,negocio,datos}`, esquema `facturacion.factura` y `allowedDependencies = {}`: no existe arista Java Facturacion → Ventas. Usa un record local para deserializar el contrato JSON.
 Docker Compose ya incluye broker durable, consola, redelivery y DLQ. La factura queda PENDIENTE_AFIP; el puerto ClienteAfip tiene solo un adapter que loguea, sin SOAP.
 AFTER_COMMIT evita mensajes de compras revertidas; una restriccion unica + INSERT ON CONFLICT evita duplicados bajo concurrencia. Ver docs/mensajeria.md y docs/ddl-facturacion.sql.
-**Deuda tecnica: envio post-commit sin outbox.** Si JMS falla, la compra sigue confirmada y se loguea ERROR con su id; no propagar hacia la compensacion del pago. Puede faltar factura y requiere conciliacion manual. Agregar outbox o Event Publication Registry en una entrega posterior.
+**Deuda tecnica: envio post-commit sin outbox** (al 14/11 pasa a ser requisito del 30/11: "si se apaga el broker, no se pierden mensajes", ver `docs/plan-entregas.md`). Si JMS falla, la compra sigue confirmada y se loguea ERROR con su id; no propagar hacia la compensacion del pago. Puede faltar factura y requiere conciliacion manual. Agregar outbox o Event Publication Registry en una entrega posterior.
 
 ## Actualizacion PAS-31 — ServicioDeAccesos
 
