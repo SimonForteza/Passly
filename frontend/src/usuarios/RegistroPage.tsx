@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError } from '../lib/http/ApiError';
 import { useAuth } from '../lib/auth/AuthContext';
-import { crearUsuario } from './api';
+import { crearUsuario, iniciarSesion as pedirToken } from './api';
 import {
   BotonPrimario,
   CampoTexto,
@@ -48,15 +48,25 @@ export function RegistroPage() {
     try {
       // El alta publica SIEMPRE crea COMPRADOR: no ofrecemos elegir rol. Pedir uno privilegiado
       // como anonimo es 401 en el backend; el alta de otros roles la hace un ADMIN desde su perfil.
-      const usuario = await crearUsuario({
+      await crearUsuario({
         email,
         nombre,
         password,
         rol: 'COMPRADOR',
       });
-      // El POST devuelve el UsuarioDTO (con id): con eso y la clave ya podemos dejar la sesion
-      // iniciada sin pasar por el login.
-      iniciarSesion(usuario, password);
+      // Con la cuenta creada, el mismo email + clave se canjean por un JWT: queda la sesion
+      // iniciada sin pasar por la pantalla de login, y el password no se guarda.
+      try {
+        iniciarSesion(await pedirToken(email, password));
+      } catch {
+        // La cuenta ya existe: no corresponde decir "no pudimos crear la cuenta". Se manda al
+        // login conservando el destino, para que entre a mano.
+        navigate('/login', {
+          replace: true,
+          state: { from: origen, contexto: 'Tu cuenta quedó creada. Ingresá para continuar.' },
+        });
+        return;
+      }
       navigate(destino, { replace: true });
     } catch (e) {
       if (e instanceof ApiError && e.status === 400 && e.errores) {

@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError } from '../lib/http/ApiError';
 import { useAuth } from '../lib/auth/AuthContext';
-import { obtenerUsuarioActual } from './api';
+import { iniciarSesion as pedirToken } from './api';
 import {
   BotonPrimario,
   CampoTexto,
@@ -40,15 +40,13 @@ export function LoginPage() {
     setError(null);
     setCargando(true);
     try {
-      // No hay endpoint de "login": validamos las credenciales pidiendo el propio usuario. Si
-      // sirven, el backend responde con el UsuarioDTO (rol incluido) y recien ahi damos la sesion
-      // por buena; si no, /api/usuarios/me devuelve 401.
-      const usuario = await obtenerUsuarioActual({ email, password });
-      iniciarSesion(usuario, password);
+      // POST /api/auth/login devuelve el JWT y el UsuarioDTO (rol incluido). Se guarda el token;
+      // el password se queda en el estado de este formulario y muere con la pantalla.
+      iniciarSesion(await pedirToken(email, password));
       navigate(destino, { replace: true });
     } catch (e) {
-      // 401 = credenciales invalidas (no hay caso de rol equivocado: /me solo pide estar
-      // autenticado). Cualquier otra cosa es un error inesperado del backend o de red.
+      // 401 = credenciales invalidas (el backend da el mismo para email inexistente y clave
+      // erronea). Cualquier otra cosa es un error inesperado del backend o de red.
       if (e instanceof ApiError && e.status === 401) {
         setError('Email o contraseña inválidos.');
       } else {

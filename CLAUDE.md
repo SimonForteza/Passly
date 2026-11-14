@@ -633,7 +633,8 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
   que una clave incorrecta (nada de enumeración de usuarios).
   - *Por qué se cambió:* en la O1 se eligió Basic porque JWT era complejidad sin beneficio. La
     consigna del 16/11 exige JWT, y además deja de viajar la contraseña en cada request (con Basic
-    el frontend la guardaba en `sessionStorage` para armar el header; PAS-34 lo elimina).
+    el frontend la guardaba en `sessionStorage` para armar el header; desde PAS-34 guarda solo el
+    token).
   - *Por qué HS256 y no RS256:* el mismo proceso firma y valida. Un par de claves solo se
     justifica si un tercero tiene que verificar tokens sin poder emitirlos.
 - **El `sub` del token es el id numérico, no el email.** `ConvertidorDeJwtAAutenticacion` arma
@@ -654,8 +655,9 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
   Basic corría en cada request). Además, si la cuenta deja de existir, su token deja de servir.
   Cubierto por `AutenticacionJwtTest.elRolSeLeeActualizadoAunqueElTokenSeaAnterior`.
 - **Un token inválido da 401 incluso en una ruta pública** (la cartelera): el filtro de Bearer
-  valida todo token que recibe. Un token adulterado no se ignora en silencio; el cliente que
-  tenga uno vencido lo descarta (PAS-34).
+  valida todo token que recibe. Un token adulterado no se ignora en silencio. Por eso el
+  frontend (PAS-34) manda el login **sin** token, y ante un 401 con token borra la sesión y lleva
+  al login: un token viejo en `sessionStorage` no puede dejar a nadie afuera.
 
 **Los dos ejes de la autorización** (implementado). Rol y alcance responden preguntas
 distintas y por eso son dos enums, no uno:
@@ -775,7 +777,7 @@ por patrón, resiliencia, IA, testing, G1 a G9) están en
 - [ ] 1 integración SOAP con WSDL (legado) → AFIP — **pendiente, 30/11** (con Fault y XXE)
 - [x] 1 integración REST (partner moderno) → pasarela de pago (PAS-7, PAS-29)
 - [ ] 2 procesos async: ~~1 cola P2P~~ ✅ (PAS-32) + 1 tópico pub/sub — **tópico pendiente, 30/11**
-- [x] Seguridad declarativa (auth + rol) en 2+ operaciones sensibles. **Falta:** pasar a JWT (PAS-33/PAS-34)
+- [x] Seguridad declarativa (auth + rol) en 2+ operaciones sensibles, con **JWT** (PAS-33 backend, PAS-34 web)
 - [x] Transacciones declarativas en 1 flujo crítico multipaso (`ConfirmacionDeCompra`)
 - [x] Stack consistente y justificado (Spring Boot)
 - [x] Repo Git con historial incremental, no un volcado final
@@ -880,7 +882,7 @@ passly/
 │   └── src/
 │       ├── router.tsx, App.tsx, theme.css
 │       ├── layout/        ← AppLayout, Header, RutaPrivada, EstadoCarga/EstadoError
-│       ├── lib/http/       ← httpClient (fetch + Basic + credentials:'include' + ApiError)
+│       ├── lib/http/       ← httpClient (fetch + Bearer + credentials:'include' + ApiError)
 │       ├── lib/auth/       ← session.ts (sessionStorage) + AuthContext
 │       ├── usuarios/, ventas/   ← un paquete por componente del backend, cada uno con
 │       │                    types.ts + api.ts + sus páginas
@@ -1048,8 +1050,9 @@ de productoras), **PAS-17** (cartelera y backoffice de eventos) y **PAS-18** (ca
 y mis órdenes) — ver más abajo. Ninguna ruta conserva placeholder.
 
 El cliente HTTP (`lib/http/httpClient.ts`) centraliza tres cosas que, si no, cada módulo
-reimplementaría: el header `Authorization: Basic` armado a partir de lo que haya en
-`sessionStorage` (el backend es Basic puro, sin JWT — §4.11), `credentials: 'include'` en
+reimplementaría: el header `Authorization: Bearer` con el JWT guardado en `sessionStorage`
+(PAS-34; hasta entonces era un Basic armado con el password guardado — §4.11), y el cierre de
+sesión ante un 401 con token; `credentials: 'include'` en
 toda llamada (el carrito de `ventas` vive en una `HttpSession` aunque la autenticación sea
 stateless — §4.7), y el parseo de `ProblemDetail` (RFC 9457, incluido el campo `errores` que
 agregan los `@RestControllerAdvice` en validaciones 400) en una `ApiError` tipada por
@@ -1102,7 +1105,8 @@ frames Web 02/03/04/06/12 del Figma. Los tokens de `theme.css` pasaron a ser los
 solo en el REST Client, que valen para el oral:
 
 - **Cola serial de requests autenticados en `httpClient`.** Spring Security rota el `JSESSIONID`
-  en cada request autenticado (§4.7) y Tomcat descarta el id viejo en el acto: dos requests
+  en cada request autenticado (§4.7; **con JWT también**, verificado en PAS-33, así que PAS-34 la
+  mantuvo) y Tomcat descarta el id viejo en el acto: dos requests
   autenticados en paralelo con la misma cookie hacen que el segundo llegue con un id muerto, y si
   toca el carrito el contenedor le crea una sesión nueva, vacía. Encolados, cada uno sale con la
   cookie que dejó el anterior. **Límite honesto:** recargar la página (F5) con un request
@@ -1296,6 +1300,19 @@ otro emisor, cuenta inexistente, rol leído en vivo) y `RespuestaNoAutenticadaTe
 contra Tomcat real porque MockMvc no detectaba que el 401 salía en ISO-8859-1 (acentos rotos).
 Los `.http` de `docs/http/` hacen login primero y reusan el token.
 
+**JWT en la app web (PAS-34).** `lib/auth/session.ts` guarda `{ usuario, token, expiraEn }` y
+**nunca el password**: la clave viaja una sola vez, en `POST /api/auth/login`, y muere con el
+formulario (con Basic quedaba en claro en `sessionStorage` toda la pestaña, porque había que
+re-armar el header en cada request). Una sesión guardada con la forma vieja se descarta al leerla.
+El registro hace el alta y enseguida el login; si ese login fallara, manda a `/login` avisando que
+la cuenta quedó creada. `httpClient` manda `Bearer`; ante un 401 **con** token (vencido,
+adulterado o de una cuenta borrada) borra la sesión y dispara `passly:sesion-vencida`:
+`AuthContext` pone el usuario en `null` y `App.tsx` lleva a `/login` con `from` (también desde
+pantallas públicas, porque el backend da 401 a un token inválido en cualquier ruta). El login se
+manda con `anonimo: true`, sin token, para que uno viejo no lo bloquee. Al recargar la página, un
+token cuyo `expiraEn` ya pasó no cuenta como sesión. La cola serial se quedó, porque la rotación
+del `JSESSIONID` sigue con JWT.
+
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 
 1. ~~`ServicioDeEventos` — primer componente implementado~~ ✅ hecho
@@ -1345,7 +1362,8 @@ Los `.http` de `docs/http/` hacen login primero y reusan el token.
   confirmar si sigue dentro de las historias comprometidas.
 - **Rotación de `JSESSIONID`** (`sessionFixation().none()`, ver PAS-18 en §9): con JWT **sigue
   rotando** en cada request autenticado (verificado en PAS-33; el carrito conserva los datos).
-  PAS-34 decide entre mantener la cola serial del frontend o desactivar la rotación.
+  PAS-34 mantuvo la cola serial del frontend. Desactivar la rotación resolvería el caso del F5
+  con un request en vuelo, pero es un cambio del backend: decisión pendiente del equipo.
 
 ### Deuda técnica declarada
 
