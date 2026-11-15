@@ -178,6 +178,20 @@ class AltasInvitadosIntegrationTest {
         mvc.perform(get("/api/ventas/invitados/orden").header("X-Orden-Token",token+"x")).andExpect(status().isNotFound());
         mvc.perform(get("/api/ventas/ordenes/{id}",orden)).andExpect(status().isUnauthorized());
     }
+    /** PAS-37 (DEF-001): como invitado tampoco se agrega una entrada de un evento cancelado ni de un borrador. */
+    @Test void invitadoNoAgregaEntradasDeEventosFueraDeVenta() throws Exception {
+        long publicado=tipo(BigDecimal.TEN,5);
+        long idEvento=eventos.consultarDisponibilidad(publicado).idEvento();
+        eventos.cancelarEvento(idEvento,duenio.id());
+        var sesion=new MockHttpSession();
+        mvc.perform(post("/api/ventas/invitados/carrito/items").session(sesion).contentType(APPLICATION_JSON)
+            .content("{\"idTipoEntrada\":"+publicado+",\"cantidad\":1}")).andExpect(status().isConflict());
+        var borrador=eventos.crearEvento(new CrearEventoRequest(productora,"Borrador",null,OffsetDateTime.now().plusDays(2),"Salón",
+            List.of(new CrearTipoEntradaRequest("General",BigDecimal.TEN,5))),duenio.id());
+        mvc.perform(post("/api/ventas/invitados/carrito/items").session(sesion).contentType(APPLICATION_JSON)
+            .content("{\"idTipoEntrada\":"+borrador.tiposEntrada().getFirst().id()+",\"cantidad\":1}")).andExpect(status().isNotFound());
+        mvc.perform(get("/api/ventas/invitados/carrito").session(sesion)).andExpect(jsonPath("$.items.length()").value(0));
+    }
     @Test void faltaDeCupoYPagoRechazadoNoEmitenOrden() throws Exception {
         var sesion=new MockHttpSession(); long tipo=tipo(new BigDecimal("10"),2); agregar(sesion,tipo);
         assertThat(comprar(sesion,UUID.randomUUID().toString(),"invitado@test.com","4000000000000002").getResponse().getStatus()).isEqualTo(402);

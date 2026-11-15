@@ -17,6 +17,7 @@ independiente: se abre, aparece un link `Send Request` arriba de cada `###`, y s
 | [10-edicion-eventos.http](10-edicion-eventos.http) | edicion de evento y tipos de entrada (PAS-19): editar en BORRADOR, **comprar un borrador -> 409** (PAS-35), editar en PUBLICADO -> 409, agregar tipo y ampliar cupo en PUBLICADO -> 200/201, nombre repetido -> 409, aislamiento -> 403, sin identidad -> 401 |
 | [11-link-compartible.http](11-link-compartible.http) | el link compartible de un evento (PAS-25): publicado -> 200 para todos; **borrador -> 404 (no 403)** para anonimos, compradores y organizadores de otra productora; 200 para quien gestiona la productora dueña |
 | [12-ventas-invitados.http](12-ventas-invitados.http) | compra como invitado con `ServicioDePagos`: tarjeta aprobada, rechazada y caída ambigua; consulta de la orden solo con token privado |
+| [14-compra-fuera-de-venta.http](14-compra-fuera-de-venta.http) | ventas fuera de PUBLICADO (PAS-37, DEF-001): entrada de un **borrador** al carrito -> 409 (invitado -> 404), evento **cancelado** con el carrito abierto -> confirmar 409 **sin cobrar**, invitado con cancelado -> 409 |
 | [13-cancelacion-evento.http](13-cancelacion-evento.http) | patron State y cancelacion (PAS-35): publicar -> cancelar (200), **cancelar dos veces -> 409** y **publicar un cancelado -> 409** con ProblemDetail, ampliar cupo de un cancelado -> 409, disponibilidad en `false`, cancelar un borrador -> 200, otra productora -> 403, sin identidad -> 401 |
 
 ## Autenticacion (PAS-6, JWT desde PAS-33)

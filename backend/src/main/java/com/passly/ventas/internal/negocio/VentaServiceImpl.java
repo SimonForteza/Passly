@@ -4,6 +4,7 @@ import com.passly.eventos.dto.DisponibilidadDTO;
 import com.passly.eventos.EventoService;
 import com.passly.usuarios.UsuarioService;
 import com.passly.usuarios.dto.UsuarioDTO;
+import com.passly.ventas.EntradaNoDisponibleException;
 import com.passly.ventas.OrdenNoEncontradaException;
 import com.passly.ventas.VentaService;
 import com.passly.ventas.dto.AgregarItemRequest;
@@ -69,7 +70,7 @@ class VentaServiceImpl implements VentaService {
         // El precio y el nombre se congelan aca, contra la misma consulta que va a usar
         // ServicioDeVentas para descontar cupo al confirmar (EventoService.consultarDisponibilidad):
         // el carrito nunca lee el esquema eventos por su cuenta.
-        DisponibilidadDTO disponibilidad = eventoService.consultarDisponibilidad(solicitud.idTipoEntrada());
+        DisponibilidadDTO disponibilidad = exigirALaVenta(solicitud.idTipoEntrada());
 
         carrito.agregarItem(
                 idComprador,
@@ -110,6 +111,12 @@ class VentaServiceImpl implements VentaService {
         // comprador tiene que poder reintentar sin haber perdido su seleccion.
         List<ItemDeCarritoDTO> items = carrito.itemsParaConfirmar(idComprador);
         BigDecimal total = carrito.total();
+
+        // PAS-37: antes de cobrar, cada linea tiene que seguir a la venta. Si el evento se
+        // cancelo mientras el carrito estaba abierto, se rechaza sin tocar la tarjeta. El
+        // descontarCupo de ConfirmacionDeCompra sigue siendo la ultima barrera (por si se cancela
+        // entre este chequeo y el commit), y en ese caso se revierte el cobro como siempre.
+        items.forEach(item -> exigirALaVenta(item.idTipoEntrada()));
 
         // La orden todavia no existe (y por lo tanto no tiene id) en el momento de cobrar, asi
         // que la referencia que identifica este cobro ante la pasarela es un UUID propio.
@@ -166,6 +173,19 @@ class VentaServiceImpl implements VentaService {
         return ordenRepository.findByCompradorIdOrderByCreadaEnDesc(idComprador).stream()
                 .map(orden -> mapper.aDTO(orden, comprador))
                 .toList();
+    }
+
+    /**
+     * PAS-37 (DEF-001): solo se vende lo que Eventos dice que esta a la venta.
+     * {@code hayDisponibilidad} ya combina cupo y estado ({@code admiteVentas()}, solo
+     * {@code PUBLICADO}, PAS-35), asi que Ventas no necesita conocer el estado del evento.
+     */
+    private DisponibilidadDTO exigirALaVenta(Long idTipoEntrada) {
+        DisponibilidadDTO disponibilidad = eventoService.consultarDisponibilidad(idTipoEntrada);
+        if (!disponibilidad.hayDisponibilidad()) {
+            throw new EntradaNoDisponibleException(idTipoEntrada);
+        }
+        return disponibilidad;
     }
 
     private CompradorDeOrdenDTO resolverComprador(Long idComprador) {

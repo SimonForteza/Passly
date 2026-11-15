@@ -95,13 +95,17 @@ class ConfirmarCompraTest {
     @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
     private org.springframework.jms.core.JmsTemplate jms;
 
+    /** Espia del cobro real: PAS-37 exige que un evento fuera de venta no llegue a cobrarse. */
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    private com.passly.pagos.PagoService pagoService;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         org.mockito.Mockito.doNothing().when(jms).send(org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.any(org.springframework.jms.core.MessageCreator.class));
-        org.mockito.Mockito.clearInvocations(jms);
+        org.mockito.Mockito.clearInvocations(jms, pagoService);
         this.mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();
@@ -278,6 +282,63 @@ class ConfirmarCompraTest {
         assertThat(sesion.isInvalid()).isTrue();
     }
 
+    /** PAS-37 (DEF-001): un tipo de entrada de un borrador no entra al carrito. */
+    @Test
+    void agregarUnaEntradaDeUnBorradorDa409YNoTocaElCarrito() throws Exception {
+        UsuarioDTO comprador = registrarComprador();
+        EventoDeFixture evento = crearEvento(5, 5, false);
+        var actuante = user(String.valueOf(comprador.id())).roles("COMPRADOR");
+        MockHttpSession sesion = new MockHttpSession();
+
+        intentarAgregar(sesion, actuante, evento.idPrimerTipo())
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        "La entrada " + evento.idPrimerTipo() + " no esta disponible para la venta"));
+
+        mockMvc.perform(get("/api/ventas/carrito").with(actuante).session(sesion))
+                .andExpect(jsonPath("$.items.length()").value(0));
+    }
+
+    /** PAS-37 (DEF-001): un tipo de entrada de un evento cancelado tampoco entra al carrito. */
+    @Test
+    void agregarUnaEntradaDeUnEventoCanceladoDa409() throws Exception {
+        UsuarioDTO comprador = registrarComprador();
+        EventoDeFixture evento = crearEvento(5, 5, true);
+        eventoService.cancelarEvento(evento.idEvento(), evento.idOrganizador());
+        var actuante = user(String.valueOf(comprador.id())).roles("COMPRADOR");
+
+        intentarAgregar(new MockHttpSession(), actuante, evento.idPrimerTipo())
+                .andExpect(status().isConflict());
+    }
+
+    /**
+     * PAS-37: el evento se cancela mientras el carrito esta abierto. La compra se rechaza
+     * <b>antes de cobrar</b> (no hay cobro que revertir), no se descuenta cupo ni queda orden,
+     * y el carrito sigue intacto.
+     */
+    @Test
+    void siElEventoSeCancelaConElCarritoAbiertoNoSeCobraNiSeConfirma() throws Exception {
+        UsuarioDTO comprador = registrarComprador();
+        EventoDeFixture evento = crearEvento(5, 5, true);
+        var actuante = user(String.valueOf(comprador.id())).roles("COMPRADOR");
+        MockHttpSession sesion = new MockHttpSession();
+        agregarAlCarrito(sesion, actuante, evento.idPrimerTipo(), 2);
+
+        eventoService.cancelarEvento(evento.idEvento(), evento.idOrganizador());
+
+        mockMvc.perform(confirmarCompra(actuante, sesion, TARJETA_APROBADA))
+                .andExpect(status().isConflict());
+
+        org.mockito.Mockito.verify(pagoService, org.mockito.Mockito.never())
+                .cobrar(org.mockito.ArgumentMatchers.any());
+        assertThat(eventoService.consultarDisponibilidad(evento.idPrimerTipo()).cupoDisponible()).isEqualTo(5);
+        mockMvc.perform(get("/api/ventas/compradores/{id}/ordenes", comprador.id()).with(actuante))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/api/ventas/carrito").with(actuante).session(sesion))
+                .andExpect(jsonPath("$.items.length()").value(1));
+    }
+
     /**
      * Confirma la compra con una tarjeta dada. El numero de tarjeta decide el resultado contra
      * el mock de la pasarela (CLAUDE.md 9): {@code TARJETA_APROBADA} cobra, {@code
@@ -310,6 +371,18 @@ class ConfirmarCompraTest {
                 .andExpect(status().isOk());
     }
 
+    private org.springframework.test.web.servlet.ResultActions intentarAgregar(
+            MockHttpSession sesion,
+            org.springframework.test.web.servlet.request.RequestPostProcessor actuante,
+            Long idTipoEntrada
+    ) throws Exception {
+        return mockMvc.perform(post("/api/ventas/carrito/items")
+                .with(actuante)
+                .session(sesion)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"idTipoEntrada\":" + idTipoEntrada + ",\"cantidad\":1}"));
+    }
+
     private static Long extraerId(String jsonOrden) {
         // Sin libreria de parseo aca a proposito: es un solo campo al principio del JSON,
         // "id":<numero>, y evita sumar una dependencia solo para un test.
@@ -329,6 +402,21 @@ class ConfirmarCompraTest {
     }
 
     private EventoDTO crearEventoConDosTiposDeEntrada(int cupoUno, int cupoDos) {
+        return crearEvento(cupoUno, cupoDos, true).evento();
+    }
+
+    /** El evento y quien lo gestiona: cancelarlo (PAS-37) exige actuar como su organizador. */
+    private record EventoDeFixture(EventoDTO evento, Long idOrganizador) {
+        Long idEvento() {
+            return evento.id();
+        }
+
+        Long idPrimerTipo() {
+            return evento.tiposEntrada().get(0).id();
+        }
+    }
+
+    private EventoDeFixture crearEvento(int cupoUno, int cupoDos, boolean publicar) {
         String sufijo = UUID.randomUUID().toString();
 
         UsuarioDTO organizador = usuarioService.registrarUsuario(new CrearUsuarioRequest(
@@ -354,7 +442,10 @@ class ConfirmarCompraTest {
                 "Lugar de Prueba",
                 tiposEntrada
         ), organizador.id());
+        if (!publicar) {
+            return new EventoDeFixture(borrador, organizador.id());
+        }
         // Solo un evento publicado vende (PAS-35): un borrador rechaza descontarCupo.
-        return eventoService.publicarEvento(borrador.id(), organizador.id());
+        return new EventoDeFixture(eventoService.publicarEvento(borrador.id(), organizador.id()), organizador.id());
     }
 }

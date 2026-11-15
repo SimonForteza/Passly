@@ -1,5 +1,6 @@
 package com.passly.ventas.internal.negocio;
 import com.passly.eventos.EventoService;
+import com.passly.ventas.EntradaNoDisponibleException;
 import com.passly.ventas.VentaService;
 import com.passly.ventas.dto.*;
 import com.passly.ventas.internal.datos.OrdenRepository;
@@ -28,6 +29,8 @@ public class CompraInvitadoService {
         synchronized(sesion.candado()) {
             var d=eventos.consultarDisponibilidad(r.idTipoEntrada());
             eventos.consultarEventoPublico(d.idEvento());
+            // PAS-37: consultarEventoPublico deja pasar un CANCELADO (a proposito, PAS-25).
+            if (!d.hayDisponibilidad()) throw new EntradaNoDisponibleException(d.idTipoEntrada());
             if (sesion.carrito().verComo(INVITADO).expirado()) sesion.reiniciar();
             sesion.carrito().agregarItem(INVITADO,d.idTipoEntrada(),d.idEvento(),d.nombreTipoEntrada(),d.precio(),r.cantidad());
             return sesion.carrito().verComo(INVITADO);
