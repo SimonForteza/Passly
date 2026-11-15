@@ -122,37 +122,22 @@ class EdicionDeEventoTest {
         assertThat(tipo.cupoDisponible()).isEqualTo(6); // (5-3) + 4
     }
 
-    @Test
-    void editarTipoDeEntradaEnBorradorBajandoElCupoPorDebajoDeLoVendidoLanzaEdicionInvalidaYNoDejaCambios() {
-        Fixture fixture = crearEventoConUnTipoDeEntrada(5);
-        Long idTipoEntrada = fixture.evento.tiposEntrada().get(0).id();
-        eventoService.descontarCupo(List.of(new DescontarCupoRequest(idTipoEntrada, 3)));
-
-        assertThatThrownBy(() -> eventoService.editarTipoEntrada(
-                fixture.evento.id(), idTipoEntrada,
-                new EditarTipoEntradaRequest("General", new BigDecimal("1000.00"), 2),
-                fixture.idOrganizador))
-                .isInstanceOf(EdicionDeEventoInvalidaException.class);
-
-        assertThat(eventoService.consultarDisponibilidad(idTipoEntrada).cupoDisponible()).isEqualTo(2);
-    }
+    // Los dos casos de "editar un tipo de entrada en BORRADOR con ventas previas" (cupo por debajo
+    // y por encima de lo vendido) se mudaron a TipoEntradaTest, unitario: desde PAS-35 un borrador
+    // no vende (admiteVentas() == false), asi que ese escenario ya no se puede armar por el
+    // contrato. La invariante "cupo total nunca < vendidas" sigue viva y vive en TipoEntrada.editar.
 
     @Test
-    void editarTipoDeEntradaEnBorradorSubiendoElCupoPorEncimaDeLoVendidoRecalculaElDisponible() {
+    void descontarCupoDeUnBorradorLanzaCupoInsuficienteYNoDescuenta() {
         Fixture fixture = crearEventoConUnTipoDeEntrada(5);
         Long idTipoEntrada = fixture.evento.tiposEntrada().get(0).id();
-        eventoService.descontarCupo(List.of(new DescontarCupoRequest(idTipoEntrada, 3)));
 
-        EventoDTO actualizado = eventoService.editarTipoEntrada(
-                fixture.evento.id(), idTipoEntrada,
-                new EditarTipoEntradaRequest("General VIP", new BigDecimal("1500.00"), 10),
-                fixture.idOrganizador);
+        assertThatThrownBy(() -> eventoService.descontarCupo(
+                List.of(new DescontarCupoRequest(idTipoEntrada, 3))))
+                .isInstanceOf(CupoInsuficienteException.class);
 
-        TipoEntradaDTO tipo = actualizado.tiposEntrada().get(0);
-        assertThat(tipo.nombre()).isEqualTo("General VIP");
-        assertThat(tipo.precio()).isEqualByComparingTo("1500.00");
-        assertThat(tipo.cupoTotal()).isEqualTo(10);
-        assertThat(tipo.cupoDisponible()).isEqualTo(7); // 10 - 3 vendidas
+        assertThat(eventoService.consultarDisponibilidad(idTipoEntrada).cupoDisponible()).isEqualTo(5);
+        assertThat(eventoService.consultarDisponibilidad(idTipoEntrada).hayDisponibilidad()).isFalse();
     }
 
     @Test

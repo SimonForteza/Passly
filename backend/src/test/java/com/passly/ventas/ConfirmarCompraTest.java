@@ -346,7 +346,7 @@ class ConfirmarCompraTest {
                 new CrearTipoEntradaRequest("General", new BigDecimal("1000.00"), cupoUno),
                 new CrearTipoEntradaRequest("VIP", new BigDecimal("2000.00"), cupoDos));
 
-        return eventoService.crearEvento(new CrearEventoRequest(
+        EventoDTO borrador = eventoService.crearEvento(new CrearEventoRequest(
                 idProductora,
                 "Evento de Prueba " + sufijo,
                 "Fixture de ConfirmarCompraTest",
@@ -354,5 +354,7 @@ class ConfirmarCompraTest {
                 "Lugar de Prueba",
                 tiposEntrada
         ), organizador.id());
+        // Solo un evento publicado vende (PAS-35): un borrador rechaza descontarCupo.
+        return eventoService.publicarEvento(borrador.id(), organizador.id());
     }
 }
