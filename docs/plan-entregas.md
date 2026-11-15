@@ -36,7 +36,7 @@ diseño**.
 | Seguridad base: **JWT en la app web** | ✅ guarda solo el token; 401 → login (en revisión) | [PAS-34](https://linear.app/passly/issue/PAS-34) | Juan |
 | Control de acceso por rol | ✅ `@PreAuthorize` + membresía por productora | — | — |
 | **Patrón State** en la entidad central, **409** ante transición inválida | ✅ `EstadoDeEvento` + una clase por estado; cancelar con 409 al repetir (en revisión) | [PAS-35](https://linear.app/passly/issue/PAS-35) | Simón |
-| Patrones implementados **cada uno con su ADR** | ❌ solo hay 2 ADR, y son de arquitectura | [PAS-36](https://linear.app/passly/issue/PAS-36) | Simón |
+| Patrones implementados **cada uno con su ADR** | ✅ ADR-003 a ADR-007 (Facade, Adapter/Port, DAO, State, stateful), [índice](adr/README.md) (en revisión) | [PAS-36](https://linear.app/passly/issue/PAS-36) | Simón |
 | Mensajería funcionando en al menos un proceso | ✅ cola `orden.pagada` (PAS-32) | — | — |
 | Primeros tests unitarios | 🟡 15 clases de test, casi todas de integración | [PAS-38](https://linear.app/passly/issue/PAS-38) | Lucio |
 | Sin defectos conocidos sin registrar | ❌ se pueden comprar entradas de un **borrador** | [PAS-37](https://linear.app/passly/issue/PAS-37) | Lucio |
