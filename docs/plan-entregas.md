@@ -35,11 +35,11 @@ diseño**.
 | Seguridad base: **autenticación con JWT** (backend) | ✅ `POST /api/auth/login` + Bearer (integrado en `main`) | [PAS-33](https://linear.app/passly/issue/PAS-33) | Juan |
 | Seguridad base: **JWT en la app web** | ✅ guarda solo el token; 401 → login (integrado en `main`) | [PAS-34](https://linear.app/passly/issue/PAS-34) | Juan |
 | Control de acceso por rol | ✅ `@PreAuthorize` + membresía por productora | — | — |
-| **Patrón State** en la entidad central, **409** ante transición inválida | 🟡 hay 409, pero con enum + `if`, no con State. No existe "cancelar" | [PAS-35](https://linear.app/passly/issue/PAS-35) | Lucio |
-| Patrones implementados **cada uno con su ADR** | ❌ solo hay 2 ADR, y son de arquitectura | [PAS-36](https://linear.app/passly/issue/PAS-36) | Lucio |
+| **Patrón State** en la entidad central, **409** ante transición inválida | ✅ `EstadoDeEvento` + una clase por estado; cancelar con 409 al repetir | [PAS-35](https://linear.app/passly/issue/PAS-35) | Lucio |
+| Patrones implementados **cada uno con su ADR** | ✅ ADR-003 a ADR-007 (Facade, Adapter/Port, DAO, State, stateful), [índice](adr/README.md) | [PAS-36](https://linear.app/passly/issue/PAS-36) | Lucio |
 | Mensajería funcionando en al menos un proceso | ✅ cola `orden.pagada` (PAS-32) | — | — |
-| Primeros tests unitarios | 🟡 88 pruebas aprobadas en local. Falta ampliar CI y cobertura | [PAS-38](https://linear.app/passly/issue/PAS-38) | Simón |
-| Defecto conocido de venta en eventos no publicados | 🟡 registrado y pendiente de corregir | [PAS-37](https://linear.app/passly/issue/PAS-37) | Simón |
+| Primeros tests unitarios | ✅ 4 clases nuevas de unitarios puros de negocio (Ventas, Productoras, Accesos, Invitaciones; 47 casos), 11 unitarias en total; CI con la suite completa | [PAS-38](https://linear.app/passly/issue/PAS-38) | Simón |
+| Sin defectos conocidos sin registrar | ✅ ~~se pueden comprar entradas de un **borrador**~~ corregido y registrado como DEF-001 | [PAS-37](https://linear.app/passly/issue/PAS-37) | Simón |
 | **Jira** al día | ❓ Linear es el tablero operativo. Pendiente confirmación de la cátedra y acceso de lectura | [PAS-39](https://linear.app/passly/issue/PAS-39) | Fede |
 | Feedback del diseño incorporado | ❓ Registro preparado. Pendiente relevar devoluciones de O1, C2 y Teams | [PAS-39](https://linear.app/passly/issue/PAS-39) | Fede |
 | Demo en vivo + documentación + declaración de IA | 🟡 guion e informe listos para revisión. Ensayo y presentación pendientes | [PAS-40](https://linear.app/passly/issue/PAS-40) | Fede |
@@ -54,7 +54,7 @@ responsable de PAS-38. La designación queda pendiente de confirmación del equi
 La HU-13 tiene seguimiento en [PAS-41](https://linear.app/passly/issue/PAS-41).
 
 **Ensayo y presentación:** [guion](entrega-2/guion-demo.md) e [informe PDF](entrega-2/informe-segunda-entrega.pdf).
-Ensayo grupal previsto para el 15/11 a la noche sobre `main` y una base descartable. PAS-35 desbloquea
+Ensayo grupal previsto para el 15/11 a la noche sobre `main` y una base descartable. PAS-35 ya integró
 la cancelación y el ADR de State. Tras el ensayo, agregar fecha, asistentes, commit y defectos.
 Después de exponer el 16/11, registrar el resultado y las observaciones para el 30/11.
 
@@ -80,10 +80,10 @@ equipo tiene que leer el PDF de Criterios de Testing**, no solo el QA.
 | Errores en formato **Problem Details** | ✅ en general | Revisar que no quede ningún 500 sin `ProblemDetail` |
 | **Funcionalidad de IA** a través de su gateway | ❌ no hay nada | Definir la funcionalidad y el gateway. Pesa 10 % del final (eje E) |
 | **QA designado** en el tablero | ❌ | Simón Forteza propuesto en PAS-39. Falta confirmación y designación en el tablero oficial. |
-| **Pipeline de CI** con reporte de cobertura parcial | 🟡 el CI corre un solo test | Se arranca en PAS-38 |
+| **Pipeline de CI** con reporte de cobertura parcial | ✅ `ci.yml`: suite completa contra Postgres + JaCoCo como artefacto + lint/build del front (PAS-38) | Falta fijar el umbral que rompe el build |
 | Plan de pruebas (1.ª versión) | ❌ | |
 | Matriz de trazabilidad (1.ª versión) | 🟡 | [Historias → issues](trazabilidad.md). Completar casos de prueba y resultados. |
-| Registro de defectos (1.ª versión) | ❌ | `docs/defectos.md`, se arranca en PAS-37 |
+| Registro de defectos (1.ª versión) | ✅ [`docs/defectos.md`](defectos.md) con DEF-001 (PAS-37) | Seguir registrando cada defecto apenas se detecta |
 | Manual de usuario (1.ª versión) | ✅ `docs/manual-de-usuario.md` | Actualizar con JWT, cancelación e IA |
 | **Ensayo de G1 a G9** | ❌ | Mostrar cómo se va a cumplir cada una y qué falta |
 
@@ -97,7 +97,7 @@ equipo tiene que leer el PDF de Criterios de Testing**, no solo el QA.
 |---|---|---|
 | G | Build reproducible con **un solo comando** | ❌ hoy son tres pasos (compose, backend, frontend) |
 | G | Tag **`v1.0-final`** en `main` antes del turno | ❌ no hay tags |
-| G | Pipeline de **CI en verde** | 🟡 (PAS-38) |
+| G | Pipeline de **CI en verde** | ✅ `ci.yml` (PAS-38) |
 | G | **Jira** al día | ❓ (PAS-39) |
 | G | **Sin secretos** en el historial | ✅ revisión rápida sin hallazgos. Correr `gitleaks` antes del final |
 | G | **Demo en vivo** | — |
@@ -112,7 +112,7 @@ equipo tiene que leer el PDF de Criterios de Testing**, no solo el QA.
 | Eje | Peso | Qué se mide (ejemplos del mensaje) | Estado hoy |
 |---|---|---|---|
 | A — Historias de usuario y documentación | 25 % | Documentación completa | 🟡 |
-| B — Código y tests | 25 % | Cobertura de negocio **≥ 80 % líneas / ≥ 70 % ramas**, **mutation ≥ 60 %**, **Quality Gate de Sonar** | ❌ sin JaCoCo, PIT ni Sonar |
+| B — Código y tests | 25 % | Cobertura de negocio **≥ 80 % líneas / ≥ 70 % ramas**, **mutation ≥ 60 %**, **Quality Gate de Sonar** | 🟡 JaCoCo listo (PAS-38). Cobertura de negocio al 15/11: **suite completa 94,8 % líneas / 80,8 % ramas**; **solo unitarios 32,9 % / 31,2 %** (lo demás lo cubren los tests de integración). Faltan PIT y Sonar |
 | C — Integración | 20 % | SOAP, REST y mensajería con resiliencia; **carga p95 < 500 ms** | 🟡 / ❌ sin prueba de carga |
 | D — Seguridad | 20 % | BOLA/IDOR, BFLA, **JWT inválidos**, inyecciones, **429 ante fuerza bruta**, **ZAP sin alertas High** | 🟡 IDOR de órdenes ya responde 404; ❌ sin 429 en login ni ZAP |
 | E — IA | 10 % | Testing de la funcionalidad de IA | ❌ |

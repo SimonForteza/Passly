@@ -199,7 +199,7 @@ class DescuentoDeCupoTest {
                 organizador.id()
         ).id();
 
-        return eventoService.crearEvento(new CrearEventoRequest(
+        EventoDTO borrador = eventoService.crearEvento(new CrearEventoRequest(
                 idProductora,
                 "Evento de Prueba " + sufijo,
                 "Fixture de DescuentoDeCupoTest",
@@ -207,5 +207,7 @@ class DescuentoDeCupoTest {
                 "Lugar de Prueba",
                 tiposEntrada
         ), organizador.id());
+        // Solo un evento publicado vende (PAS-35): un borrador rechaza descontarCupo.
+        return eventoService.publicarEvento(borrador.id(), organizador.id());
     }
 }

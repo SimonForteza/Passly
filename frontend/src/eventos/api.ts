@@ -26,6 +26,11 @@ export function publicarEvento(id: number): Promise<EventoDTO> {
   return httpClient.post<EventoDTO>(`/api/eventos/${id}/publicacion`);
 }
 
+/** Transición a CANCELADO (PAS-35). Cancelar un evento ya cancelado responde 409. */
+export function cancelarEvento(id: number): Promise<EventoDTO> {
+  return httpClient.post<EventoDTO>(`/api/eventos/${id}/cancelacion`);
+}
+
 export function listarEventosDeProductora(idProductora: number): Promise<EventoDTO[]> {
   return httpClient.get<EventoDTO[]>(`/api/productoras/${idProductora}/eventos`);
 }

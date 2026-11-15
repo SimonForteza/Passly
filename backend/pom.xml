@@ -190,8 +190,42 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<argLine>-Duser.timezone=UTC</argLine>
+					<!-- @{argLine} conserva el agente de JaCoCo que arma prepare-agent; sin el, este
+					     argLine lo pisaria y el reporte saldria vacio. -->
+					<argLine>@{argLine} -Duser.timezone=UTC</argLine>
 				</configuration>
+			</plugin>
+			<!--
+			Cobertura (PAS-38): solo la capa de negocio (internal/negocio de cada componente), que es
+			lo que mide el umbral de la cursada (>= 80 % lineas / >= 70 % ramas). Se incluye por
+			paquete en vez de excluir web/datos/dto: una lista de exclusiones dejaba adentro
+			seguridad/internal, notificaciones/internal y los contratos raiz. Sin umbral que rompa el
+			build todavia (eso es el 30/11). Reporte: target/site/jacoco/index.html tras `verify`.
+			-->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.13</version>
+				<executions>
+					<execution>
+						<id>preparar-agente</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>reporte</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>com/passly/*/internal/negocio/**</include>
+							</includes>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

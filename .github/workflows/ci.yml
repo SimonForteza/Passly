@@ -1,0 +1,93 @@
+name: CI
+
+# Suite completa del backend contra Postgres real + build del frontend (PAS-38).
+# modulith-boundaries.yml sigue aparte: es el chequeo rapido de fronteras, sin base.
+#
+# Infraestructura que necesitan los tests:
+# - Postgres: todos los @SpringBootTest. Se levanta como service container en el 5433, el mismo
+#   puerto que docker-compose, asi que el default de PASSLY_DB_URL sirve sin configurar nada.
+# - Artemis: no hace falta. MensajeriaIntegrationTest levanta su propio broker embebido en el
+#   61618; el resto de los tests apaga el consumidor o tolera que el broker no este.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (./mvnw verify + cobertura)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: passly
+          POSTGRES_USER: passly
+          POSTGRES_PASSWORD: passly
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U passly -d passly"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # Un service container arranca antes del checkout y no puede montar db/init/, que es
+      # lo que docker-compose usa para crear un esquema por componente (CLAUDE.md 4.8).
+      - name: Crear los esquemas de cada componente
+        env:
+          PGPASSWORD: passly
+        run: psql -h localhost -p 5433 -U passly -d passly -v ON_ERROR_STOP=1 -f db/init/01-esquemas.sql
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Tests + reporte de cobertura (JaCoCo)
+        working-directory: backend
+        run: ./mvnw --batch-mode --no-transfer-progress verify
+
+      - name: Publicar reporte de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-negocio
+          path: backend/target/site/jacoco/
+          if-no-files-found: warn
+
+      - name: Publicar reportes de tests si algo fallo
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: backend/target/surefire-reports/
+
+  frontend:
+    name: Frontend (lint + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build

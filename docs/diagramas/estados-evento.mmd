@@ -1,0 +1,23 @@
+%% Diagrama de estados de Evento (entidad central de Passly) — patron State, ADR-006.
+%% Fuente de verdad: backend/src/main/java/com/passly/eventos/internal/datos/
+%%   EstadoDeEvento, Borrador, Publicado, Cancelado
+stateDiagram-v2
+    direction LR
+    [*] --> BORRADOR : crearEvento()
+    BORRADOR --> BORRADOR : editarDatos() / editarTipoEntrada() / sumarTipoEntrada() / ampliarCupo()
+    BORRADOR --> PUBLICADO : publicar() [fecha futura y algun tipo con cupo]
+    PUBLICADO --> PUBLICADO : sumarTipoEntrada() / ampliarCupo() / vender (solo cambios que amplian)
+    BORRADOR --> CANCELADO : cancelar()
+    PUBLICADO --> CANCELADO : cancelar()
+    CANCELADO --> [*]
+
+    note right of PUBLICADO
+        Unico estado que admite ventas.
+        publicar() otra vez -> 409 Conflict
+        editarDatos() / editarTipoEntrada() -> 409 Conflict
+    end note
+    note right of CANCELADO
+        Estado final: toda transicion o edicion -> 409.
+        POST /api/eventos/{id}/cancelacion (PAS-35).
+        Reintegros y avisos: fuera de alcance (HU-14).
+    end note

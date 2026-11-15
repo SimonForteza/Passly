@@ -1,0 +1,115 @@
+@baseUrl = http://localhost:8080
+
+# Ventas no vende fuera de PUBLICADO (PAS-37, DEF-001 en docs/defectos.md).
+#
+# Antes de PAS-37 se podia agregar al carrito una entrada de un BORRADOR (fiesta no anunciada) o
+# de un evento CANCELADO adivinando el id del tipo de entrada; con cuenta, ademas, la compra
+# llegaba a cobrar la tarjeta y recien despues se revertia. Ahora:
+#   - agregar al carrito (con cuenta o invitado) -> 409 "no esta disponible para la venta";
+#   - confirmar con un evento que se cancelo mientras el carrito estaba abierto -> 409, SIN cobrar.
+# El mensaje no dice si es borrador, cancelado o agotado (no confirma que la fiesta existe).
+#
+# omar es DUENIO de Aurora (perfil demo); carla es compradora.
+@omar = organizador@passly.test
+@comprador = comprador@passly.test
+@clave = passly1234
+
+# Id de Aurora con la base recien creada. Si no coincide, sale de GET /api/productoras.
+@aurora = 1
+
+# --- Login (PAS-33): correr PRIMERO -------------------------------------------------
+
+### Login de organizador@passly.test
+# @name loginOmar
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{omar}}", "password": "{{clave}}" }
+
+### Login de comprador@passly.test
+# @name loginComprador
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{comprador}}", "password": "{{clave}}" }
+
+# --- BORRADOR: no entra al carrito ---------------------------------------------------
+
+### 1. Omar crea un evento (nace en BORRADOR, no aparece en la cartelera)
+# @name crearBorrador
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+Authorization: Bearer {{loginOmar.response.body.$.token}}
+
+{
+  "idProductora": {{aurora}},
+  "nombre": "Fiesta secreta",
+  "descripcion": "Todavia no anunciada",
+  "fechaHora": "2027-07-10T23:00:00-03:00",
+  "lugar": "Galpon sin nombre",
+  "tiposEntrada": [
+    { "nombre": "General", "precio": 9000, "cupoTotal": 50 }
+  ]
+}
+
+### 2. La compradora adivina el id del tipo de entrada y lo agrega -> 409
+POST {{baseUrl}}/api/ventas/carrito/items
+Content-Type: application/json
+Authorization: Bearer {{loginComprador.response.body.$.token}}
+
+{
+  "idTipoEntrada": {{crearBorrador.response.body.$.tiposEntrada[0].id}},
+  "cantidad": 2
+}
+
+### 3. Lo mismo como invitado (sin Authorization) -> 404: el flujo invitado ya ocultaba borradores
+POST {{baseUrl}}/api/ventas/invitados/carrito/items
+Content-Type: application/json
+
+{
+  "idTipoEntrada": {{crearBorrador.response.body.$.tiposEntrada[0].id}},
+  "cantidad": 1
+}
+
+# --- CANCELADO con el carrito abierto: no se cobra -----------------------------------
+
+### 4. Publicar el evento -> 200
+POST {{baseUrl}}/api/eventos/{{crearBorrador.response.body.$.id}}/publicacion
+Authorization: Bearer {{loginOmar.response.body.$.token}}
+
+### 5. La compradora agrega 2 entradas (ahora esta a la venta) -> 200
+POST {{baseUrl}}/api/ventas/carrito/items
+Content-Type: application/json
+Authorization: Bearer {{loginComprador.response.body.$.token}}
+
+{
+  "idTipoEntrada": {{crearBorrador.response.body.$.tiposEntrada[0].id}},
+  "cantidad": 2
+}
+
+### 6. Omar cancela el evento mientras el carrito sigue abierto -> 200
+POST {{baseUrl}}/api/eventos/{{crearBorrador.response.body.$.id}}/cancelacion
+Authorization: Bearer {{loginOmar.response.body.$.token}}
+
+### 7. La compradora confirma -> 409, y la tarjeta NO se cobra (ver el log: no hay "cobro")
+POST {{baseUrl}}/api/ventas/ordenes
+Content-Type: application/json
+Authorization: Bearer {{loginComprador.response.body.$.token}}
+
+{
+  "tarjeta": {
+    "numero": "4242424242424242",
+    "titular": "Carla Compradora",
+    "vencimiento": "12/29",
+    "codigoSeguridad": "123"
+  }
+}
+
+### 8. Como invitado, una entrada de un cancelado tampoco entra -> 409
+POST {{baseUrl}}/api/ventas/invitados/carrito/items
+Content-Type: application/json
+
+{
+  "idTipoEntrada": {{crearBorrador.response.body.$.tiposEntrada[0].id}},
+  "cantidad": 1
+}

@@ -586,19 +586,28 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
 
 | Patrón | Dónde | Qué problema resuelve |
 |---|---|---|
-| **Facade** | `ServicioDeVentas` | Esconde la orquestación de inventario, pago, emisión y facturación tras una sola operación de compra |
-| **Adapter** | `ServicioDePagos` (REST) y `ServicioDeFacturacion` (SOAP) | Interfaz común de "proveedor externo" sobre dos protocolos incompatibles |
-| **DAO** | Capa de datos de todos los componentes | Desacopla la lógica del mecanismo de persistencia |
-| **State** *(exigido por la consigna del 16/11 — PAS-35)* | `Evento`: BORRADOR / PUBLICADO / CANCELADO | Cada estado decide qué operaciones admite; una transición inválida responde **409**. Hoy está resuelto con enum + `if` y hay que llevarlo al patrón |
+| **Facade** — [ADR-003](docs/adr/ADR-003-facade-servicio-de-ventas.md) | `ServicioDeVentas` (`VentaService` / `VentaServiceImpl` + `ConfirmacionDeCompra`) | Esconde la orquestación de inventario, pago, emisión y facturación tras una sola operación de compra |
+| **Adapter / Port** — [ADR-004](docs/adr/ADR-004-adapter-y-port-proveedores-externos.md) | `PasarelaDePago` → `PasarelaDePagoReal` → `PagoService` (REST); `ClienteAfip` en `ServicioDeFacturacion` (SOAP pendiente) | Interfaz común de "proveedor externo" sobre dos protocolos incompatibles |
+| **DAO** — [ADR-005](docs/adr/ADR-005-dao-repository-spring-data.md) | Capa `internal/datos` de todos los componentes (11 repositorios Spring Data JPA) | Desacopla la lógica del mecanismo de persistencia |
+| **State** *(PAS-35)* — [ADR-006](docs/adr/ADR-006-state-ciclo-de-vida-del-evento.md) | `eventos/internal/datos/`: interfaz `EstadoDeEvento` + `Borrador`, `Publicado`, `Cancelado`; `Evento` delega en el estado actual | Las reglas de "qué admite cada estado" (publicar, cancelar, las cuatro ediciones de PAS-19, `admiteVentas()`) estaban en `if` repartidos por la entidad. Ahora cada estado es una clase que implementa lo que admite y lanza la excepción de **409** para lo que no. La columna sigue siendo el enum STRING; el objeto de estado se resuelve desde él (`EstadoDeEvento.de`) |
+| **Componente stateful** — [ADR-007](docs/adr/ADR-007-componente-stateful-carrito-session-scope.md) | `CarritoDeCompra` (`@SessionScope`) | No es un patrón GoF sino una decisión de diseño que la consigna pide justificar: ciclo de vida por contenedor, dos relojes, chequeo de dueño (§4.7) |
+| **Observer + canales** — [ADR-008](docs/adr/ADR-008-observer-pubsub-orden-pagada.md) | `OrdenPagada` → `PublicadorDeOrdenPagada` (`AFTER_COMMIT`) → cola `orden.pagada` → `OrdenPagadaListener` | Facturar sin frenar ni deshacer la venta, y sin arista Ventas → Facturación (PAS-32) |
+| **Pure Fabrication** (GRASP) — [ADR-009](docs/adr/ADR-009-grasp-pure-fabrication-confirmacion-de-compra.md) | `ConfirmacionDeCompra` | Límite transaccional en un bean aparte, para que el cobro quede afuera de la transacción (§4.11) |
 | **Strategy** *(reserva)* | Política de precios | Early-bird, general, cortesía, dinámico — intercambiables |
 | **Factory** *(reserva)* | Creación de tickets/facturas | Según tipo de entrada |
 
 > "Reserva" = candidatos extra por si se descarta alguno. De cada patrón hay que
 > saber **qué problema resuelve** y **por qué se descartaron las alternativas**.
 >
-> **La consigna del 16/11 pide un ADR por patrón.** Hoy `docs/adr/` solo tiene los dos de
-> arquitectura (ADR-001 y ADR-002). Los de Facade, Adapter/Port, DAO, State y el componente
-> stateful se escriben en PAS-36.
+> **Un ADR por patrón (PAS-36):** ADR-003 a ADR-007, con índice en
+> [`docs/adr/README.md`](docs/adr/README.md). Cada uno apunta a las clases reales y dice por qué
+> se descartaron las alternativas.
+>
+> **Clase 12:** ADR-008 (Observer) y ADR-009 (Pure Fabrication) completan las cuatro categorías
+> pedidas (GoF de comportamiento, GoF estructural, integración y GRASP). El mapeo a la consigna,
+> el diagrama de estados y la auditoría SOLID están en [`docs/patrones.md`](docs/patrones.md); el
+> esqueleto documental (BRD, HU con Gherkin, manual por rol, trazabilidad) en
+> [`docs/esqueleto-documental.md`](docs/esqueleto-documental.md).
 
 ### 4.10 Integraciones
 
@@ -772,8 +781,8 @@ por patrón, resiliencia, IA, testing, G1 a G9) están en
 - [x] 6+ componentes de negocio, cada uno con interfaz explícita y documentada (9)
 - [x] 1 stateful + 1 stateless, ambos justificados por escrito (§4.7)
 - [x] Arquitectura en capas explícita en cada componente (`web`/`negocio`/`datos`)
-- [x] 3+ patrones de diseño distintos, aplicados y justificados (Facade, Adapter/Port, DAO).
-  **Falta:** State (PAS-35) y un ADR por patrón (PAS-36)
+- [x] 3+ patrones de diseño distintos, aplicados y justificados (Facade, Adapter/Port, DAO,
+  State — PAS-35), cada uno con su ADR (ADR-003 a ADR-007, PAS-36)
 - [ ] 1 integración SOAP con WSDL (legado) → AFIP — **pendiente, 30/11** (con Fault y XXE)
 - [x] 1 integración REST (partner moderno) → pasarela de pago (PAS-7, PAS-29)
 - [ ] 2 procesos async: ~~1 cola P2P~~ ✅ (PAS-32) + 1 tópico pub/sub — **tópico pendiente, 30/11**
@@ -857,7 +866,7 @@ passly/
 │   │                        errores (401/403/404/409), productoras, y **aislamiento entre
 │   │                        productoras** — el guion central de la demo
 │   ├── plan-entregas.md   ← QUÉ FALTA: requisitos del 16/11, 30/11 y 07/12 con estado e issue
-│   ├── adr/               ← ADR-001 y ADR-002 (arquitectura); los de patrones, en PAS-36
+│   ├── adr/               ← README (índice), ADR-001/002 (arquitectura) y ADR-003 a 007 (patrones, PAS-36)
 │   ├── mensajeria.md, accesos.md, invitaciones-y-compra-invitada.md, correcciones-ux-flujos.md
 │   ├── integraciones.md   ← inventario SOA: cada integración, canal, sync/async, estado (PAS-27)
 │   ├── funcional.md       ← historias de usuario con estado real + diagrama de casos de uso (PAS-28)
@@ -868,15 +877,18 @@ passly/
 │   └── modulith/          ← salida de Documenter (PAS-9): components.puml (diagrama global),
 │                            un module-*.puml/.adoc por módulo, y el README que explica cómo
 │                            regenerarlos y la corrida real de "romper una regla a propósito"
-├── .github/workflows/     ← modulith-boundaries.yml: corre EstructuraDeModulosTest en cada
-│                            push/PR (no necesita Postgres/Docker)
+├── .github/workflows/     ← ci.yml (PAS-38): suite completa `./mvnw verify` contra Postgres
+│                            (service container, esquemas de db/init/), reporte JaCoCo de la capa
+│                            de negocio como artefacto, y lint + build del frontend.
+│                            modulith-boundaries.yml: chequeo rapido de fronteras, sin base
 ├── backend/               ← Spring Boot, un paquete por componente
 │   ├── pom.xml
 │   ├── mvnw, mvnw.cmd, .mvn/  ← Maven wrapper
 │   └── src/
 │       ├── main/java/com/passly/     ← código (§4.3)
 │       ├── main/resources/application.yml
-│       └── test/java/com/passly/     ← EstructuraDeModulosTest, PasslyApplicationTests
+│       └── test/java/com/passly/     ← integracion (@SpringBootTest contra Postgres) y unitarios
+│                                        puros en */internal/negocio (JUnit 5 + Mockito, PAS-38)
 ├── frontend/              ← app web (comprador + organizador), Vite + React + TS (PAS-14)
 │   ├── package.json, tsconfig*.json, vite.config.ts
 │   ├── .env.example       ← VITE_API_BASE_URL, plantilla sin secretos
@@ -1198,14 +1210,21 @@ ocultara, un comprador dejaría de ver el evento de su propia orden. Además, qu
 link de una fiesta cancelada tiene que enterarse de eso, no leer "no existe";
 `DetalleEventoPage` muestra "Este evento fue cancelado". Restringirlo a "solo quien tiene
 órdenes" exigiría que Eventos consulte a Ventas, que ya depende de Eventos: sería un ciclo.
-Hoy ninguna operación lleva un evento a `CANCELADO`, así que la decisión queda tomada antes
-de que haga falta. Un evento ya pasado tampoco se oculta: la fecha no cambia el estado.
+Desde PAS-35 hay una operación que lleva un evento a `CANCELADO` (`POST .../cancelacion`), y esta
+decisión no cambió. Un evento ya pasado tampoco se oculta: la fecha no cambia el estado.
 
 *Hallazgo fuera de alcance:* Ventas **no** verifica que el evento esté publicado al agregar
 al carrito. `consultarDisponibilidad` responde para cualquier tipo de entrada, así que
 alguien que adivine el id de un tipo de entrada de un borrador podría comprarlo. Se deja
 anotado para un issue propio. **Sigue presente al 14/11 (también en la compra como invitado y
-para eventos cancelados): issue PAS-37.**
+para eventos cancelados): issue PAS-37.** *Actualización PAS-35:* del lado de Eventos quedó
+cerrado: `consultarDisponibilidad` devuelve `hayDisponibilidad=false` y `descontarCupo` rechaza
+con `CupoInsuficienteException` (409) si el evento no admite ventas. Así, confirmar la compra
+falla para un borrador o un cancelado. ~~A Ventas solo le queda rechazar ya en
+`agregarItem`~~ **Corregido en PAS-37 (DEF-001, `docs/defectos.md`):** Ventas rechaza con 409
+(`EntradaNoDisponibleException`, mensaje genérico) al agregar al carrito con cuenta y como
+invitado, y valida **antes de cobrar** al confirmar; `descontarCupo` queda como última barrera
+dentro de la transacción. Demo: `docs/http/14-compra-fuera-de-venta.http`.
 
 **Página pública de productora (PAS-26):** `/productoras/:id` es una ruta **pública**
 (`PaginaProductoraPage`) con el nombre comercial, la descripción y la grilla de los eventos
@@ -1313,6 +1332,74 @@ pantallas públicas, porque el backend da 401 a un token inválido en cualquier 
 manda con `anonimo: true`, sin token, para que uno viejo no lo bloquee. Al recargar la página, un
 token cuyo `expiraEn` ya pasó no cuenta como sesión. La cola serial se quedó, porque la rotación
 del `JSESSIONID` sigue con JWT.
+
+**Patrón State (PAS-35).** `Evento` ya no decide con `if (estado == ...)`. Cada operación que
+depende del ciclo de vida (`publicar`, `cancelar`, `editarDatos`, `sumarTipoEntrada`,
+`editarTipoEntrada`, `ampliarCupo`, `admiteVentas`) delega en un objeto `EstadoDeEvento`. Hay
+una clase por estado: `Borrador`, `Publicado` y `Cancelado`, todas package-private en
+`eventos/internal/datos/`. Cada una implementa lo que admite y, para lo que no admite, lanza la
+misma excepción que antes daba 409 (`TransicionDeEstadoInvalidaException` /
+`EdicionDeEventoInvalidaException`). La matriz de PAS-19 no cambió. Se sumó la transición que
+faltaba: **cancelar** (`POST /api/eventos/{id}/cancelacion`, mismo estilo y misma autorización que
+`.../publicacion`).
+- Válido: `BORRADOR → CANCELADO` y `PUBLICADO → CANCELADO`.
+- 409: cancelar un cancelado y publicar un cancelado.
+
+En la web, la gestión del evento tiene un botón "Cancelar evento" con diálogo de confirmación.
+Reintegros y aviso a los compradores quedan **fuera de alcance** (HU-14 🟡).
+
+*Para el oral, "enum en la base, comportamiento en clases":*
+- La columna `eventos.evento.estado` sigue siendo `@Enumerated(STRING)`: el esquema no cambió y
+  el `EstadoEvento` público sigue siendo un enum, porque es **contrato** (viaja en `EventoDTO` y
+  lo lee el frontend).
+- El objeto de estado **no se persiste**. `EstadoDeEvento.de(estado)` lo resuelve desde el enum
+  con un `switch` exhaustivo sobre singletons sin atributos.
+- Por qué así y no de otra forma:
+  - Persistir el nombre de la clase con un `@Convert` ataría las filas al nombre de una clase
+    Java: un refactor rompería la base.
+  - Poner métodos abstractos en el enum público metería reglas de negocio en el contrato que ven
+    los demás módulos.
+- Ventajas que se pueden mostrar:
+  - El `switch` sin `default` hace que agregar un estado al enum **no compile** hasta que tenga
+    su clase.
+  - La interfaz es `sealed`.
+- Cómo aplican el cambio los estados: llaman a mutadores package-private de `Evento`
+  (`pasarA`, `aplicarDatos`…) que no vuelven a chequear el estado. Por eso viven en el mismo
+  paquete que la entidad.
+
+*`admiteVentas()` corta las ventas de verdad:* `consultarDisponibilidad` y `descontarCupo` lo
+consultan, así que no se puede comprar ni un borrador ni un evento cancelado, aunque el tipo de
+entrada ya estuviera en un carrito (ver la actualización de PAS-25 arriba).
+- Efecto colateral: dos casos de `EdicionDeEventoTest` vendían sobre un borrador para probar
+  "cupo total nunca < vendidas". Ese escenario ya no existe, así que la invariante se prueba en
+  `TipoEntradaTest`, unitario, donde vive.
+- Los fixtures de `DescuentoDeCupoTest` y `ConfirmarCompraTest` ahora publican el evento antes
+  de vender.
+
+*Tests:* `MatrizDeEstadosDeEventoTest` es **unitario puro**, sin Spring. Cubre la matriz completa
+estado × operación (18 combinaciones), además de `admiteVentas`, las reglas de publicar y el
+rechazo de `descontarCupo`. `CancelacionDeEventoTest` (integración, JWT real) fija dos cosas:
+cancelar dos veces da 200 y después 409 con ProblemDetail, y una productora no puede cancelar
+el evento de otra (403).
+
+**Un ADR por patrón (PAS-36).** `docs/adr/` suma ADR-003 (Facade), ADR-004 (Adapter/Port),
+ADR-005 (DAO), ADR-006 (State) y ADR-007 (componente stateful), con el mismo formato que ADR-001 y
+ADR-002, más un índice en `docs/adr/README.md`. Cada ADR cita las clases y los tests donde se ve
+el patrón, y no contradice a los dos de arquitectura: el Facade y el carrito dependen de la
+transacción local de ADR-001, y el DAO respeta un esquema por componente (ADR-002). No hay cambios
+de código.
+
+*Para el oral, lo que cada ADR reconoce como costo (y que conviene decir antes de que lo
+pregunten):*
+- **Facade:** la compra como invitado entra por `CompraInvitadoService`, no por `VentaService`.
+  Comparte `PasarelaDePago` y `ConfirmacionDeCompra`, así que la regla no está duplicada, pero el
+  Facade no es la única puerta.
+- **Adapter:** hay dos `DatosDeTarjetaDTO` y dos `PagoRechazadoException` con el mismo nombre.
+  No es duplicación: cada uno es el contrato de su módulo, y solo `PasarelaDePagoReal` traduce.
+- **DAO:** los repositorios son `public` por la visibilidad de Java; la frontera la cuida Modulith.
+- **State:** con tres estados un `switch` alcanzaría. Se justifica por las siete operaciones que
+  dependen del estado y porque `sealed` + `switch` exhaustivo impiden agregar un estado a medias.
+- **Stateful:** no escala horizontalmente sin sesiones pegadas. Es el trade-off declarado.
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 

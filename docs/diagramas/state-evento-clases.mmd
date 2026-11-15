@@ -1,0 +1,51 @@
+%% Estructura del patron State sobre Evento (ADR-006, PAS-35)
+classDiagram
+    direction LR
+    class Evento {
+        -EstadoEvento estado
+        +publicar()
+        +cancelar()
+        +admiteVentas() boolean
+        +editarDatos(...)
+        +sumarTipoEntrada(...)
+        +editarTipoEntrada(...)
+        +ampliarCupo(...)
+        -comportamiento() EstadoDeEvento
+        ~pasarA(EstadoDeEvento)
+        ~aplicarDatos(...)
+    }
+    class EstadoDeEvento {
+        <<sealed interface>>
+        +valor() EstadoEvento
+        +publicar(Evento)
+        +cancelar(Evento)
+        +editarDatos(Evento, ...)
+        +agregarTipoEntrada(Evento, ...)
+        +editarTipoEntrada(Evento, ...)
+        +ampliarCupo(Evento, ...)
+        +admiteVentas() boolean
+        +de(EstadoEvento)$ EstadoDeEvento
+    }
+    class Borrador {
+        +publicar() PUBLICADO si fecha futura y hay cupo
+        +cancelar() CANCELADO
+        admite toda edicion, no vende
+    }
+    class Publicado {
+        +cancelar() CANCELADO
+        solo ampliaciones, vende
+    }
+    class Cancelado {
+        todo 409
+    }
+    class EstadoEvento {
+        <<enum persistido>>
+        BORRADOR
+        PUBLICADO
+        CANCELADO
+    }
+    Evento --> EstadoDeEvento : delega
+    Evento --> EstadoEvento : persiste
+    EstadoDeEvento <|.. Borrador
+    EstadoDeEvento <|.. Publicado
+    EstadoDeEvento <|.. Cancelado

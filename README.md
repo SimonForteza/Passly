@@ -112,10 +112,36 @@ otra.
 
 ## Correr los tests
 
+[![CI](https://github.com/SimonForteza/Passly/actions/workflows/ci.yml/badge.svg)](https://github.com/SimonForteza/Passly/actions/workflows/ci.yml)
+
+Los tests de integracion (`@SpringBootTest`) corren contra Postgres real, asi que primero hay
+que levantar la base. Artemis no hace falta: el test de mensajeria trae su propio broker
+embebido.
+
 ```bash
+docker compose up -d
 cd backend
 ./mvnw test
 ```
+
+**Unitarios vs. integracion.** Los tests de `internal/negocio` (`VentaServiceImplTest`,
+`ProductoraServiceImplTest`, `AccesoServiceImplTest`, `InvitacionServiceTest`, entre otros) son
+JUnit 5 + Mockito puros: no levantan Spring ni tocan la base, y corren en milisegundos.
+
+### Cobertura (JaCoCo)
+
+```bash
+cd backend
+./mvnw clean verify
+# abrir target/site/jacoco/index.html
+```
+
+Mide **solo la capa de negocio** (`*/internal/negocio/**`), que es lo que pide el umbral de la
+cursada. Usar `clean`: JaCoCo acumula en `target/jacoco.exec` entre corridas y, sin limpiar, el
+numero mezcla ejecuciones viejas. En CI el reporte se descarga como artefacto
+`cobertura-negocio` de cada corrida del workflow
+[CI](https://github.com/SimonForteza/Passly/actions/workflows/ci.yml). Todavia no hay umbral
+que haga fallar el build.
 
 Incluye `EstructuraDeModulosTest`, que verifica las fronteras entre modulos
 (`ApplicationModules.verify()`), afirma la forma del grafo de dependencias y genera la
