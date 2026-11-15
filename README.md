@@ -35,9 +35,9 @@ ningun endpoint depende de un header propio para saber quien esta operando. La a
 por rol es declarativa con `@PreAuthorize` en los controllers (ver [CLAUDE.md](CLAUDE.md) 4.11).
 
 La app web (`frontend/`) integra identidad, productoras, cartelera/backoffice, carrito, checkout,
-ordenes y visualizacion de los QR emitidos. **Hasta que se mergee PAS-34 el frontend sigue
-mandando HTTP Basic**, que el backend ya no acepta: para probar la app web contra este backend
-hace falta PAS-34.
+ordenes y visualizacion de los QR emitidos. Desde PAS-34 la app web inicia sesión con
+`POST /api/auth/login` y envía el JWT como Bearer. Cuando recibe `401` por una sesión vencida,
+vuelve a la pantalla de ingreso.
 
 ## Documentación para usuarios y prototipo
 
@@ -46,6 +46,9 @@ hace falta PAS-34.
 - [Prototipo navegable en Figma](https://www.figma.com/proto/aQFl7PEjpuIVy9DjmbPJ3W/Passly?node-id=4-3&starting-point-node-id=4%3A3)
   (flujos de comprador, organizador y validador).
 - PDFs de la entrega del Checkpoint 2: [docs/entrega-c2/](docs/entrega-c2/).
+- Segunda entrega del 16/11: [guion de la demo](docs/entrega-2/guion-demo.md) e
+  [informe PDF](docs/entrega-2/informe-segunda-entrega.pdf).
+- [Trazabilidad de historias](docs/trazabilidad.md) y [registro de feedback de diseño](docs/feedback-diseno.md).
 
 ## Levantar el entorno
 

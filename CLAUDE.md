@@ -832,8 +832,9 @@ el estado de cada requisito, está en [`docs/plan-entregas.md`](docs/plan-entreg
 - **Jira / Trello / Azure DevOps:** tablero al día **en todo momento**, no la
   víspera. Acceso de lectura al docente desde la primera entrega; puede pedirlo
   sin aviso. **El equipo usa Linear** (`linear.app/passly`, equipo `PAS`), pero la consigna
-  nueva dice **"Jira"** explícitamente (16/11, QA designado para el 30/11 y G4 eliminatoria
-  el 07/12). Confirmar con el profe si Linear vale (PAS-39).
+  nombra **Jira** para el 16/11, la designación de QA del 30/11 y la condición G4 del 07/12.
+  Registrar la decisión de la cátedra y el acceso de lectura en [el plan de entregas](docs/plan-entregas.md).
+  La [matriz de trazabilidad](docs/trazabilidad.md) vincula las historias con el tablero operativo.
 - **Documentación = subproducto del trabajo.** Los `.md` de `docs/` se escriben a
   medida que se decide, y en cada entrega se exportan a PDF. Es el 15% de la
   rúbrica, obtenido sin trabajo extra.
@@ -1425,7 +1426,9 @@ pregunten):*
 - ~~**Nota mínima de la final**~~ **Resuelto:** hay que cumplir G1 a G9 y sacar **al menos 4 en
   cada eje** (A 25 %, B 25 %, C 20 %, D 20 %, E 10 %). Un eje por debajo de 4 desaprueba aunque
   el promedio alcance.
-- **¿Linear vale como "Jira"?** La consigna nombra Jira. Confirmar con el profe (PAS-39).
+- **¿La cátedra acepta Linear con acceso de lectura?** Sigue pendiente la respuesta para PAS-39.
+  Linear es el tablero operativo. La respuesta y la decisión sobre el tablero oficial van en
+  [el plan de entregas](docs/plan-entregas.md).
 - **¿Qué funcionalidad de IA?** La consigna del 30/11 pide "la funcionalidad de IA funcionando a
   través de su gateway" y el eje E (10 %) la testea. No hay nada definido ni implementado.
   Revisar qué se comprometió en la entrega del diseño.

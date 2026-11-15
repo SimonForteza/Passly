@@ -11,8 +11,9 @@ independiente: se abre, aparece un link `Send Request` arriba de cada `###`, y s
 | [04-errores.http](04-errores.http) | 404, 400 por campo, **401 sin identidad**, 403 por productora inexistente |
 | [05-productoras.http](05-productoras.http) | alta de productoras, padron de miembros y el cruce de los dos ejes de rol |
 | [06-aislamiento.http](06-aislamiento.http) | **el guion central: una productora no toca las fiestas de otra** |
-| [07-seguridad.http](07-seguridad.http) | matriz de autorizacion por rol (PAS-6): 401 / 403 / 201-200, y `GET /api/usuarios/me`, el "quien soy" del login (PAS-15) |
+| [07-seguridad.http](07-seguridad.http) | login con JWT (PAS-33), 403 al intentar crear un evento como comprador, 401 con token inválido y `GET /api/usuarios/me` |
 | [08-ventas.http](08-ventas.http) | carrito stateful, confirmar compra **con tarjeta** (PAS-29, cobra via `PagoService`), **un ticket con QR por unidad**, el rollback (dos lineas, la segunda sin cupo -> 409, **el cobro ya aprobado se revierte de verdad**), y 402/503 segun la tarjeta |
+| [09-accesos.http](09-accesos.http) | compra, QR firmado y validación con resultado `VALIDO`, `YA_USADO`, `OTRO_EVENTO` e `INVALIDO` |
 | [09-pagos.http](09-pagos.http) | Adapter REST hacia la pasarela de pago (PAS-7): cobro aprobado, **rechazado (402)**, **pasarela caida (503)**, 401, validacion, y la **reversion** de un cobro (PAS-29): 200, **409 si se repite**, 404 si el pago no existe |
 | [10-edicion-eventos.http](10-edicion-eventos.http) | edicion de evento y tipos de entrada (PAS-19): editar en BORRADOR, **comprar un borrador -> 409** (PAS-35), editar en PUBLICADO -> 409, agregar tipo y ampliar cupo en PUBLICADO -> 200/201, nombre repetido -> 409, aislamiento -> 403, sin identidad -> 401 |
 | [11-link-compartible.http](11-link-compartible.http) | el link compartible de un evento (PAS-25): publicado -> 200 para todos; **borrador -> 404 (no 403)** para anonimos, compradores y organizadores de otra productora; 200 para quien gestiona la productora dueña |
@@ -42,7 +43,7 @@ El perfil `demo` siembra un usuario por rol, todos con contrasena `passly1234`:
 | VALIDADOR | `validador@passly.test` |
 | ADMIN | `admin@passly.test` |
 
-En los `.http`, cada archivo empieza con un bloque **Login**: uno o mas requests con
+En los archivos con peticiones autenticadas, ejecutar primero el bloque **Login**: uno o más requests con
 `# @name loginX` que hay que correr primero. El resto los referencia con
 `Authorization: Bearer {{loginX.response.body.$.token}}`. Con `curl`:
 
@@ -151,4 +152,4 @@ cd backend && ./mvnw test
 falla con `Module 'eventos' depends on ... Allowed targets: none`. La frontera entre
 componentes no es una convencion del equipo: es una condicion de compilacion.
 
-- `09-accesos.http`: compra, consulta de contenido QR, cuatro resultados de validacion y rechazo por rol/productora.
+Para el tramo JWT de la [demo del 16/11](../entrega-2/guion-demo.md), ejecutar en `07-seguridad.http` el login de comprador, la creación de evento como comprador y el caso de token adulterado.

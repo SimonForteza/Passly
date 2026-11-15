@@ -32,28 +32,37 @@ diseño**.
 |---|---|---|---|
 | Componentes en capas desplegados | ✅ | — | — |
 | Primer flujo de punta a punta | ✅ compra → QR → validación | — | — |
-| Seguridad base: **autenticación con JWT** (backend) | ✅ `POST /api/auth/login` + Bearer (en revisión) | [PAS-33](https://linear.app/passly/issue/PAS-33) | Juan |
-| Seguridad base: **JWT en la app web** | ✅ guarda solo el token; 401 → login (en revisión) | [PAS-34](https://linear.app/passly/issue/PAS-34) | Juan |
+| Seguridad base: **autenticación con JWT** (backend) | ✅ `POST /api/auth/login` + Bearer (integrado en `main`) | [PAS-33](https://linear.app/passly/issue/PAS-33) | Juan |
+| Seguridad base: **JWT en la app web** | ✅ guarda solo el token; 401 → login (integrado en `main`) | [PAS-34](https://linear.app/passly/issue/PAS-34) | Juan |
 | Control de acceso por rol | ✅ `@PreAuthorize` + membresía por productora | — | — |
-| **Patrón State** en la entidad central, **409** ante transición inválida | ✅ `EstadoDeEvento` + una clase por estado; cancelar con 409 al repetir (en revisión) | [PAS-35](https://linear.app/passly/issue/PAS-35) | Simón |
-| Patrones implementados **cada uno con su ADR** | ✅ ADR-003 a ADR-007 (Facade, Adapter/Port, DAO, State, stateful), [índice](adr/README.md) (en revisión) | [PAS-36](https://linear.app/passly/issue/PAS-36) | Simón |
+| **Patrón State** en la entidad central, **409** ante transición inválida | ✅ `EstadoDeEvento` + una clase por estado; cancelar con 409 al repetir | [PAS-35](https://linear.app/passly/issue/PAS-35) | Lucio |
+| Patrones implementados **cada uno con su ADR** | ✅ ADR-003 a ADR-007 (Facade, Adapter/Port, DAO, State, stateful), [índice](adr/README.md) | [PAS-36](https://linear.app/passly/issue/PAS-36) | Lucio |
 | Mensajería funcionando en al menos un proceso | ✅ cola `orden.pagada` (PAS-32) | — | — |
-| Primeros tests unitarios | ✅ 4 clases nuevas de unitarios puros de negocio (Ventas, Productoras, Accesos, Invitaciones; 47 casos), 11 unitarias en total (en revisión) | [PAS-38](https://linear.app/passly/issue/PAS-38) | Lucio |
-| Sin defectos conocidos sin registrar | ✅ ~~se pueden comprar entradas de un **borrador**~~ corregido y registrado como DEF-001 (en revisión) | [PAS-37](https://linear.app/passly/issue/PAS-37) | Lucio |
-| **Jira** al día | ❓ el equipo usa Linear; confirmar si la cátedra lo acepta | [PAS-39](https://linear.app/passly/issue/PAS-39) | Fede |
-| Feedback del diseño incorporado | ❓ no está registrado en ningún lado | [PAS-39](https://linear.app/passly/issue/PAS-39) | Fede |
-| Demo en vivo + documentación + declaración de IA | ❌ | [PAS-40](https://linear.app/passly/issue/PAS-40) | Fede |
+| Primeros tests unitarios | ✅ 4 clases nuevas de unitarios puros de negocio (Ventas, Productoras, Accesos, Invitaciones; 47 casos), 11 unitarias en total; CI con la suite completa | [PAS-38](https://linear.app/passly/issue/PAS-38) | Simón |
+| Sin defectos conocidos sin registrar | ✅ ~~se pueden comprar entradas de un **borrador**~~ corregido y registrado como DEF-001 | [PAS-37](https://linear.app/passly/issue/PAS-37) | Simón |
+| **Jira** al día | ❓ Linear es el tablero operativo. Pendiente confirmación de la cátedra y acceso de lectura | [PAS-39](https://linear.app/passly/issue/PAS-39) | Fede |
+| Feedback del diseño incorporado | ❓ Registro preparado. Pendiente relevar devoluciones de O1, C2 y Teams | [PAS-39](https://linear.app/passly/issue/PAS-39) | Fede |
+| Demo en vivo + documentación + declaración de IA | 🟡 guion e informe listos para revisión. Ensayo y presentación pendientes | [PAS-40](https://linear.app/passly/issue/PAS-40) | Fede |
 
-**Orden sugerido:** PAS-33 antes que PAS-34 y PAS-40 (los `.http` y el guion dependen del
-JWT). PAS-35 antes que el ADR de State de PAS-36. PAS-37 puede usar el `admiteVentas()` de
-PAS-35 si llega a tiempo. **Ensayo completo el 15/11 a la noche, sobre `main` y desde una base
-limpia.**
+**Tablero:** [PAS-33 a PAS-40 con responsables y estados](trazabilidad.md#tablero-del-1611).
+Falta confirmar por Teams si la cátedra acepta Linear con acceso de lectura. Si exige Jira, migrar
+los issues y acordar con el equipo el cambio de tablero antes de dar acceso al docente. Registrar
+aquí la respuesta y cuándo se verificó el acceso. Para QA al 30/11 se propone a **Simón Forteza**,
+responsable de PAS-38. La designación queda pendiente de confirmación del equipo en el tablero oficial.
+
+**Diseño:** [matriz de historias](trazabilidad.md) y [registro de feedback](feedback-diseno.md).
+La HU-13 tiene seguimiento en [PAS-41](https://linear.app/passly/issue/PAS-41).
+
+**Ensayo y presentación:** [guion](entrega-2/guion-demo.md) e [informe PDF](entrega-2/informe-segunda-entrega.pdf).
+Ensayo grupal previsto para el 15/11 a la noche sobre `main` y una base descartable. PAS-35 ya integró
+la cancelación y el ADR de State. Tras el ensayo, agregar fecha, asistentes, commit y defectos.
+Después de exponer el 16/11, registrar el resultado y las observaciones para el 30/11.
 
 ---
 
 ## 2. 3er Checkpoint — 30/11
 
-Sin issues todavía: se cargan después del 16/11, con las observaciones del profe. **Todo el
+Los issues restantes se cargan después del 16/11, con las observaciones del profe. **Todo el
 equipo tiene que leer el PDF de Criterios de Testing**, no solo el QA.
 
 | Requisito | Estado hoy | Notas |
@@ -70,10 +79,10 @@ equipo tiene que leer el PDF de Criterios de Testing**, no solo el QA.
 | **ETag** en la API REST | ❌ | Por ejemplo, GET de evento con `ETag` y `If-Match` en la edición (ya hay `@Version`) |
 | Errores en formato **Problem Details** | ✅ en general | Revisar que no quede ningún 500 sin `ProblemDetail` |
 | **Funcionalidad de IA** a través de su gateway | ❌ no hay nada | Definir la funcionalidad y el gateway. Pesa 10 % del final (eje E) |
-| **QA designado** en el tablero | ❌ | Se propone en PAS-39 |
-| **Pipeline de CI** con reporte de cobertura parcial | ✅ `ci.yml`: suite completa contra Postgres + JaCoCo como artefacto + lint/build del front (PAS-38, en revisión) | Falta fijar el umbral que rompe el build |
+| **QA designado** en el tablero | ❌ | Simón Forteza propuesto en PAS-39. Falta confirmación y designación en el tablero oficial. |
+| **Pipeline de CI** con reporte de cobertura parcial | ✅ `ci.yml`: suite completa contra Postgres + JaCoCo como artefacto + lint/build del front (PAS-38) | Falta fijar el umbral que rompe el build |
 | Plan de pruebas (1.ª versión) | ❌ | |
-| Matriz de trazabilidad (1.ª versión) | ❌ | Historias → casos de prueba → tests. Se arranca en PAS-39 |
+| Matriz de trazabilidad (1.ª versión) | 🟡 | [Historias → issues](trazabilidad.md). Completar casos de prueba y resultados. |
 | Registro de defectos (1.ª versión) | ✅ [`docs/defectos.md`](defectos.md) con DEF-001 (PAS-37) | Seguir registrando cada defecto apenas se detecta |
 | Manual de usuario (1.ª versión) | ✅ `docs/manual-de-usuario.md` | Actualizar con JWT, cancelación e IA |
 | **Ensayo de G1 a G9** | ❌ | Mostrar cómo se va a cumplir cada una y qué falta |
@@ -88,7 +97,7 @@ equipo tiene que leer el PDF de Criterios de Testing**, no solo el QA.
 |---|---|---|
 | G | Build reproducible con **un solo comando** | ❌ hoy son tres pasos (compose, backend, frontend) |
 | G | Tag **`v1.0-final`** en `main` antes del turno | ❌ no hay tags |
-| G | Pipeline de **CI en verde** | ✅ `ci.yml` (PAS-38, en revisión) |
+| G | Pipeline de **CI en verde** | ✅ `ci.yml` (PAS-38) |
 | G | **Jira** al día | ❓ (PAS-39) |
 | G | **Sin secretos** en el historial | ✅ revisión rápida sin hallazgos. Correr `gitleaks` antes del final |
 | G | **Demo en vivo** | — |
