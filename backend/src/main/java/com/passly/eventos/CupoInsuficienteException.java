@@ -20,11 +20,32 @@ public class CupoInsuficienteException extends RuntimeException {
     public CupoInsuficienteException(
             Long idTipoEntrada, String nombreTipoEntrada, int cantidadPedida, int cupoDisponible
     ) {
-        super("No hay cupo suficiente para \"" + nombreTipoEntrada + "\" (id " + idTipoEntrada
-                + "): se pidieron " + cantidadPedida + " y quedan " + cupoDisponible);
+        this("No hay cupo suficiente para \"" + nombreTipoEntrada + "\" (id " + idTipoEntrada
+                + "): se pidieron " + cantidadPedida + " y quedan " + cupoDisponible,
+                idTipoEntrada, cantidadPedida, cupoDisponible);
+    }
+
+    private CupoInsuficienteException(
+            String mensaje, Long idTipoEntrada, int cantidadPedida, int cupoDisponible
+    ) {
+        super(mensaje);
         this.idTipoEntrada = idTipoEntrada;
         this.cantidadPedida = cantidadPedida;
         this.cupoDisponible = cupoDisponible;
+    }
+
+    /**
+     * El evento no admite ventas en su estado actual (borrador o cancelado, PAS-35): para quien
+     * compra no queda nada disponible, sin importar cuanto cupo figure. Reusar esta excepcion y no
+     * crear otra es deliberado: Ventas ya la traduce a 409 y no necesita conocer los estados de un
+     * evento.
+     */
+    public static CupoInsuficienteException porEventoSinVentas(
+            Long idTipoEntrada, String nombreTipoEntrada, int cantidadPedida, EstadoEvento estado
+    ) {
+        return new CupoInsuficienteException(
+                "\"" + nombreTipoEntrada + "\" (id " + idTipoEntrada + ") no esta a la venta: el evento esta "
+                        + estado, idTipoEntrada, cantidadPedida, 0);
     }
 
     public Long getIdTipoEntrada() {
