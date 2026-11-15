@@ -38,7 +38,7 @@ diseño**.
 | **Patrón State** en la entidad central, **409** ante transición inválida | ✅ `EstadoDeEvento` + una clase por estado; cancelar con 409 al repetir (en revisión) | [PAS-35](https://linear.app/passly/issue/PAS-35) | Simón |
 | Patrones implementados **cada uno con su ADR** | ✅ ADR-003 a ADR-007 (Facade, Adapter/Port, DAO, State, stateful), [índice](adr/README.md) (en revisión) | [PAS-36](https://linear.app/passly/issue/PAS-36) | Simón |
 | Mensajería funcionando en al menos un proceso | ✅ cola `orden.pagada` (PAS-32) | — | — |
-| Primeros tests unitarios | ✅ 4 clases nuevas de unitarios puros de negocio (Ventas, Productoras, Accesos, Invitaciones; 45 casos), 11 unitarias en total (en revisión) | [PAS-38](https://linear.app/passly/issue/PAS-38) | Lucio |
+| Primeros tests unitarios | ✅ 4 clases nuevas de unitarios puros de negocio (Ventas, Productoras, Accesos, Invitaciones; 47 casos), 11 unitarias en total (en revisión) | [PAS-38](https://linear.app/passly/issue/PAS-38) | Lucio |
 | Sin defectos conocidos sin registrar | ✅ ~~se pueden comprar entradas de un **borrador**~~ corregido y registrado como DEF-001 (en revisión) | [PAS-37](https://linear.app/passly/issue/PAS-37) | Lucio |
 | **Jira** al día | ❓ el equipo usa Linear; confirmar si la cátedra lo acepta | [PAS-39](https://linear.app/passly/issue/PAS-39) | Fede |
 | Feedback del diseño incorporado | ❓ no está registrado en ningún lado | [PAS-39](https://linear.app/passly/issue/PAS-39) | Fede |
@@ -103,7 +103,7 @@ equipo tiene que leer el PDF de Criterios de Testing**, no solo el QA.
 | Eje | Peso | Qué se mide (ejemplos del mensaje) | Estado hoy |
 |---|---|---|---|
 | A — Historias de usuario y documentación | 25 % | Documentación completa | 🟡 |
-| B — Código y tests | 25 % | Cobertura de negocio **≥ 80 % líneas / ≥ 70 % ramas**, **mutation ≥ 60 %**, **Quality Gate de Sonar** | 🟡 JaCoCo listo (PAS-38). Cobertura de negocio al 15/11: **suite completa 94,8 % líneas / 80,5 % ramas**; **solo unitarios 32,5 % / 30,9 %** (lo demás lo cubren los tests de integración). Faltan PIT y Sonar |
+| B — Código y tests | 25 % | Cobertura de negocio **≥ 80 % líneas / ≥ 70 % ramas**, **mutation ≥ 60 %**, **Quality Gate de Sonar** | 🟡 JaCoCo listo (PAS-38). Cobertura de negocio al 15/11: **suite completa 94,8 % líneas / 80,8 % ramas**; **solo unitarios 32,9 % / 31,2 %** (lo demás lo cubren los tests de integración). Faltan PIT y Sonar |
 | C — Integración | 20 % | SOAP, REST y mensajería con resiliencia; **carga p95 < 500 ms** | 🟡 / ❌ sin prueba de carga |
 | D — Seguridad | 20 % | BOLA/IDOR, BFLA, **JWT inválidos**, inyecciones, **429 ante fuerza bruta**, **ZAP sin alertas High** | 🟡 IDOR de órdenes ya responde 404; ❌ sin 429 en login ni ZAP |
 | E — IA | 10 % | Testing de la funcionalidad de IA | ❌ |

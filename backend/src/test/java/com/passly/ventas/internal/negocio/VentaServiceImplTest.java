@@ -1,11 +1,13 @@
 package com.passly.ventas.internal.negocio;
 
 import com.passly.eventos.EventoService;
+import com.passly.eventos.dto.DisponibilidadDTO;
 import com.passly.pagos.PasarelaDePagoNoDisponibleException;
 import com.passly.usuarios.Rol;
 import com.passly.usuarios.UsuarioService;
 import com.passly.usuarios.dto.UsuarioDTO;
 import com.passly.ventas.CarritoVacioException;
+import com.passly.ventas.EntradaNoDisponibleException;
 import com.passly.ventas.PagoRechazadoException;
 import com.passly.ventas.dto.DatosDeTarjetaDTO;
 import com.passly.ventas.internal.datos.Orden;
@@ -62,6 +64,8 @@ class VentaServiceImplTest {
     @BeforeEach
     void carritoConDosEntradas() {
         carrito.agregarItem(COMPRADOR, 11L, 3L, "General", new BigDecimal("1500.00"), 2);
+        // PAS-37: antes de cobrar se pregunta si cada linea sigue a la venta.
+        when(eventos.consultarDisponibilidad(11L)).thenReturn(disponibilidad(true));
         when(usuarios.consultarUsuario(COMPRADOR))
                 .thenReturn(new UsuarioDTO(COMPRADOR, "carla@passly.test", "Carla", Rol.COMPRADOR));
     }
@@ -132,6 +136,29 @@ class VentaServiceImplTest {
                 });
     }
 
+    /** PAS-37 (DEF-001): si el evento dejo de estar a la venta con el carrito abierto, no se cobra. */
+    @Test
+    void unaEntradaQueYaNoEstaALaVentaNoLlegaACobrar() {
+        when(eventos.consultarDisponibilidad(11L)).thenReturn(disponibilidad(false));
+
+        assertThatThrownBy(() -> servicio.confirmarCompra(COMPRADOR, TARJETA))
+                .isInstanceOf(EntradaNoDisponibleException.class);
+
+        verifyNoInteractions(pasarela, confirmacion);
+        assertThat(carrito.verComo(COMPRADOR).items()).hasSize(1);
+    }
+
+    @Test
+    void agregarUnaEntradaQueNoEstaALaVentaNoTocaElCarrito() {
+        when(eventos.consultarDisponibilidad(12L)).thenReturn(
+                new DisponibilidadDTO(12L, 4L, "VIP", new BigDecimal("5000.00"), 10, false));
+
+        assertThatThrownBy(() -> servicio.agregarItem(new com.passly.ventas.dto.AgregarItemRequest(12L, 1), COMPRADOR))
+                .isInstanceOf(EntradaNoDisponibleException.class);
+
+        assertThat(carrito.verComo(COMPRADOR).items()).hasSize(1);
+    }
+
     @Test
     void carritoVacioNoLlegaACobrar() {
         var vacio = new CarritoDeCompra();
@@ -141,6 +168,10 @@ class VentaServiceImplTest {
                 .isInstanceOf(CarritoVacioException.class);
 
         verifyNoInteractions(pasarela, confirmacion);
+    }
+
+    private static DisponibilidadDTO disponibilidad(boolean aLaVenta) {
+        return new DisponibilidadDTO(11L, 3L, "General", new BigDecimal("1500.00"), 10, aLaVenta);
     }
 
     @Test
