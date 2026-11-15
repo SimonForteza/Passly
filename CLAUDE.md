@@ -591,6 +591,8 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
 | **DAO** — [ADR-005](docs/adr/ADR-005-dao-repository-spring-data.md) | Capa `internal/datos` de todos los componentes (11 repositorios Spring Data JPA) | Desacopla la lógica del mecanismo de persistencia |
 | **State** *(PAS-35)* — [ADR-006](docs/adr/ADR-006-state-ciclo-de-vida-del-evento.md) | `eventos/internal/datos/`: interfaz `EstadoDeEvento` + `Borrador`, `Publicado`, `Cancelado`; `Evento` delega en el estado actual | Las reglas de "qué admite cada estado" (publicar, cancelar, las cuatro ediciones de PAS-19, `admiteVentas()`) estaban en `if` repartidos por la entidad. Ahora cada estado es una clase que implementa lo que admite y lanza la excepción de **409** para lo que no. La columna sigue siendo el enum STRING; el objeto de estado se resuelve desde él (`EstadoDeEvento.de`) |
 | **Componente stateful** — [ADR-007](docs/adr/ADR-007-componente-stateful-carrito-session-scope.md) | `CarritoDeCompra` (`@SessionScope`) | No es un patrón GoF sino una decisión de diseño que la consigna pide justificar: ciclo de vida por contenedor, dos relojes, chequeo de dueño (§4.7) |
+| **Observer + canales** — [ADR-008](docs/adr/ADR-008-observer-pubsub-orden-pagada.md) | `OrdenPagada` → `PublicadorDeOrdenPagada` (`AFTER_COMMIT`) → cola `orden.pagada` → `OrdenPagadaListener` | Facturar sin frenar ni deshacer la venta, y sin arista Ventas → Facturación (PAS-32) |
+| **Pure Fabrication** (GRASP) — [ADR-009](docs/adr/ADR-009-grasp-pure-fabrication-confirmacion-de-compra.md) | `ConfirmacionDeCompra` | Límite transaccional en un bean aparte, para que el cobro quede afuera de la transacción (§4.11) |
 | **Strategy** *(reserva)* | Política de precios | Early-bird, general, cortesía, dinámico — intercambiables |
 | **Factory** *(reserva)* | Creación de tickets/facturas | Según tipo de entrada |
 
@@ -600,6 +602,12 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
 > **Un ADR por patrón (PAS-36):** ADR-003 a ADR-007, con índice en
 > [`docs/adr/README.md`](docs/adr/README.md). Cada uno apunta a las clases reales y dice por qué
 > se descartaron las alternativas.
+>
+> **Clase 12:** ADR-008 (Observer) y ADR-009 (Pure Fabrication) completan las cuatro categorías
+> pedidas (GoF de comportamiento, GoF estructural, integración y GRASP). El mapeo a la consigna,
+> el diagrama de estados y la auditoría SOLID están en [`docs/patrones.md`](docs/patrones.md); el
+> esqueleto documental (BRD, HU con Gherkin, manual por rol, trazabilidad) en
+> [`docs/esqueleto-documental.md`](docs/esqueleto-documental.md).
 
 ### 4.10 Integraciones
 
