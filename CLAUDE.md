@@ -876,15 +876,18 @@ passly/
 │   └── modulith/          ← salida de Documenter (PAS-9): components.puml (diagrama global),
 │                            un module-*.puml/.adoc por módulo, y el README que explica cómo
 │                            regenerarlos y la corrida real de "romper una regla a propósito"
-├── .github/workflows/     ← modulith-boundaries.yml: corre EstructuraDeModulosTest en cada
-│                            push/PR (no necesita Postgres/Docker)
+├── .github/workflows/     ← ci.yml (PAS-38): suite completa `./mvnw verify` contra Postgres
+│                            (service container, esquemas de db/init/), reporte JaCoCo de la capa
+│                            de negocio como artefacto, y lint + build del frontend.
+│                            modulith-boundaries.yml: chequeo rapido de fronteras, sin base
 ├── backend/               ← Spring Boot, un paquete por componente
 │   ├── pom.xml
 │   ├── mvnw, mvnw.cmd, .mvn/  ← Maven wrapper
 │   └── src/
 │       ├── main/java/com/passly/     ← código (§4.3)
 │       ├── main/resources/application.yml
-│       └── test/java/com/passly/     ← EstructuraDeModulosTest, PasslyApplicationTests
+│       └── test/java/com/passly/     ← integracion (@SpringBootTest contra Postgres) y unitarios
+│                                        puros en */internal/negocio (JUnit 5 + Mockito, PAS-38)
 ├── frontend/              ← app web (comprador + organizador), Vite + React + TS (PAS-14)
 │   ├── package.json, tsconfig*.json, vite.config.ts
 │   ├── .env.example       ← VITE_API_BASE_URL, plantilla sin secretos

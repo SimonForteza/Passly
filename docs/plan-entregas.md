@@ -38,7 +38,7 @@ diseño**.
 | **Patrón State** en la entidad central, **409** ante transición inválida | ✅ `EstadoDeEvento` + una clase por estado; cancelar con 409 al repetir (en revisión) | [PAS-35](https://linear.app/passly/issue/PAS-35) | Simón |
 | Patrones implementados **cada uno con su ADR** | ✅ ADR-003 a ADR-007 (Facade, Adapter/Port, DAO, State, stateful), [índice](adr/README.md) (en revisión) | [PAS-36](https://linear.app/passly/issue/PAS-36) | Simón |
 | Mensajería funcionando en al menos un proceso | ✅ cola `orden.pagada` (PAS-32) | — | — |
-| Primeros tests unitarios | 🟡 15 clases de test, casi todas de integración | [PAS-38](https://linear.app/passly/issue/PAS-38) | Lucio |
+| Primeros tests unitarios | ✅ 4 clases nuevas de unitarios puros de negocio (Ventas, Productoras, Accesos, Invitaciones; 47 casos), 11 unitarias en total (en revisión) | [PAS-38](https://linear.app/passly/issue/PAS-38) | Lucio |
 | Sin defectos conocidos sin registrar | ✅ ~~se pueden comprar entradas de un **borrador**~~ corregido y registrado como DEF-001 (en revisión) | [PAS-37](https://linear.app/passly/issue/PAS-37) | Lucio |
 | **Jira** al día | ❓ el equipo usa Linear; confirmar si la cátedra lo acepta | [PAS-39](https://linear.app/passly/issue/PAS-39) | Fede |
 | Feedback del diseño incorporado | ❓ no está registrado en ningún lado | [PAS-39](https://linear.app/passly/issue/PAS-39) | Fede |
@@ -71,7 +71,7 @@ equipo tiene que leer el PDF de Criterios de Testing**, no solo el QA.
 | Errores en formato **Problem Details** | ✅ en general | Revisar que no quede ningún 500 sin `ProblemDetail` |
 | **Funcionalidad de IA** a través de su gateway | ❌ no hay nada | Definir la funcionalidad y el gateway. Pesa 10 % del final (eje E) |
 | **QA designado** en el tablero | ❌ | Se propone en PAS-39 |
-| **Pipeline de CI** con reporte de cobertura parcial | 🟡 el CI corre un solo test | Se arranca en PAS-38 |
+| **Pipeline de CI** con reporte de cobertura parcial | ✅ `ci.yml`: suite completa contra Postgres + JaCoCo como artefacto + lint/build del front (PAS-38, en revisión) | Falta fijar el umbral que rompe el build |
 | Plan de pruebas (1.ª versión) | ❌ | |
 | Matriz de trazabilidad (1.ª versión) | ❌ | Historias → casos de prueba → tests. Se arranca en PAS-39 |
 | Registro de defectos (1.ª versión) | ✅ [`docs/defectos.md`](defectos.md) con DEF-001 (PAS-37) | Seguir registrando cada defecto apenas se detecta |
@@ -88,7 +88,7 @@ equipo tiene que leer el PDF de Criterios de Testing**, no solo el QA.
 |---|---|---|
 | G | Build reproducible con **un solo comando** | ❌ hoy son tres pasos (compose, backend, frontend) |
 | G | Tag **`v1.0-final`** en `main` antes del turno | ❌ no hay tags |
-| G | Pipeline de **CI en verde** | 🟡 (PAS-38) |
+| G | Pipeline de **CI en verde** | ✅ `ci.yml` (PAS-38, en revisión) |
 | G | **Jira** al día | ❓ (PAS-39) |
 | G | **Sin secretos** en el historial | ✅ revisión rápida sin hallazgos. Correr `gitleaks` antes del final |
 | G | **Demo en vivo** | — |
@@ -103,7 +103,7 @@ equipo tiene que leer el PDF de Criterios de Testing**, no solo el QA.
 | Eje | Peso | Qué se mide (ejemplos del mensaje) | Estado hoy |
 |---|---|---|---|
 | A — Historias de usuario y documentación | 25 % | Documentación completa | 🟡 |
-| B — Código y tests | 25 % | Cobertura de negocio **≥ 80 % líneas / ≥ 70 % ramas**, **mutation ≥ 60 %**, **Quality Gate de Sonar** | ❌ sin JaCoCo, PIT ni Sonar |
+| B — Código y tests | 25 % | Cobertura de negocio **≥ 80 % líneas / ≥ 70 % ramas**, **mutation ≥ 60 %**, **Quality Gate de Sonar** | 🟡 JaCoCo listo (PAS-38). Cobertura de negocio al 15/11: **suite completa 94,8 % líneas / 80,8 % ramas**; **solo unitarios 32,9 % / 31,2 %** (lo demás lo cubren los tests de integración). Faltan PIT y Sonar |
 | C — Integración | 20 % | SOAP, REST y mensajería con resiliencia; **carga p95 < 500 ms** | 🟡 / ❌ sin prueba de carga |
 | D — Seguridad | 20 % | BOLA/IDOR, BFLA, **JWT inválidos**, inyecciones, **429 ante fuerza bruta**, **ZAP sin alertas High** | 🟡 IDOR de órdenes ya responde 404; ❌ sin 429 en login ni ZAP |
 | E — IA | 10 % | Testing de la funcionalidad de IA | ❌ |
