@@ -39,7 +39,7 @@ diseño**.
 | Patrones implementados **cada uno con su ADR** | ✅ ADR-003 a ADR-007 (Facade, Adapter/Port, DAO, State, stateful), [índice](adr/README.md) (en revisión) | [PAS-36](https://linear.app/passly/issue/PAS-36) | Simón |
 | Mensajería funcionando en al menos un proceso | ✅ cola `orden.pagada` (PAS-32) | — | — |
 | Primeros tests unitarios | 🟡 15 clases de test, casi todas de integración | [PAS-38](https://linear.app/passly/issue/PAS-38) | Lucio |
-| Sin defectos conocidos sin registrar | ❌ se pueden comprar entradas de un **borrador** | [PAS-37](https://linear.app/passly/issue/PAS-37) | Lucio |
+| Sin defectos conocidos sin registrar | ✅ ~~se pueden comprar entradas de un **borrador**~~ corregido y registrado como DEF-001 (en revisión) | [PAS-37](https://linear.app/passly/issue/PAS-37) | Lucio |
 | **Jira** al día | ❓ el equipo usa Linear; confirmar si la cátedra lo acepta | [PAS-39](https://linear.app/passly/issue/PAS-39) | Fede |
 | Feedback del diseño incorporado | ❓ no está registrado en ningún lado | [PAS-39](https://linear.app/passly/issue/PAS-39) | Fede |
 | Demo en vivo + documentación + declaración de IA | ❌ | [PAS-40](https://linear.app/passly/issue/PAS-40) | Fede |
@@ -74,7 +74,7 @@ equipo tiene que leer el PDF de Criterios de Testing**, no solo el QA.
 | **Pipeline de CI** con reporte de cobertura parcial | 🟡 el CI corre un solo test | Se arranca en PAS-38 |
 | Plan de pruebas (1.ª versión) | ❌ | |
 | Matriz de trazabilidad (1.ª versión) | ❌ | Historias → casos de prueba → tests. Se arranca en PAS-39 |
-| Registro de defectos (1.ª versión) | ❌ | `docs/defectos.md`, se arranca en PAS-37 |
+| Registro de defectos (1.ª versión) | ✅ [`docs/defectos.md`](defectos.md) con DEF-001 (PAS-37) | Seguir registrando cada defecto apenas se detecta |
 | Manual de usuario (1.ª versión) | ✅ `docs/manual-de-usuario.md` | Actualizar con JWT, cancelación e IA |
 | **Ensayo de G1 a G9** | ❌ | Mostrar cómo se va a cumplir cada una y qué falta |
 
