@@ -116,9 +116,19 @@ class EventoServiceImpl implements EventoService {
         Evento evento = buscarEvento(idEvento);
         exigirGestionSobre(evento, idUsuarioActuante);
 
-        // La regla de negocio vive en la entidad (Evento.publicar()), no aca: el servicio orquesta
-        // y autoriza, el agregado decide si la transicion es valida.
+        // La regla de negocio vive en el agregado (Evento.publicar() delega en su estado), no aca:
+        // el servicio orquesta y autoriza, el estado del evento decide si la transicion es valida.
         evento.publicar();
+        return conOrganizador(evento);
+    }
+
+    @Override
+    public EventoDTO cancelarEvento(Long idEvento, Long idUsuarioActuante) {
+        Evento evento = buscarEvento(idEvento);
+        exigirGestionSobre(evento, idUsuarioActuante);
+
+        // Igual que publicar: el servicio autoriza, el estado actual del evento decide.
+        evento.cancelar();
         return conOrganizador(evento);
     }
 
@@ -160,7 +170,8 @@ class EventoServiceImpl implements EventoService {
                 tipoEntrada.getNombre(),
                 tipoEntrada.getPrecio(),
                 tipoEntrada.getCupoDisponible(),
-                tipoEntrada.tieneCupo()
+                // Un borrador o un cancelado no vende aunque le quede cupo (PAS-35).
+                tipoEntrada.tieneCupo() && tipoEntrada.getEvento().admiteVentas()
         );
     }
 

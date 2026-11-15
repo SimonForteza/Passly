@@ -10,9 +10,9 @@ package com.passly.eventos;
  * <p>Las entidades lo mapean con {@code @Enumerated(EnumType.STRING)}, nunca {@code ORDINAL},
  * para que agregar un estado nuevo no corrompa las filas ya guardadas.
  *
- * <p>Hoy solo se implementa la transicion {@code BORRADOR -> PUBLICADO}. {@code CANCELADO}
- * existe porque el dominio lo tiene, pero todavia no hay operacion que lo use: es un recorte
- * consciente de alcance.
+ * <p>Es el <b>dato</b> del estado, no su comportamiento: que operaciones admite cada estado lo
+ * deciden las clases del patron State en {@code internal.datos} (PAS-35). Transiciones validas:
+ * {@code BORRADOR -> PUBLICADO}, {@code BORRADOR -> CANCELADO} y {@code PUBLICADO -> CANCELADO}.
  */
 public enum EstadoEvento {
 

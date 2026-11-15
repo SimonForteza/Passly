@@ -200,14 +200,18 @@ depender de entrar a la web.
 - Llega con el tópico `ticket.emitido` y el servicio de notificaciones (Obligatoria 2, ver
   [integraciones.md](integraciones.md) §3.1 E6).
 
-### HU-14 · Cancelar un evento — ⏳ planificada (sin issue)
+### HU-14 · Cancelar un evento — 🟡 parcial (PAS-35)
 
 **Como** organizador **quiero** cancelar un evento publicado **para** avisar a los compradores y
 dejar de venderlo.
 
-- El estado `CANCELADO` existe en el modelo y la pantalla de detalle sabe mostrarlo, pero **no
-  hay ninguna operación que cancele** ni política de reintegro. Queda fuera del alcance de los
-  cinco recorridos de la visión y está registrado como pendiente en Linear.
+- ✅ Desde la gestión del evento, "Cancelar evento" pide confirmación y lo pasa a `CANCELADO`
+  (`POST /api/eventos/{id}/cancelacion`). Se puede cancelar un borrador o un evento publicado.
+- ✅ Un evento cancelado sale de la cartelera, no admite ediciones ni ventas (ni siquiera de lo
+  que ya estaba en un carrito), y su enlace muestra "Este evento fue cancelado".
+- ✅ Cancelarlo de nuevo, o intentar publicarlo, responde **409**.
+- ⏳ **Falta:** reintegro de las entradas vendidas y aviso a los compradores. Queda registrado
+  como pendiente.
 
 ## 4. Reglas de negocio transversales
 

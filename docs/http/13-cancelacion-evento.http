@@ -1,0 +1,112 @@
+@baseUrl = http://localhost:8080
+
+# Patron State en Evento y cancelacion (PAS-35).
+#
+# Cada estado de un evento (BORRADOR / PUBLICADO / CANCELADO) es una clase que decide que
+# operaciones admite; lo que no admite responde 409 con ProblemDetail. Este archivo recorre las
+# transiciones: publicar, cancelar, y los dos 409 que se muestran en la defensa (cancelar dos
+# veces, publicar un cancelado). Cancelar exige ORGANIZADOR que gestione la productora dueña,
+# igual que publicar.
+#
+# omar es DUENIO de Aurora; olga es DUENIO de Nocturna (ver 06-aislamiento.http).
+@omar = organizador@passly.test
+@olga = organizador2@passly.test
+@clave = passly1234
+
+# Id de Aurora con la base recien creada (docker compose down -v && up -d). Si no coincide,
+# sale de GET /api/productoras.
+@aurora = 1
+
+# --- Login (PAS-33): correr PRIMERO -------------------------------------------------
+
+### Login de organizador@passly.test
+# @name loginOmar
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{omar}}", "password": "{{clave}}" }
+
+### Login de organizador2@passly.test
+# @name loginOlga
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{olga}}", "password": "{{clave}}" }
+
+# --- PUBLICADO -> CANCELADO ---------------------------------------------------------
+
+### 1. Crear un evento (nace en BORRADOR)
+# @name crearEvento
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+Authorization: Bearer {{loginOmar.response.body.$.token}}
+
+{
+  "idProductora": {{aurora}},
+  "nombre": "Fiesta para cancelar",
+  "descripcion": "Demo del patron State",
+  "fechaHora": "2027-06-20T23:00:00-03:00",
+  "lugar": "Club Atletico Fernandez Fierro",
+  "tiposEntrada": [
+    { "nombre": "General", "precio": 8000, "cupoTotal": 100 }
+  ]
+}
+
+### 2. Publicarlo -> 200, estado PUBLICADO
+POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
+Authorization: Bearer {{loginOmar.response.body.$.token}}
+
+### 3. Cancelar el evento de otra productora -> 403 (aislamiento, igual que publicar)
+POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/cancelacion
+Authorization: Bearer {{loginOlga.response.body.$.token}}
+
+### 4. Cancelarlo -> 200, estado CANCELADO
+POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/cancelacion
+Authorization: Bearer {{loginOmar.response.body.$.token}}
+
+### 5. Cancelarlo otra vez -> 409 ProblemDetail: "ya esta CANCELADO"
+# La clase Cancelado rechaza cancelar(): un conflicto, no un no-op (mismo criterio que republicar).
+POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/cancelacion
+Authorization: Bearer {{loginOmar.response.body.$.token}}
+
+### 6. Publicar un cancelado -> 409 ProblemDetail
+POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
+Authorization: Bearer {{loginOmar.response.body.$.token}}
+
+### 7. Ampliar cupo de un cancelado -> 409 (Cancelado no admite ninguna edicion)
+POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/tipos-entrada/{{crearEvento.response.body.$.tiposEntrada[0].id}}/ampliacion-de-cupo
+Content-Type: application/json
+Authorization: Bearer {{loginOmar.response.body.$.token}}
+
+{ "cantidad": 10 }
+
+### 8. Disponibilidad de un cancelado -> 200 con hayDisponibilidad=false (admiteVentas() == false)
+GET {{baseUrl}}/api/tipos-entrada/{{crearEvento.response.body.$.tiposEntrada[0].id}}/disponibilidad
+
+### 9. El detalle publico sigue respondiendo -> 200 con estado CANCELADO (no se oculta, PAS-25)
+GET {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}
+
+# --- BORRADOR -> CANCELADO ----------------------------------------------------------
+
+### 10. Crear otro evento, que queda en BORRADOR
+# @name crearBorrador
+POST {{baseUrl}}/api/eventos
+Content-Type: application/json
+Authorization: Bearer {{loginOmar.response.body.$.token}}
+
+{
+  "idProductora": {{aurora}},
+  "nombre": "Borrador descartado",
+  "fechaHora": "2027-07-01T22:00:00-03:00",
+  "lugar": "A definir",
+  "tiposEntrada": [
+    { "nombre": "General", "precio": 5000, "cupoTotal": 50 }
+  ]
+}
+
+### 11. Cancelar un borrador -> 200: tambien es una transicion valida
+POST {{baseUrl}}/api/eventos/{{crearBorrador.response.body.$.id}}/cancelacion
+Authorization: Bearer {{loginOmar.response.body.$.token}}
+
+### 12. Cancelar sin credenciales -> 401
+POST {{baseUrl}}/api/eventos/{{crearBorrador.response.body.$.id}}/cancelacion

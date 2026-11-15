@@ -589,7 +589,7 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
 | **Facade** | `ServicioDeVentas` | Esconde la orquestación de inventario, pago, emisión y facturación tras una sola operación de compra |
 | **Adapter** | `ServicioDePagos` (REST) y `ServicioDeFacturacion` (SOAP) | Interfaz común de "proveedor externo" sobre dos protocolos incompatibles |
 | **DAO** | Capa de datos de todos los componentes | Desacopla la lógica del mecanismo de persistencia |
-| **State** *(exigido por la consigna del 16/11 — PAS-35)* | `Evento`: BORRADOR / PUBLICADO / CANCELADO | Cada estado decide qué operaciones admite; una transición inválida responde **409**. Hoy está resuelto con enum + `if` y hay que llevarlo al patrón |
+| **State** *(PAS-35)* | `eventos/internal/datos/`: interfaz `EstadoDeEvento` + `Borrador`, `Publicado`, `Cancelado`; `Evento` delega en el estado actual | Las reglas de "qué admite cada estado" (publicar, cancelar, las cuatro ediciones de PAS-19, `admiteVentas()`) estaban en `if` repartidos por la entidad. Ahora cada estado es una clase que implementa lo que admite y lanza la excepción de **409** para lo que no. La columna sigue siendo el enum STRING; el objeto de estado se resuelve desde él (`EstadoDeEvento.de`) |
 | **Strategy** *(reserva)* | Política de precios | Early-bird, general, cortesía, dinámico — intercambiables |
 | **Factory** *(reserva)* | Creación de tickets/facturas | Según tipo de entrada |
 
@@ -772,8 +772,8 @@ por patrón, resiliencia, IA, testing, G1 a G9) están en
 - [x] 6+ componentes de negocio, cada uno con interfaz explícita y documentada (9)
 - [x] 1 stateful + 1 stateless, ambos justificados por escrito (§4.7)
 - [x] Arquitectura en capas explícita en cada componente (`web`/`negocio`/`datos`)
-- [x] 3+ patrones de diseño distintos, aplicados y justificados (Facade, Adapter/Port, DAO).
-  **Falta:** State (PAS-35) y un ADR por patrón (PAS-36)
+- [x] 3+ patrones de diseño distintos, aplicados y justificados (Facade, Adapter/Port, DAO,
+  State — PAS-35). **Falta:** un ADR por patrón (PAS-36)
 - [ ] 1 integración SOAP con WSDL (legado) → AFIP — **pendiente, 30/11** (con Fault y XXE)
 - [x] 1 integración REST (partner moderno) → pasarela de pago (PAS-7, PAS-29)
 - [ ] 2 procesos async: ~~1 cola P2P~~ ✅ (PAS-32) + 1 tópico pub/sub — **tópico pendiente, 30/11**
@@ -1197,14 +1197,18 @@ ocultara, un comprador dejaría de ver el evento de su propia orden. Además, qu
 link de una fiesta cancelada tiene que enterarse de eso, no leer "no existe";
 `DetalleEventoPage` muestra "Este evento fue cancelado". Restringirlo a "solo quien tiene
 órdenes" exigiría que Eventos consulte a Ventas, que ya depende de Eventos: sería un ciclo.
-Hoy ninguna operación lleva un evento a `CANCELADO`, así que la decisión queda tomada antes
-de que haga falta. Un evento ya pasado tampoco se oculta: la fecha no cambia el estado.
+Desde PAS-35 hay una operación que lleva un evento a `CANCELADO` (`POST .../cancelacion`), y esta
+decisión no cambió. Un evento ya pasado tampoco se oculta: la fecha no cambia el estado.
 
 *Hallazgo fuera de alcance:* Ventas **no** verifica que el evento esté publicado al agregar
 al carrito. `consultarDisponibilidad` responde para cualquier tipo de entrada, así que
 alguien que adivine el id de un tipo de entrada de un borrador podría comprarlo. Se deja
 anotado para un issue propio. **Sigue presente al 14/11 (también en la compra como invitado y
-para eventos cancelados): issue PAS-37.**
+para eventos cancelados): issue PAS-37.** *Actualización PAS-35:* del lado de Eventos quedó
+cerrado: `consultarDisponibilidad` devuelve `hayDisponibilidad=false` y `descontarCupo` rechaza
+con `CupoInsuficienteException` (409) si el evento no admite ventas. Así, confirmar la compra
+falla para un borrador o un cancelado. A Ventas solo le queda rechazar ya en
+`agregarItem` (hoy deja agregar al carrito y falla recién al confirmar).
 
 **Página pública de productora (PAS-26):** `/productoras/:id` es una ruta **pública**
 (`PaginaProductoraPage`) con el nombre comercial, la descripción y la grilla de los eventos
@@ -1312,6 +1316,55 @@ pantallas públicas, porque el backend da 401 a un token inválido en cualquier 
 manda con `anonimo: true`, sin token, para que uno viejo no lo bloquee. Al recargar la página, un
 token cuyo `expiraEn` ya pasó no cuenta como sesión. La cola serial se quedó, porque la rotación
 del `JSESSIONID` sigue con JWT.
+
+**Patrón State (PAS-35).** `Evento` ya no decide con `if (estado == ...)`. Cada operación que
+depende del ciclo de vida (`publicar`, `cancelar`, `editarDatos`, `sumarTipoEntrada`,
+`editarTipoEntrada`, `ampliarCupo`, `admiteVentas`) delega en un objeto `EstadoDeEvento`. Hay
+una clase por estado: `Borrador`, `Publicado` y `Cancelado`, todas package-private en
+`eventos/internal/datos/`. Cada una implementa lo que admite y, para lo que no admite, lanza la
+misma excepción que antes daba 409 (`TransicionDeEstadoInvalidaException` /
+`EdicionDeEventoInvalidaException`). La matriz de PAS-19 no cambió. Se sumó la transición que
+faltaba: **cancelar** (`POST /api/eventos/{id}/cancelacion`, mismo estilo y misma autorización que
+`.../publicacion`).
+- Válido: `BORRADOR → CANCELADO` y `PUBLICADO → CANCELADO`.
+- 409: cancelar un cancelado y publicar un cancelado.
+
+En la web, la gestión del evento tiene un botón "Cancelar evento" con diálogo de confirmación.
+Reintegros y aviso a los compradores quedan **fuera de alcance** (HU-14 🟡).
+
+*Para el oral, "enum en la base, comportamiento en clases":*
+- La columna `eventos.evento.estado` sigue siendo `@Enumerated(STRING)`: el esquema no cambió y
+  el `EstadoEvento` público sigue siendo un enum, porque es **contrato** (viaja en `EventoDTO` y
+  lo lee el frontend).
+- El objeto de estado **no se persiste**. `EstadoDeEvento.de(estado)` lo resuelve desde el enum
+  con un `switch` exhaustivo sobre singletons sin atributos.
+- Por qué así y no de otra forma:
+  - Persistir el nombre de la clase con un `@Convert` ataría las filas al nombre de una clase
+    Java: un refactor rompería la base.
+  - Poner métodos abstractos en el enum público metería reglas de negocio en el contrato que ven
+    los demás módulos.
+- Ventajas que se pueden mostrar:
+  - El `switch` sin `default` hace que agregar un estado al enum **no compile** hasta que tenga
+    su clase.
+  - La interfaz es `sealed`.
+- Cómo aplican el cambio los estados: llaman a mutadores package-private de `Evento`
+  (`pasarA`, `aplicarDatos`…) que no vuelven a chequear el estado. Por eso viven en el mismo
+  paquete que la entidad.
+
+*`admiteVentas()` corta las ventas de verdad:* `consultarDisponibilidad` y `descontarCupo` lo
+consultan, así que no se puede comprar ni un borrador ni un evento cancelado, aunque el tipo de
+entrada ya estuviera en un carrito (ver la actualización de PAS-25 arriba).
+- Efecto colateral: dos casos de `EdicionDeEventoTest` vendían sobre un borrador para probar
+  "cupo total nunca < vendidas". Ese escenario ya no existe, así que la invariante se prueba en
+  `TipoEntradaTest`, unitario, donde vive.
+- Los fixtures de `DescuentoDeCupoTest` y `ConfirmarCompraTest` ahora publican el evento antes
+  de vender.
+
+*Tests:* `MatrizDeEstadosDeEventoTest` es **unitario puro**, sin Spring. Cubre la matriz completa
+estado × operación (18 combinaciones), además de `admiteVentas`, las reglas de publicar y el
+rechazo de `descontarCupo`. `CancelacionDeEventoTest` (integración, JWT real) fija dos cosas:
+cancelar dos veces da 200 y después 409 con ProblemDetail, y una productora no puede cancelar
+el evento de otra (403).
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 

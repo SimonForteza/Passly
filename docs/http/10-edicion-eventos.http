@@ -84,8 +84,8 @@ Authorization: Bearer {{loginOmar.response.body.$.token}}
   "cupoTotal": 80
 }
 
-### 4. El comprador agrega 5 entradas al carrito y confirma -> hace falta vender algo de verdad
-# para poder probar el 409 del paso siguiente (bajar el cupo por debajo de lo vendido).
+### 4. El comprador agrega 5 entradas de este BORRADOR al carrito
+# Hoy Ventas todavia deja agregarlas (lo que falta de PAS-37); el corte real esta al confirmar.
 POST {{baseUrl}}/api/ventas/carrito/items
 Content-Type: application/json
 Authorization: Bearer {{loginComprador.response.body.$.token}}
@@ -95,7 +95,10 @@ Authorization: Bearer {{loginComprador.response.body.$.token}}
   "cantidad": 5
 }
 
-### 5. Confirmar la compra -> 201, quedan 5 entradas vendidas de este tipo
+### 5. Confirmar la compra de un BORRADOR -> 409: un borrador no vende (PAS-35, admiteVentas())
+# Antes de PAS-35 este paso daba 201 y servia para tener "vendidas" en borrador y probar el 409
+# de bajar el cupo por debajo de lo vendido. Ese escenario ya no existe; la invariante se prueba
+# en TipoEntradaTest (unitario). Ver docs/http/13-cancelacion-evento.http para el State completo.
 POST {{baseUrl}}/api/ventas/ordenes
 Authorization: Bearer {{loginComprador.response.body.$.token}}
 Content-Type: application/json
@@ -109,7 +112,7 @@ Content-Type: application/json
   }
 }
 
-### 6. Bajar el cupo total por debajo de lo ya vendido (5) -> 409
+### 6. Bajar el cupo total en BORRADOR, sin ventas -> 200 (en borrador se puede editar libremente)
 PUT {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/tipos-entrada/{{crearEvento.response.body.$.tiposEntrada[0].id}}
 Content-Type: application/json
 Authorization: Bearer {{loginOmar.response.body.$.token}}

@@ -84,6 +84,17 @@ class EventoController {
     }
 
     /**
+     * Cancelar es una transicion de estado, como publicar: {@code POST .../cancelacion} y no un
+     * {@code DELETE} — el evento no desaparece, sigue visible con su estado (PAS-35). Cancelar dos
+     * veces responde 409.
+     */
+    @PostMapping("/api/eventos/{id}/cancelacion")
+    @PreAuthorize("hasAnyRole('ORGANIZADOR','ADMIN')")
+    EventoDTO cancelarEvento(@PathVariable("id") Long id, Authentication authentication) {
+        return eventoService.cancelarEvento(id, idDelActuante(authentication));
+    }
+
+    /**
      * Cartelera publica, opcionalmente filtrada por productora.
      *
      * <p>El filtro es un {@code @RequestParam} opcional sobre la misma coleccion y no un endpoint

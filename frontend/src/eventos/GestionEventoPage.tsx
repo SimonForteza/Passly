@@ -5,6 +5,7 @@ import { EstadoError } from '../layout/EstadoError';
 import { useProductoraActual } from '../productoras/GestionLayout';
 import { formatearFechaEvento, formatearPrecio } from '../ventas/formato';
 import { obtenerEvento } from './api';
+import { CancelarEvento } from './CancelarEvento';
 import { PublicarEvento } from './PublicarEvento';
 import type { EventoDTO } from './types';
 export function GestionEventoPage() {
@@ -111,6 +112,17 @@ export function GestionEventoPage() {
           <button className="boton boton-primario" onClick={copiar}>
             Copiar enlace público
           </button>
+        ) : null}
+        {evento.estado !== 'CANCELADO' ? (
+          <CancelarEvento
+            evento={evento}
+            onCancelado={(e) => {
+              setEvento(e);
+              setMensaje(
+                'Evento cancelado. Ya no aparece en la cartelera ni admite ventas.',
+              );
+            }}
+          />
         ) : null}
       </div>
       {evento.descripcion ? <p>{evento.descripcion}</p> : null}

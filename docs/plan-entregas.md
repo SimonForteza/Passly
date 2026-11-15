@@ -35,7 +35,7 @@ diseño**.
 | Seguridad base: **autenticación con JWT** (backend) | ✅ `POST /api/auth/login` + Bearer (en revisión) | [PAS-33](https://linear.app/passly/issue/PAS-33) | Juan |
 | Seguridad base: **JWT en la app web** | ✅ guarda solo el token; 401 → login (en revisión) | [PAS-34](https://linear.app/passly/issue/PAS-34) | Juan |
 | Control de acceso por rol | ✅ `@PreAuthorize` + membresía por productora | — | — |
-| **Patrón State** en la entidad central, **409** ante transición inválida | 🟡 hay 409, pero con enum + `if`, no con State. No existe "cancelar" | [PAS-35](https://linear.app/passly/issue/PAS-35) | Simón |
+| **Patrón State** en la entidad central, **409** ante transición inválida | ✅ `EstadoDeEvento` + una clase por estado; cancelar con 409 al repetir (en revisión) | [PAS-35](https://linear.app/passly/issue/PAS-35) | Simón |
 | Patrones implementados **cada uno con su ADR** | ❌ solo hay 2 ADR, y son de arquitectura | [PAS-36](https://linear.app/passly/issue/PAS-36) | Simón |
 | Mensajería funcionando en al menos un proceso | ✅ cola `orden.pagada` (PAS-32) | — | — |
 | Primeros tests unitarios | 🟡 15 clases de test, casi todas de integración | [PAS-38](https://linear.app/passly/issue/PAS-38) | Lucio |

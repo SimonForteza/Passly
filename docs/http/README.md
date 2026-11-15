@@ -14,9 +14,10 @@ independiente: se abre, aparece un link `Send Request` arriba de cada `###`, y s
 | [07-seguridad.http](07-seguridad.http) | matriz de autorizacion por rol (PAS-6): 401 / 403 / 201-200, y `GET /api/usuarios/me`, el "quien soy" del login (PAS-15) |
 | [08-ventas.http](08-ventas.http) | carrito stateful, confirmar compra **con tarjeta** (PAS-29, cobra via `PagoService`), **un ticket con QR por unidad**, el rollback (dos lineas, la segunda sin cupo -> 409, **el cobro ya aprobado se revierte de verdad**), y 402/503 segun la tarjeta |
 | [09-pagos.http](09-pagos.http) | Adapter REST hacia la pasarela de pago (PAS-7): cobro aprobado, **rechazado (402)**, **pasarela caida (503)**, 401, validacion, y la **reversion** de un cobro (PAS-29): 200, **409 si se repite**, 404 si el pago no existe |
-| [10-edicion-eventos.http](10-edicion-eventos.http) | edicion de evento y tipos de entrada (PAS-19): editar en BORRADOR, **bajar cupo bajo lo vendido -> 409**, editar en PUBLICADO -> 409, agregar tipo y ampliar cupo en PUBLICADO -> 200/201, nombre repetido -> 409, aislamiento -> 403, sin identidad -> 401 |
+| [10-edicion-eventos.http](10-edicion-eventos.http) | edicion de evento y tipos de entrada (PAS-19): editar en BORRADOR, **comprar un borrador -> 409** (PAS-35), editar en PUBLICADO -> 409, agregar tipo y ampliar cupo en PUBLICADO -> 200/201, nombre repetido -> 409, aislamiento -> 403, sin identidad -> 401 |
 | [11-link-compartible.http](11-link-compartible.http) | el link compartible de un evento (PAS-25): publicado -> 200 para todos; **borrador -> 404 (no 403)** para anonimos, compradores y organizadores de otra productora; 200 para quien gestiona la productora dueña |
 | [12-ventas-invitados.http](12-ventas-invitados.http) | compra como invitado con `ServicioDePagos`: tarjeta aprobada, rechazada y caída ambigua; consulta de la orden solo con token privado |
+| [13-cancelacion-evento.http](13-cancelacion-evento.http) | patron State y cancelacion (PAS-35): publicar -> cancelar (200), **cancelar dos veces -> 409** y **publicar un cancelado -> 409** con ProblemDetail, ampliar cupo de un cancelado -> 409, disponibilidad en `false`, cancelar un borrador -> 200, otra productora -> 403, sin identidad -> 401 |
 
 ## Autenticacion (PAS-6, JWT desde PAS-33)
 
