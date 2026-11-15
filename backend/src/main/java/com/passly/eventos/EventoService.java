@@ -92,6 +92,20 @@ public interface EventoService {
     EventoDTO publicarEvento(Long idEvento, Long idUsuarioActuante);
 
     /**
+     * Cancela un evento: {@code BORRADOR -> CANCELADO} o {@code PUBLICADO -> CANCELADO} (PAS-35).
+     *
+     * <p>Un evento cancelado deja de aparecer en la cartelera, no admite ediciones ni ventas, y
+     * sigue visible en su detalle publico. Los reintegros y el aviso a quienes ya compraron quedan
+     * fuera de alcance (HU-14).
+     *
+     * @param idUsuarioActuante quien opera; tiene que poder gestionar la productora dueña del evento
+     * @throws EventoNoEncontradoException         si no existe
+     * @throws ProductoraNoGestionableException    si el evento es de una productora que no gestiona
+     * @throws TransicionDeEstadoInvalidaException si el evento ya esta cancelado
+     */
+    EventoDTO cancelarEvento(Long idEvento, Long idUsuarioActuante);
+
+    /**
      * Cartelera publica: los eventos en {@link EstadoEvento#PUBLICADO}, del mas proximo al mas
      * lejano. Los borradores y los cancelados no aparecen.
      */
@@ -118,6 +132,9 @@ public interface EventoService {
 
     /**
      * Precio y cupo disponible de un tipo de entrada.
+     *
+     * <p>{@code hayDisponibilidad} es {@code false} si no queda cupo <b>o</b> si el evento no
+     * admite ventas en su estado (borrador o cancelado, PAS-35).
      *
      * <p>Es la operacion que va a consumir {@code ServicioDeVentas} antes de retener entradas.
      * Existe para que ningun otro componente necesite leer el esquema {@code eventos}
