@@ -586,19 +586,20 @@ reales dando vueltas; sigue valiendo el puerto 5432, nunca el 6543.
 
 | Patrón | Dónde | Qué problema resuelve |
 |---|---|---|
-| **Facade** | `ServicioDeVentas` | Esconde la orquestación de inventario, pago, emisión y facturación tras una sola operación de compra |
-| **Adapter** | `ServicioDePagos` (REST) y `ServicioDeFacturacion` (SOAP) | Interfaz común de "proveedor externo" sobre dos protocolos incompatibles |
-| **DAO** | Capa de datos de todos los componentes | Desacopla la lógica del mecanismo de persistencia |
-| **State** *(PAS-35)* | `eventos/internal/datos/`: interfaz `EstadoDeEvento` + `Borrador`, `Publicado`, `Cancelado`; `Evento` delega en el estado actual | Las reglas de "qué admite cada estado" (publicar, cancelar, las cuatro ediciones de PAS-19, `admiteVentas()`) estaban en `if` repartidos por la entidad. Ahora cada estado es una clase que implementa lo que admite y lanza la excepción de **409** para lo que no. La columna sigue siendo el enum STRING; el objeto de estado se resuelve desde él (`EstadoDeEvento.de`) |
+| **Facade** — [ADR-003](docs/adr/ADR-003-facade-servicio-de-ventas.md) | `ServicioDeVentas` (`VentaService` / `VentaServiceImpl` + `ConfirmacionDeCompra`) | Esconde la orquestación de inventario, pago, emisión y facturación tras una sola operación de compra |
+| **Adapter / Port** — [ADR-004](docs/adr/ADR-004-adapter-y-port-proveedores-externos.md) | `PasarelaDePago` → `PasarelaDePagoReal` → `PagoService` (REST); `ClienteAfip` en `ServicioDeFacturacion` (SOAP pendiente) | Interfaz común de "proveedor externo" sobre dos protocolos incompatibles |
+| **DAO** — [ADR-005](docs/adr/ADR-005-dao-repository-spring-data.md) | Capa `internal/datos` de todos los componentes (11 repositorios Spring Data JPA) | Desacopla la lógica del mecanismo de persistencia |
+| **State** *(PAS-35)* — [ADR-006](docs/adr/ADR-006-state-ciclo-de-vida-del-evento.md) | `eventos/internal/datos/`: interfaz `EstadoDeEvento` + `Borrador`, `Publicado`, `Cancelado`; `Evento` delega en el estado actual | Las reglas de "qué admite cada estado" (publicar, cancelar, las cuatro ediciones de PAS-19, `admiteVentas()`) estaban en `if` repartidos por la entidad. Ahora cada estado es una clase que implementa lo que admite y lanza la excepción de **409** para lo que no. La columna sigue siendo el enum STRING; el objeto de estado se resuelve desde él (`EstadoDeEvento.de`) |
+| **Componente stateful** — [ADR-007](docs/adr/ADR-007-componente-stateful-carrito-session-scope.md) | `CarritoDeCompra` (`@SessionScope`) | No es un patrón GoF sino una decisión de diseño que la consigna pide justificar: ciclo de vida por contenedor, dos relojes, chequeo de dueño (§4.7) |
 | **Strategy** *(reserva)* | Política de precios | Early-bird, general, cortesía, dinámico — intercambiables |
 | **Factory** *(reserva)* | Creación de tickets/facturas | Según tipo de entrada |
 
 > "Reserva" = candidatos extra por si se descarta alguno. De cada patrón hay que
 > saber **qué problema resuelve** y **por qué se descartaron las alternativas**.
 >
-> **La consigna del 16/11 pide un ADR por patrón.** Hoy `docs/adr/` solo tiene los dos de
-> arquitectura (ADR-001 y ADR-002). Los de Facade, Adapter/Port, DAO, State y el componente
-> stateful se escriben en PAS-36.
+> **Un ADR por patrón (PAS-36):** ADR-003 a ADR-007, con índice en
+> [`docs/adr/README.md`](docs/adr/README.md). Cada uno apunta a las clases reales y dice por qué
+> se descartaron las alternativas.
 
 ### 4.10 Integraciones
 
@@ -773,7 +774,7 @@ por patrón, resiliencia, IA, testing, G1 a G9) están en
 - [x] 1 stateful + 1 stateless, ambos justificados por escrito (§4.7)
 - [x] Arquitectura en capas explícita en cada componente (`web`/`negocio`/`datos`)
 - [x] 3+ patrones de diseño distintos, aplicados y justificados (Facade, Adapter/Port, DAO,
-  State — PAS-35). **Falta:** un ADR por patrón (PAS-36)
+  State — PAS-35), cada uno con su ADR (ADR-003 a ADR-007, PAS-36)
 - [ ] 1 integración SOAP con WSDL (legado) → AFIP — **pendiente, 30/11** (con Fault y XXE)
 - [x] 1 integración REST (partner moderno) → pasarela de pago (PAS-7, PAS-29)
 - [ ] 2 procesos async: ~~1 cola P2P~~ ✅ (PAS-32) + 1 tópico pub/sub — **tópico pendiente, 30/11**
@@ -856,7 +857,7 @@ passly/
 │   │                        errores (401/403/404/409), productoras, y **aislamiento entre
 │   │                        productoras** — el guion central de la demo
 │   ├── plan-entregas.md   ← QUÉ FALTA: requisitos del 16/11, 30/11 y 07/12 con estado e issue
-│   ├── adr/               ← ADR-001 y ADR-002 (arquitectura); los de patrones, en PAS-36
+│   ├── adr/               ← README (índice), ADR-001/002 (arquitectura) y ADR-003 a 007 (patrones, PAS-36)
 │   ├── mensajeria.md, accesos.md, invitaciones-y-compra-invitada.md, correcciones-ux-flujos.md
 │   ├── integraciones.md   ← inventario SOA: cada integración, canal, sync/async, estado (PAS-27)
 │   ├── funcional.md       ← historias de usuario con estado real + diagrama de casos de uso (PAS-28)
@@ -1365,6 +1366,25 @@ estado × operación (18 combinaciones), además de `admiteVentas`, las reglas d
 rechazo de `descontarCupo`. `CancelacionDeEventoTest` (integración, JWT real) fija dos cosas:
 cancelar dos veces da 200 y después 409 con ProblemDetail, y una productora no puede cancelar
 el evento de otra (403).
+
+**Un ADR por patrón (PAS-36).** `docs/adr/` suma ADR-003 (Facade), ADR-004 (Adapter/Port),
+ADR-005 (DAO), ADR-006 (State) y ADR-007 (componente stateful), con el mismo formato que ADR-001 y
+ADR-002, más un índice en `docs/adr/README.md`. Cada ADR cita las clases y los tests donde se ve
+el patrón, y no contradice a los dos de arquitectura: el Facade y el carrito dependen de la
+transacción local de ADR-001, y el DAO respeta un esquema por componente (ADR-002). No hay cambios
+de código.
+
+*Para el oral, lo que cada ADR reconoce como costo (y que conviene decir antes de que lo
+pregunten):*
+- **Facade:** la compra como invitado entra por `CompraInvitadoService`, no por `VentaService`.
+  Comparte `PasarelaDePago` y `ConfirmacionDeCompra`, así que la regla no está duplicada, pero el
+  Facade no es la única puerta.
+- **Adapter:** hay dos `DatosDeTarjetaDTO` y dos `PagoRechazadoException` con el mismo nombre.
+  No es duplicación: cada uno es el contrato de su módulo, y solo `PasarelaDePagoReal` traduce.
+- **DAO:** los repositorios son `public` por la visibilidad de Java; la frontera la cuida Modulith.
+- **State:** con tres estados un `switch` alcanzaría. Se justifica por las siete operaciones que
+  dependen del estado y porque `sealed` + `switch` exhaustivo impiden agregar un estado a medias.
+- **Stateful:** no escala horizontalmente sin sesiones pegadas. Es el trade-off declarado.
 
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 
