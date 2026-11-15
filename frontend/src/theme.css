@@ -282,6 +282,13 @@ button:disabled {
   background: var(--color-surface-alt);
 }
 
+/* Acción destructiva (p. ej. cancelar un evento): se distingue sin competir con la primaria. */
+.boton-peligro {
+  border-color: var(--color-acento);
+  background: transparent;
+  color: var(--color-acento);
+}
+
 .mensaje-exito,
 .mensaje-error {
   margin: 0;
