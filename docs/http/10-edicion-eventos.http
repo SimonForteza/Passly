@@ -84,8 +84,8 @@ Authorization: Bearer {{loginOmar.response.body.$.token}}
   "cupoTotal": 80
 }
 
-### 4. El comprador agrega 5 entradas de este BORRADOR al carrito
-# Hoy Ventas todavia deja agregarlas (lo que falta de PAS-37); el corte real esta al confirmar.
+### 4. El comprador intenta agregar 5 entradas de este BORRADOR al carrito -> 409
+# Desde PAS-37 Ventas lo rechaza al agregar (ver 14-compra-fuera-de-venta.http).
 POST {{baseUrl}}/api/ventas/carrito/items
 Content-Type: application/json
 Authorization: Bearer {{loginComprador.response.body.$.token}}
@@ -95,8 +95,8 @@ Authorization: Bearer {{loginComprador.response.body.$.token}}
   "cantidad": 5
 }
 
-### 5. Confirmar la compra de un BORRADOR -> 409: un borrador no vende (PAS-35, admiteVentas())
-# Antes de PAS-35 este paso daba 201 y servia para tener "vendidas" en borrador y probar el 409
+### 5. Confirmar la compra -> 422 (carrito vacio): el paso 4 ya no dejo agregar nada (PAS-37)
+# Un borrador no vende (PAS-35, admiteVentas()). Antes de PAS-35 este paso daba 201 y servia para tener "vendidas" en borrador y probar el 409
 # de bajar el cupo por debajo de lo vendido. Ese escenario ya no existe; la invariante se prueba
 # en TipoEntradaTest (unitario). Ver docs/http/13-cancelacion-evento.http para el State completo.
 POST {{baseUrl}}/api/ventas/ordenes

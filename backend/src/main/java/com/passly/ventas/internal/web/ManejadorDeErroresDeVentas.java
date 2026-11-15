@@ -4,6 +4,7 @@ import com.passly.eventos.CupoInsuficienteException;
 import com.passly.ventas.CarritoDeOtroCompradorException;
 import com.passly.ventas.CarritoVacioException;
 import com.passly.ventas.CarritoVencidoException;
+import com.passly.ventas.EntradaNoDisponibleException;
 import com.passly.ventas.OrdenNoEncontradaException;
 import com.passly.ventas.PagoRechazadoException;
 import org.springframework.http.HttpStatus;
@@ -53,6 +54,12 @@ class ManejadorDeErroresDeVentas {
     @ExceptionHandler(PagoRechazadoException.class)
     ProblemDetail pagoRechazado(PagoRechazadoException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.PAYMENT_REQUIRED, ex.getMessage());
+    }
+
+    /** PAS-37: entrada de un evento que no esta a la venta (borrador, cancelado o agotado). */
+    @ExceptionHandler(EntradaNoDisponibleException.class)
+    ProblemDetail entradaNoDisponible(EntradaNoDisponibleException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
     }
 
     @ExceptionHandler(CupoInsuficienteException.class)

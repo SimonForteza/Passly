@@ -1216,8 +1216,11 @@ anotado para un issue propio. **Sigue presente al 14/11 (también en la compra c
 para eventos cancelados): issue PAS-37.** *Actualización PAS-35:* del lado de Eventos quedó
 cerrado: `consultarDisponibilidad` devuelve `hayDisponibilidad=false` y `descontarCupo` rechaza
 con `CupoInsuficienteException` (409) si el evento no admite ventas. Así, confirmar la compra
-falla para un borrador o un cancelado. A Ventas solo le queda rechazar ya en
-`agregarItem` (hoy deja agregar al carrito y falla recién al confirmar).
+falla para un borrador o un cancelado. ~~A Ventas solo le queda rechazar ya en
+`agregarItem`~~ **Corregido en PAS-37 (DEF-001, `docs/defectos.md`):** Ventas rechaza con 409
+(`EntradaNoDisponibleException`, mensaje genérico) al agregar al carrito con cuenta y como
+invitado, y valida **antes de cobrar** al confirmar; `descontarCupo` queda como última barrera
+dentro de la transacción. Demo: `docs/http/14-compra-fuera-de-venta.http`.
 
 **Página pública de productora (PAS-26):** `/productoras/:id` es una ruta **pública**
 (`PaginaProductoraPage`) con el nombre comercial, la descripción y la grilla de los eventos
