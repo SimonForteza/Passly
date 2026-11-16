@@ -101,8 +101,14 @@ Passly es **un backend y dos clientes**.
   El uso de la cámara justifica naturalmente que sea mobile y no web.
   **Para el Checkpoint 2 (19/10)** la validación se resuelve con una **pantalla web
   responsive** dentro de `frontend/` (cámara del navegador + ingreso manual del código), que
-  consume la misma API REST que después va a usar la app móvil. La app React Native queda para
-  la Obligatoria 2 / Final; la API no cambia entre una y otra.
+  consume la misma API REST que después va a usar la app móvil. **Desde el 16/11 existe la app
+  React Native** (`app-validador/`, Expo SDK 58, APK compilado local): login, elegir evento,
+  escanear con la cámara nativa e ingreso manual. **No sumó ningún endpoint**: usa los mismos
+  cuatro que la web (`/api/auth/login`, `/api/productoras/mias`, `/api/eventos?productora=`,
+  `/api/accesos/validaciones`), lo que prueba que la API no cambia entre una y otra. La cámara
+  nativa no exige HTTPS (la del navegador sí), por eso el celular puede hablarle al backend por
+  `http://<IP>:8080`; el APK habilita `usesCleartextTraffic` para eso. La web `/validar` queda
+  como plan B.
 
 ### Recorrido end-to-end
 
@@ -904,8 +910,8 @@ passly/
 │       │                    TarjetaEvento — la tarjeta compartida con la página de productora (PAS-26)
 │       └── productoras/   ← ProductorasPage, BackofficePage (padrón) y
 │                            PaginaProductoraPage — página PÚBLICA /productoras/:id (PAS-26)
-└── (aspiracional — todavía no existe):
-    └── app-validador/     ← app móvil del validador (hoy es la pantalla web /validar)
+└── app-validador/         ← app móvil del validador, Expo SDK 58 (16/11). App.tsx + src/api.ts;
+                             android/ se genera con `expo prebuild` y no se versiona (ver su README)
 ```
 
 > Los archivos `docs/arquitectura.md`, `docs/componentes.md`, `docs/patrones.md` y
