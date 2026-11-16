@@ -56,6 +56,10 @@ Authorization: Bearer {{loginOmar.response.body.$.token}}
 POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
 Authorization: Bearer {{loginOmar.response.body.$.token}}
 
+### 2b. Republicar el mismo evento -> 409 ProblemDetail
+POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/publicacion
+Authorization: Bearer {{loginOmar.response.body.$.token}}
+
 ### 3. Cancelar el evento de otra productora -> 403 (aislamiento, igual que publicar)
 POST {{baseUrl}}/api/eventos/{{crearEvento.response.body.$.id}}/cancelacion
 Authorization: Bearer {{loginOlga.response.body.$.token}}
