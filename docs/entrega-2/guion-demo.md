@@ -1,45 +1,55 @@
-# Guion de la demo del 16/11
+# Passly · Guion de la demo del 16/11
 
-**Duración:** 15 minutos. **Turno:** confirmar el número de grupo y la hora en el aviso de Teams. Llegar antes con la computadora conectada al proyector.
+**15 minutos** · 14 de recorrido y 1 de margen. Confirmar el turno del grupo en Teams y llegar con el entorno listo.
 
-## Preparación y ensayo del 15/11
+## Antes de proyectar
 
-1. Actualizar una copia de `main` y anotar el commit con `git rev-parse --short HEAD`. Reservar una instancia local descartable y comprobar qué contenedores pertenecen a esa copia con `docker compose ps -a`. Para el ensayo desde cero, correr `docker compose down -v` únicamente si todos los volúmenes de ese proyecto pertenecen a la demo y son descartables. En una instalación nueva alcanza con `docker compose up -d`.
-2. En la raíz, correr `docker compose up -d --wait`. Abrir la consola de [Artemis](http://localhost:8161/console), usuario y clave de demo `passly`, y entrar a la cola `orden.pagada`. Dejar el consumidor de Facturación activo para que el mismo pago de la demo produzca la factura.
-3. En otra terminal, desde `backend/`, correr `./mvnw spring-boot:run -Dspring-boot.run.profiles=demo` (`./mvnw.cmd` en Windows). Confirmar `UP` en [health](http://localhost:8080/actuator/health).
-4. Desde `frontend/`, correr `npm ci` y `npm run dev`. Abrir [Passly](http://localhost:5173/). Dejar dos perfiles de navegador independientes para la compradora y la validadora. Reservar VS Code con REST Client para las peticiones.
-5. Los cuatro recorren la demo el 15/11 por la noche. Cada integrante explica una parte que programó otra persona. Anotar el commit, asistentes y resultado en el [plan de entregas](../plan-entregas.md). Si falla un paso, registrar el issue o el defecto en `docs/defectos.md` con los pasos y la evidencia.
+- Ensayar el 15/11 por la noche con los cuatro, sobre el mismo commit de `main` que van a presentar. Anotar el commit con `git rev-parse --short HEAD` y registrar asistentes, resultado y defectos en el [plan de entregas](../plan-entregas.md) y el [registro de defectos](../defectos.md).
+- Levantar una base descartable. En el ensayo, usar `docker compose down -v` solo si los volúmenes del proyecto son exclusivos de esa demo. Desde la raíz ejecutar `docker compose up -d --wait`; desde `backend/`, `./mvnw spring-boot:run -Dspring-boot.run.profiles=demo`; desde `frontend/`, `npm ci` y `npm run dev`. En Windows usar `./mvnw.cmd`. Confirmar [health UP](http://localhost:8080/actuator/health).
+- Abrir el [link de Jazz](http://localhost:5173/eventos/1) en un perfil limpio y dejar [la pantalla de validación](http://localhost:5173/validar) en otro perfil, con Vera dentro. Si el id de Jazz es distinto, obtenerlo con [la cartelera de la API](http://localhost:8080/api/eventos) y ajustar los ids de las peticiones de respaldo. En un mismo perfil, dos pestañas comparten la sesión del comprador.
+- Abrir REST Client con los archivos [01](../http/01-salud.http), [07](../http/07-seguridad.http) y [13](../http/13-cancelacion-evento.http), la consola [Artemis](http://localhost:8161/console) (demo: `passly` / `passly`), el ADR de Facade, el tablero y el CI del mismo commit. Correr la suite completa antes de exponer. Dejar un solo terminal listo para el test corto y otro en la raíz para consultar la factura.
+- En Artemis, verificar en el ensayo que se puede ejecutar `pause()` y `resume()` sobre la cola local `orden.pagada`, y que hay un consumidor activo. Ubicar `Operations` en el menú de la cola o en Artemis JMX, y `Browse` para ver el mensaje. Si funciona, pausar la cola justo antes de la compra. Si la consola no ofrece esas operaciones, dejar el consumidor activo, anotar `MessagesAdded` y `MessagesAcknowledged` y mostrar su incremento al final. [Operaciones de cola de Artemis](https://artemis.apache.org/components/artemis/documentation/latest/management.html)
 
-| Usuario del perfil demo | Acción |
+| Cuenta de demo | Uso |
 |---|---|
-| `comprador@passly.test` | Carla compra una entrada General para Festival de Jazz - Verano. |
-| `validador@passly.test` | Vera valida entradas de Aurora Producciones. |
-| `organizador@passly.test` | Omar opera los eventos de Aurora. |
-| `admin@passly.test` | Ada puede consultar el modelo de Spring Modulith. |
+| `comprador@passly.test` | Carla compra una General para Festival de Jazz - Verano. |
+| `validador@passly.test` | Vera valida en nombre de Aurora Producciones. |
+| `organizador@passly.test` | Omar publica y cancela el evento de prueba de Aurora. |
+| `admin@passly.test` | Ada abre el modelo de módulos. |
 
-Contraseña de las cuentas de prueba: `passly1234`. Tarjeta de la pasarela mock: `4242424242424242`, Carla Compradora, `12/29`, `123`.
+Contraseña de demo `passly1234`. Tarjeta de prueba `4242424242424242`, Carla Compradora, vencimiento `12/29`, código `123`.
 
 ## Recorrido en vivo
 
-| Minutos | Mostrar | Acción y resultado esperado |
-|---|---|---|
-| 0:00–1:30 | Capas y componentes | Mostrar `docker compose ps`, backend con perfil `demo` y frontend. En [01-salud.http](../http/01-salud.http) ejecutar Health, login y Modulith. Abrir `EventoController`, `EventoServiceImpl` y `EventoRepository` para seguir presentación, negocio y datos. Mostrar el resultado de `./mvnw -Dtest=EstructuraDeModulosTest test`. |
-| 1:30–5:00 | Compra y QR | Abrir [el evento de Jazz](http://localhost:5173/eventos/1). Si la base no es nueva, obtener el id en `GET /api/eventos`. Entrar como Carla, seleccionar una General, pagar con la tarjeta de prueba y anotar el número de orden. Abrir el QR. En el segundo perfil, entrar como Vera, abrir [Validar](http://localhost:5173/validar) y elegir Jazz. Validar el mismo QR dos veces. La primera muestra **VÁLIDO**. Pulsar «Validar siguiente entrada» y repetir para ver **YA USADO** con la hora original. |
-| 5:00–6:30 | JWT y autorización | En [07-seguridad.http](../http/07-seguridad.http), ejecutar «Login de comprador» y mostrar el campo token. Enviar «COMPRADOR autenticado» al crear evento (**403**) y «Token adulterado» en `GET /api/usuarios/me` (**401**). |
-| 6:30–8:30 | State y conflicto | En [03-flujo-feliz.http](../http/03-flujo-feliz.http), iniciar sesión, crear y publicar el evento de prueba y repetir **Publicación** (**409**). Luego enviar `POST /api/eventos/{id}/cancelacion` con el JWT de Omar dos veces (**200**, **409**). Usar el id devuelto por «Crear» para conservar Jazz disponible. Mostrar la clase del estado que rechaza la transición. La cancelación y las clases dependen de [PAS-35](https://linear.app/passly/issue/PAS-35). |
-| 8:30–10:30 | Mensajería | Volver a Artemis y mostrar los contadores de entrada y confirmación de la cola `orden.pagada`. Ejecutar la consulta de factura que figura abajo con la orden de Carla. Debe aparecer una fila en `PENDIENTE_AFIP`. Si se necesita inspeccionar el JSON en espera, hacer una segunda compra con el consumidor detenido y reiniciarlo siguiendo el [guion de mensajería](../mensajeria.md). |
-| 10:30–12:00 | Pruebas | Desde `backend/`, ejecutar `./mvnw test`. Correr la suite antes del turno para poder mostrar el resumen e identificar una prueba unitaria. Abrir la [ejecución de CI](https://github.com/SimonForteza/Passly/actions) del mismo commit. La suite y el reporte de cobertura en CI dependen de [PAS-38](https://linear.app/passly/issue/PAS-38). |
-| 12:00–13:30 | Patrones y ADR | Abrir [los ADR](../adr/) y ubicar el ADR de Facade de [PAS-36](https://linear.app/passly/issue/PAS-36) junto a `VentaService`. Explicar cómo la confirmación orquesta cobro, orden y tickets desde un punto de entrada. Tener a mano el ADR-001 para la decisión de arquitectura del monolito modular. |
-| 13:30–15:00 | Tablero y feedback | Mostrar el tablero acordado con la cátedra, sus responsables, la [trazabilidad de historias](../trazabilidad.md) y las observaciones de [feedback de diseño](../feedback-diseno.md) con su evidencia. Confirmar este tramo en [PAS-39](https://linear.app/passly/issue/PAS-39). |
+El reparto es una propuesta para confirmar en el ensayo. Cada integrante explica al menos un tramo que programó otra persona.
 
-La consulta usa el id numérico de la compra. Reemplazar `123` por el número de orden mostrado en pantalla.
+| Minuto | Quién | Acción y evidencia |
+|---|---|---|
+| 0:00–1:30 | Fede · Capas | «Vamos a comprar una entrada desde un link, validarla en la puerta y seguir esa orden hasta Facturación». Mostrar `docker compose ps`, backend en perfil `demo` y web. En [01-salud.http](../http/01-salud.http), ejecutar Health, Login de admin y Modelo de módulos. Mostrar el resultado de `EstructuraDeModulosTest` y señalar `EventoController`, `EventoServiceImpl` y `EventoRepository`. |
+| 1:30–5:00 | Lucio · Compra y puerta | Abrir el link de Jazz, entrar como Carla, sumar una General, tocar «Continuar al pago» y pagar. Anotar el **id de orden**. En el ticket, abrir «Alternativa para ingreso manual» y copiar el **contenido firmado completo**. En el otro perfil, Vera elige Jazz en `/validar`, pega el contenido y valida. Mostrar **Válido**. Pulsar «Validar siguiente entrada», pegar el mismo contenido y mostrar **Ya usado** con la hora original. |
+| 5:00–6:30 | Simón · Seguridad | En [07-seguridad.http](../http/07-seguridad.http), ejecutar «Login de comprador» y señalar el campo `token`. Enviar «COMPRADOR autenticado» al crear un evento (**403**) y «Token adulterado» en `GET /api/usuarios/me` (**401**). «El 403 corresponde a Carla, que está identificada y carece del rol. El 401 corresponde a un token que el servidor rechaza». |
+| 6:30–8:30 | Juan · State | En [13-cancelacion-evento.http](../http/13-cancelacion-evento.http), ejecutar el login de Omar y los bloques **1, 2, 2b, 4 y 5** en ese orden. Mostrar `BORRADOR → PUBLICADO`, **409** al republicar, **200** al cancelar y **409 ProblemDetail** al repetir. Abrir `Cancelado.cancelar()` y señalar el rechazo. El archivo crea y usa su propio evento de prueba. |
+| 8:30–10:30 | Simón · Mensajería | En Artemis, abrir `orden.pagada` y mostrar el JSON con el **mismo id de orden**. Reanudar la cola y consultar la factura con el comando de abajo. Mostrar la fila en `PENDIENTE_AFIP`. Si la cola quedó activa, mostrar los contadores y la misma fila. «La venta ya se confirmó. Facturación tomó la orden de la cola y la dejó pendiente del paso fiscal». |
+| 10:30–11:45 | Fede · Pruebas | Ejecutar el test corto de abajo y explicar la expectativa: si la pasarela rechaza, Ventas conserva el carrito y evita confirmar la orden. Mostrar el resultado de la suite y la cobertura JaCoCo del mismo commit en [GitHub Actions](https://github.com/SimonForteza/Passly/actions). |
+| 11:45–12:45 | Juan · Patrones | Mostrar el [ADR-003 de Facade](../adr/ADR-003-facade-servicio-de-ventas.md) junto a `VentaService` y su implementación. Señalar el método que el controlador usa para confirmar una orden y explicar cómo coordina el cobro y la confirmación. Tener a mano el [ADR-006 de State](../adr/ADR-006-state-ciclo-de-vida-del-evento.md) para preguntas. |
+| 12:45–14:00 | Lucio · Tablero y diseño | Mostrar los responsables y estados en el [tablero](https://linear.app/passly), y seguir una historia de la [matriz](../trazabilidad.md) hasta su issue. Abrir el [registro de feedback](../feedback-diseno.md) y mostrar una devolución con su cambio si quedó registrada. Si sigue pendiente la respuesta de la cátedra, indicar qué falta confirmar. |
+| 14:00–15:00 | Equipo · Margen | Recuperar un paso que haya demorado o responder preguntas. |
+
+Desde la raíz, sustituir `123` por el id recién generado:
 
 ```sh
-docker compose exec -T postgres psql -U passly -d passly -c "SELECT * FROM facturacion.factura WHERE orden_id = 123;"
+docker compose exec -T postgres psql -U passly -d passly -c "SELECT orden_id, total, estado FROM facturacion.factura WHERE orden_id = 123;"
 ```
 
-### Plan B
+Desde `backend/`, tener listo el test corto. Correr `./mvnw test` durante el ensayo y guardar la salida:
 
-- **Cámara:** en el ticket abrir «Alternativa para ingreso manual». Pegar el contenido firmado completo en «Ingreso manual del QR» dentro de `/validar` y validar dos veces. El código corto que aparece bajo el QR se usa como referencia visual.
-- **Docker lento:** descargar las imágenes con `docker compose pull` y levantar los servicios antes del turno. Mantener el entorno preparado entre el ensayo y la exposición. Si la web sigue esperando, usar [09-accesos.http](../http/09-accesos.http) para mostrar el flujo con el backend operativo. Usar una compra nueva para evitar un QR consumido.
-- **Sin internet:** precargar dependencias Maven y npm, las imágenes Docker y el PDF. El backend, la pasarela mock, la web y Artemis se ejecutan localmente. Llevar el resultado del CI y la referencia del tablero al mismo commit. Informar si la red impide abrir GitHub o el tablero durante el turno.
+```sh
+./mvnw "-Dtest=VentaServiceImplTest#pagoRechazadoNoConfirmaNiVaciaElCarrito" test
+```
+
+## Si falla algo
+
+- **Cámara o lector:** usar ingreso manual desde el inicio. El valor que se pega está en «Alternativa para ingreso manual», debajo del QR.
+- **Web caída con backend disponible:** en [09-accesos.http](../http/09-accesos.http), ejecutar los logins de Carla y Vera, asegurar una sesión de carrito nueva, agregar una entrada, comprar, consultar el ticket y ejecutar la misma validación dos veces. Anotar el id de esta compra para Facturación.
+- **Cola o factura:** si quedó pausada, reanudarla. Si tras 30 segundos no aparece la factura, guardar el id de orden, revisar el log y seguir con pruebas. Con tiempo en el ensayo, usar el [guion de mensajería](../mensajeria.md) para inspeccionar el mensaje con el consumidor detenido y verificar el consumo al reactivarlo.
+- **Docker lento o sin internet:** dejar las imágenes, dependencias y servicios listos antes del turno. Tener una segunda computadora ensayada con el mismo commit si el equipo dispone de ella. Llevar localmente el PDF, la salida de pruebas y la evidencia de CI y del tablero. Indicar qué tramo se pudo ejecutar en vivo si falla el entorno.
