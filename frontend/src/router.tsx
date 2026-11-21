@@ -84,30 +84,26 @@ export const router = createBrowserRouter([
           </RutaPrivada>
         ),
       },
-      {
-        path: '/productoras/:id',
-        children: [
-          { index: true, element: <PaginaProductoraPage /> },
-          {
-            element: (
-              <RutaPrivada>
-                <GestionLayout />
-              </RutaPrivada>
-            ),
-            children: [
-              { path: 'gestion', element: <ResumenProductoraPage /> },
-              { path: 'backoffice', element: <BackofficePage /> },
-              { path: 'eventos', element: <EventosDeProductoraPage /> },
-              { path: 'eventos/nuevo', element: <CrearEventoPage /> },
-              { path: 'eventos/:idEvento', element: <GestionEventoPage /> },
-              {
-                path: 'eventos/:idEvento/editar',
-                element: <EditarEventoPage />,
-              },
-            ],
-          },
-        ],
-      },
+      // Página pública de la productora: con el header de Passly, como el resto del sitio.
+      { path: '/productoras/:id', element: <PaginaProductoraPage /> },
+    ],
+  },
+  // Gestión de una productora (PAS-46): dashboard a pantalla completa, sin AppLayout. Mismas URLs
+  // que antes; React Router elige por especificidad, así que convive con la página pública.
+  {
+    path: '/productoras/:id',
+    element: (
+      <RutaPrivada>
+        <GestionLayout />
+      </RutaPrivada>
+    ),
+    children: [
+      { path: 'gestion', element: <ResumenProductoraPage /> },
+      { path: 'backoffice', element: <BackofficePage /> },
+      { path: 'eventos', element: <EventosDeProductoraPage /> },
+      { path: 'eventos/nuevo', element: <CrearEventoPage /> },
+      { path: 'eventos/:idEvento', element: <GestionEventoPage /> },
+      { path: 'eventos/:idEvento/editar', element: <EditarEventoPage /> },
     ],
   },
 ]);

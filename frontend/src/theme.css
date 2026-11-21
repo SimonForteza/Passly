@@ -1276,38 +1276,393 @@ button:disabled {
   display: grid;
   gap: 2rem;
 }
-.gestion-contexto {
+/* ===== Dashboard de gestión (PAS-46, Figma Web 20 a 24) ===== */
+.dashboard {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+.dashboard-lateral {
+  position: sticky;
+  top: 0;
   display: flex;
-  align-items: end;
+  flex-direction: column;
+  gap: 1rem;
+  height: 100vh;
+  padding: 1rem;
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+.dashboard-contenido {
+  min-width: 0;
+  padding: 2rem 2.5rem 3rem;
+}
+.dashboard-contenido > .gestion {
+  max-width: 1200px;
+}
+.dashboard-barra,
+.dashboard-velo {
+  display: none;
+}
+.dashboard-estado {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+.dashboard-lateral-pie {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: auto;
+}
+.dashboard-lateral-pie .cuenta-disparador {
+  width: 100%;
+  max-width: none;
+  border-radius: 10px;
+}
+
+/* Selector de productora (estilo workspace de Linear/Notion) */
+.selector-productora {
+  position: relative;
+}
+.selector-productora-disparador,
+.selector-productora-opcion {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.6rem 0.5rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-alt);
+  color: var(--color-texto-secundario);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.selector-productora-disparador:hover,
+.selector-productora-disparador[aria-expanded="true"] {
+  border-color: var(--color-acento);
+}
+.selector-productora-inicial {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  background: var(--color-acento);
+  color: var(--color-acento-texto);
+  font-weight: 700;
+}
+.selector-productora-textos {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.selector-productora-textos strong,
+.selector-productora-textos span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.selector-productora-textos strong {
+  color: var(--color-texto);
+  font-size: 0.9rem;
+}
+.selector-productora-textos span {
+  font-size: 0.75rem;
+}
+.selector-productora-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: max(100%, 17.5rem);
+  max-width: calc(100vw - 2rem);
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 0.4rem;
+  border: 1px solid var(--color-border-fuerte);
+  border-radius: 12px;
+  background: var(--color-surface-alt);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+.selector-productora-titulo {
+  margin: 0;
+  padding: 0.4rem 0.5rem 0.25rem;
+  color: var(--color-texto-terciario);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.selector-productora-opcion {
+  border-color: transparent;
+  background: none;
+}
+.selector-productora-opcion:hover,
+.selector-productora-opcion:focus-visible,
+.selector-productora-opcion[aria-checked="true"] {
+  background: var(--color-surface);
+}
+.selector-productora-opcion > svg {
+  color: var(--color-texto);
+}
+
+/* Menú lateral */
+.nav-gestion {
+  display: grid;
+  gap: 0.2rem;
+}
+.nav-gestion-titulo {
+  margin: 0.5rem 0 0.3rem;
+  padding: 0 0.6rem;
+  color: var(--color-texto-terciario);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.nav-gestion-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-left: 2px solid transparent;
+  border-radius: 8px;
+  color: var(--color-texto-secundario);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.nav-gestion-item:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-texto);
+}
+.nav-gestion-item.active {
+  border-left-color: var(--color-acento);
+  background: var(--color-acento-tinte);
+  color: var(--color-texto);
+  font-weight: 600;
+}
+.nav-gestion-separador {
+  width: 100%;
+  margin: 0.4rem 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Menú de cuenta al pie del lateral: abre hacia arriba */
+.cuenta-arriba .cuenta-menu {
+  top: auto;
+  bottom: calc(100% + 0.5rem);
+  left: 0;
+  right: auto;
+}
+
+/* Contenido: encabezado, métricas, tarjetas y gráfico */
+.dashboard-encabezado {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 1rem;
 }
-.gestion-contexto label {
-  width: min(100%, 360px);
+.dashboard-encabezado p {
+  margin: 0.25rem 0 0;
+}
+.gestion .dashboard-titulo {
+  margin: 0;
+  font: 2rem/1.1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+.dashboard-metricas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+.dashboard-metrica,
+.dashboard-tarjeta {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radio-card);
+  background: var(--color-surface);
+}
+.dashboard-metrica {
+  padding: 1.25rem;
+}
+.dashboard-metrica dt {
+  color: var(--color-texto-secundario);
   font-size: 0.85rem;
-  color: var(--color-texto-secundario);
+  font-weight: 500;
 }
-.gestion-nav {
+.dashboard-metrica dd {
+  margin: 0.35rem 0 0;
+  font: 2.25rem/1.1 var(--font-display);
+}
+.dashboard-metrica .dashboard-metrica-detalle {
+  margin-top: 0.4rem;
+  color: var(--color-texto-terciario);
+  font: 0.8rem/1.4 var(--font-texto);
+}
+.dashboard-grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+.dashboard-tarjeta {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+.dashboard-tarjeta header {
+  display: grid;
+  gap: 0.15rem;
+}
+.dashboard-tarjeta header p,
+.dashboard-tarjeta h3 {
+  margin: 0;
+}
+.dashboard-tarjeta header p {
+  font-size: 0.8rem;
+}
+@media (min-width: 1100px) {
+  .dashboard-grilla {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+}
+.grafico-barras,
+.lista-proximos {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.grafico-barras-etiqueta {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  padding-bottom: 0.8rem;
-  border-bottom: 1px solid var(--color-border);
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
 }
-.gestion-nav a {
-  padding: 0.65rem 0.85rem;
-  border-radius: 8px;
+.grafico-barras-etiqueta a {
+  overflow: hidden;
+  font-weight: 500;
   text-decoration: none;
-  font-size: 0.9rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
-.gestion-nav a.active {
+.grafico-barras-pista {
+  height: 10px;
+  overflow: hidden;
+  border-radius: var(--radio-pill);
   background: var(--color-surface-alt);
-  color: var(--color-acento-legible);
 }
-.gestion-nav .vista-publica {
-  margin-left: auto;
-  color: var(--color-texto-secundario);
+.grafico-barras-relleno {
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
+  background: var(--color-acento);
+}
+.lista-proximos li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.lista-proximos a {
+  display: grid;
+  min-width: 0;
+  text-decoration: none;
+}
+.lista-proximos a strong {
+  overflow: hidden;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.lista-proximos a span {
+  font-size: 0.8rem;
+}
+.enlace-tarjeta {
+  color: var(--color-acento-legible, var(--color-acento));
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Pantallas angostas: barra superior + menú lateral como panel deslizante */
+@media (max-width: 1000px) {
+  .dashboard {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+  .dashboard-barra {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+  .dashboard-barra .selector-productora {
+    flex: 1;
+    min-width: 0;
+  }
+  .dashboard-boton-menu {
+    display: inline-grid;
+    place-items: center;
+    width: 2.6rem;
+    height: 2.6rem;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: none;
+    color: var(--color-texto);
+    cursor: pointer;
+  }
+  .dashboard-lateral {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    width: min(280px, 85vw);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.6);
+  }
+  .dashboard-lateral-selector {
+    display: none;
+  }
+  .panel-abierto .dashboard-lateral {
+    transform: none;
+  }
+  .panel-abierto .dashboard-velo {
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    display: block;
+    background: rgba(0, 0, 0, 0.6);
+  }
+  .dashboard-contenido {
+    padding: 1.5rem 1rem 2.5rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-lateral {
+    transition: none;
+  }
 }
 .gestion h2 {
   font: 700 clamp(1.5rem, 4vw, 2.1rem) / 1.2 var(--font-texto);
@@ -1422,6 +1777,21 @@ button:disabled {
 }
 .dialogo-publicacion::backdrop {
   background: rgb(0 0 0 / 0.8);
+}
+.dialogo-confirmacion {
+  width: min(440px, calc(100% - 2rem));
+}
+.dialogo-confirmacion h2 {
+  font-size: 1.35rem;
+}
+/* Los dos botones del mismo ancho; si no entran lado a lado, se apilan y siguen iguales. */
+.dialogo-confirmacion .acciones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+.dialogo-confirmacion .acciones .boton {
+  width: 100%;
+  justify-content: center;
 }
 .dialogo-publicacion h2 {
   font: 700 1.7rem var(--font-texto);
