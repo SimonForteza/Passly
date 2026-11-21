@@ -16,8 +16,12 @@ import com.passly.usuarios.dto.UsuarioDTO;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -113,6 +117,7 @@ class CargaDeDatosDemo implements ApplicationRunner {
                 )
         ), omar.id());
         eventoService.publicarEvento(jazz.id(), omar.id());
+        subirPortada(jazz.id(), "festival-de-jazz.jpg", omar.id());
 
         EventoDTO tech = eventoService.crearEvento(new CrearEventoRequest(
                 nocturna.id(),
@@ -123,9 +128,10 @@ class CargaDeDatosDemo implements ApplicationRunner {
                 List.of(new CrearTipoEntradaRequest("General", new BigDecimal("8000.00"), 300))
         ), olga.id());
         eventoService.publicarEvento(tech.id(), olga.id());
+        subirPortada(tech.id(), "conferencia-tech.jpg", olga.id());
 
         // Queda en BORRADOR a proposito: la demo necesita algo real para publicar en vivo.
-        eventoService.crearEvento(new CrearEventoRequest(
+        EventoDTO recital = eventoService.crearEvento(new CrearEventoRequest(
                 aurora.id(),
                 "Recital sorpresa",
                 "Todavia no confirmado.",
@@ -133,5 +139,20 @@ class CargaDeDatosDemo implements ApplicationRunner {
                 "A confirmar",
                 List.of(new CrearTipoEntradaRequest("Early Bird", new BigDecimal("12000.00"), 100))
         ), omar.id());
+        // Con portada aunque sea borrador: la vista previa de gestion la muestra, el publico no.
+        subirPortada(recital.id(), "recital-sorpresa.jpg", omar.id());
+    }
+
+    /**
+     * Las portadas de demo (PAS-47) entran por el mismo contrato que usa la API, con la identidad
+     * de quien gestiona la productora: el seeder sigue siendo un cliente mas del sistema. Son
+     * imagenes generadas para la demo, en {@code resources/demo/portadas}.
+     */
+    private void subirPortada(Long idEvento, String archivo, Long idUsuario) {
+        try (InputStream entrada = new ClassPathResource("demo/portadas/" + archivo).getInputStream()) {
+            eventoService.cambiarPortada(idEvento, entrada.readAllBytes(), idUsuario);
+        } catch (IOException e) {
+            throw new UncheckedIOException("No se pudo leer la portada de demo " + archivo, e);
+        }
     }
 }

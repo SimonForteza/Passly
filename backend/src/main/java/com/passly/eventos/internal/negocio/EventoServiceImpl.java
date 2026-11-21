@@ -3,6 +3,7 @@ package com.passly.eventos.internal.negocio;
 import com.passly.eventos.EstadoEvento;
 import com.passly.eventos.EventoNoEncontradoException;
 import com.passly.eventos.EventoService;
+import com.passly.eventos.PortadaNoEncontradaException;
 import com.passly.eventos.ProductoraNoGestionableException;
 import com.passly.eventos.TipoEntradaNoEncontradoException;
 import com.passly.eventos.dto.AmpliarCupoRequest;
@@ -14,8 +15,11 @@ import com.passly.eventos.dto.EditarEventoRequest;
 import com.passly.eventos.dto.EditarTipoEntradaRequest;
 import com.passly.eventos.dto.EventoDTO;
 import com.passly.eventos.dto.OrganizadorDeEventoDTO;
+import com.passly.eventos.dto.PortadaDTO;
 import com.passly.eventos.internal.datos.Evento;
 import com.passly.eventos.internal.datos.EventoRepository;
+import com.passly.eventos.internal.datos.Portada;
+import com.passly.eventos.internal.datos.PortadaRepository;
 import com.passly.eventos.internal.datos.TipoEntrada;
 import com.passly.eventos.internal.datos.TipoEntradaRepository;
 import com.passly.productoras.ProductoraService;
@@ -23,6 +27,7 @@ import com.passly.productoras.dto.ProductoraDTO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -47,17 +52,20 @@ class EventoServiceImpl implements EventoService {
 
     private final EventoRepository eventoRepository;
     private final TipoEntradaRepository tipoEntradaRepository;
+    private final PortadaRepository portadaRepository;
     private final ProductoraService productoraService;
     private final EventoMapper mapper;
 
     EventoServiceImpl(
             EventoRepository eventoRepository,
             TipoEntradaRepository tipoEntradaRepository,
+            PortadaRepository portadaRepository,
             ProductoraService productoraService,
             EventoMapper mapper
     ) {
         this.eventoRepository = eventoRepository;
         this.tipoEntradaRepository = tipoEntradaRepository;
+        this.portadaRepository = portadaRepository;
         this.productoraService = productoraService;
         this.mapper = mapper;
     }
@@ -236,6 +244,66 @@ class EventoServiceImpl implements EventoService {
 
         evento.ampliarCupo(idTipoEntrada, solicitud.cantidad());
         return conOrganizador(evento);
+    }
+
+    @Override
+    public EventoDTO cambiarPortada(Long idEvento, byte[] contenido, Long idUsuarioActuante) {
+        Evento evento = buscarEvento(idEvento);
+        exigirGestionSobre(evento, idUsuarioActuante);
+        String tipo = ValidadorDePortada.tipoDe(contenido);
+
+        // Primero el estado decide (cancelado -> 409), despues se escriben los bytes: un evento
+        // cancelado no llega a guardar la imagen. Las dos escrituras van en esta misma transaccion.
+        OffsetDateTime ahora = OffsetDateTime.now();
+        evento.cambiarPortada(ahora);
+        Portada portada = portadaRepository.findById(idEvento)
+                .orElseGet(() -> new Portada(idEvento, contenido, tipo, ahora));
+        portada.reemplazar(contenido, tipo, ahora);
+        portadaRepository.save(portada);
+        return conOrganizador(evento);
+    }
+
+    @Override
+    public EventoDTO quitarPortada(Long idEvento, Long idUsuarioActuante) {
+        Evento evento = buscarEvento(idEvento);
+        exigirGestionSobre(evento, idUsuarioActuante);
+        evento.quitarPortada();
+        portadaRepository.deleteById(idEvento);
+        return conOrganizador(evento);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PortadaDTO obtenerPortadaPublica(Long idEvento) {
+        Evento evento = buscarEvento(idEvento);
+        if (evento.getEstado() == EstadoEvento.BORRADOR) {
+            throw new EventoNoEncontradoException(idEvento);
+        }
+        return portadaDe(evento);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PortadaDTO obtenerPortada(Long idEvento, Long idUsuarioActuante) {
+        Evento evento = buscarEvento(idEvento);
+        if (evento.getEstado() == EstadoEvento.BORRADOR
+                && !productoraService.puedeGestionarEventos(evento.getProductoraId(), idUsuarioActuante)) {
+            throw new EventoNoEncontradoException(idEvento);
+        }
+        return portadaDe(evento);
+    }
+
+    private PortadaDTO portadaDe(Evento evento) {
+        if (!evento.tienePortada()) {
+            throw new PortadaNoEncontradaException(evento.getId());
+        }
+        Portada portada = portadaRepository.findById(evento.getId())
+                .orElseThrow(() -> new PortadaNoEncontradaException(evento.getId()));
+        return new PortadaDTO(
+                portada.getContenido(),
+                portada.getTipoContenido(),
+                EventoMapper.version(evento),
+                evento.getEstado() != EstadoEvento.BORRADOR);
     }
 
     private Evento buscarEvento(Long idEvento) {

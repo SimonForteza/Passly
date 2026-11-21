@@ -68,3 +68,22 @@ export function ampliarCupo(
     request,
   );
 }
+
+/** Sube o reemplaza la portada (PAS-47). El backend valida tipo (JPG, PNG, WebP) y tamaño (2 MB). */
+export function subirPortada(id: number, archivo: File): Promise<EventoDTO> {
+  const datos = new FormData();
+  datos.append('archivo', archivo);
+  return httpClient.putArchivo<EventoDTO>(`/api/eventos/${id}/portada`, datos);
+}
+
+export function quitarPortada(id: number): Promise<EventoDTO> {
+  return httpClient.delete<EventoDTO>(`/api/eventos/${id}/portada`);
+}
+
+/**
+ * La portada bajada con el token. Hace falta para la vista previa de un borrador: su portada no es
+ * pública y un <img> no manda el header Authorization.
+ */
+export function bajarPortada(portadaUrl: string): Promise<Blob> {
+  return httpClient.blob(portadaUrl);
+}

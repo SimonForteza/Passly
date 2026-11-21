@@ -18,6 +18,13 @@ spring:
   application:
     name: passly-backend
 
+  # Portada de evento (PAS-47): imagenes de hasta 2 MB. Un archivo mas grande lo corta el
+  # contenedor antes de leerlo entero y la API responde 413 con ProblemDetail.
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 3MB
+
   artemis:
     mode: native
     broker-url: ${PASSLY_BROKER_URL:tcp://localhost:61616?connectTimeout=3000&callTimeout=3000&initialConnectAttempts=0&reconnectAttempts=0}
@@ -57,6 +64,10 @@ spring:
 
 server:
   port: 8080
+  tomcat:
+    # Sin esto, Tomcat corta la conexion ante un upload mayor a 2 MB y el navegador ve un error
+    # de red en vez del 413 con su mensaje (PAS-47).
+    max-swallow-size: 10MB
   servlet:
     session:
       # El carrito de ServicioDeVentas (PAS-8) vive en un bean @SessionScope: es estado

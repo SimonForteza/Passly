@@ -28,18 +28,32 @@ export interface OpcionesRequest extends RequestInit {
    * impedir que alguien vuelva a iniciar sesion.
    */
   anonimo?: boolean;
+  /** 'blob' para bajar un archivo (la portada de un borrador, que pide token). */
+  formato?: 'json' | 'blob';
+}
+
+/**
+ * URL absoluta de un recurso de la API, para usar fuera de fetch (un <img src>). En desarrollo
+ * queda relativa y la resuelve el proxy de Vite.
+ */
+export function urlDeApi(path: string): string {
+  return `${BASE_URL}${path}`;
 }
 
 function request<T>(path: string, opciones: OpcionesRequest = {}): Promise<T> {
-  const { anonimo, ...init } = opciones;
+  const { anonimo, formato, ...init } = opciones;
   const headers = new Headers(init.headers);
-  headers.set('Accept', 'application/json');
-  if (init.body) headers.set('Content-Type', 'application/json');
+  headers.set('Accept', formato === 'blob' ? '*/*' : 'application/json');
+  // Con FormData (subida de archivos) el Content-Type lo arma el navegador, con el boundary del
+  // multipart. Fijarlo a mano rompería la subida.
+  if (init.body && !(init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
 
   const token = anonimo ? null : getToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
-  const enviar = () => enviarRequest<T>(path, { ...init, headers }, token);
+  const enviar = () => enviarRequest<T>(path, { ...init, headers }, token, formato);
   return token ? encolar(enviar) : enviar();
 }
 
@@ -47,6 +61,7 @@ async function enviarRequest<T>(
   path: string,
   init: RequestInit & { headers: Headers },
   token: string | null,
+  formato: 'json' | 'blob' = 'json',
 ): Promise<T> {
   const { headers } = init;
   let respuesta: Response;
@@ -77,6 +92,10 @@ async function enviarRequest<T>(
 
   if (respuesta.status === 204) {
     return undefined as T;
+  }
+
+  if (formato === 'blob' && respuesta.ok) {
+    return (await respuesta.blob()) as T;
   }
 
   const contentType = respuesta.headers.get('content-type') ?? '';
@@ -130,5 +149,12 @@ export const httpClient = {
   },
   delete<T>(path: string): Promise<T> {
     return request<T>(path, { method: 'DELETE' });
+  },
+  /** PUT multipart: el archivo viaja como FormData. */
+  putArchivo<T>(path: string, datos: FormData): Promise<T> {
+    return request<T>(path, { method: 'PUT', body: datos });
+  },
+  blob(path: string): Promise<Blob> {
+    return request<Blob>(path, { method: 'GET', formato: 'blob' });
   },
 };

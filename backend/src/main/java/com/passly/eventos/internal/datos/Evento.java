@@ -80,6 +80,14 @@ public class Evento {
     @Column(nullable = false, length = 20)
     private EstadoEvento estado;
 
+    /**
+     * Cuando se subio la portada vigente, o {@code null} si no tiene (PAS-47). Los bytes viven en
+     * {@link Portada}, otra tabla: la cartelera lista eventos sin arrastrar imagenes, y este dato
+     * alcanza para armar la URL versionada que invalida la cache del navegador al cambiarla.
+     */
+    @Column(name = "portada_actualizada_en")
+    private OffsetDateTime portadaActualizadaEn;
+
     @OneToMany(mappedBy = "evento", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TipoEntrada> tiposEntrada = new ArrayList<>();
 
@@ -203,6 +211,25 @@ public class Evento {
         comportamiento().ampliarCupo(this, idTipoEntrada, cantidad);
     }
 
+    /**
+     * Registra que el evento tiene una portada nueva (PAS-47). Lo decide el estado: borrador y
+     * publicado la admiten, cancelado responde 409.
+     *
+     * @throws EdicionDeEventoInvalidaException si el evento esta {@code CANCELADO}
+     */
+    public void cambiarPortada(OffsetDateTime actualizadaEn) {
+        comportamiento().cambiarPortada(this, Objects.requireNonNull(actualizadaEn));
+    }
+
+    /** Quita la portada. Mismas reglas que {@link #cambiarPortada}. */
+    public void quitarPortada() {
+        comportamiento().cambiarPortada(this, null);
+    }
+
+    public boolean tienePortada() {
+        return portadaActualizadaEn != null;
+    }
+
     // --- Lo que usan los estados -------------------------------------------------------------
     // Package-private: solo las clases de EstadoDeEvento (mismo paquete) aplican cambios. Estos
     // metodos NO chequean el estado; esa decision ya la tomo la clase de estado que los llama.
@@ -214,6 +241,10 @@ public class Evento {
 
     void pasarA(EstadoDeEvento nuevo) {
         this.estado = nuevo.valor();
+    }
+
+    void aplicarPortada(OffsetDateTime actualizadaEn) {
+        this.portadaActualizadaEn = actualizadaEn;
     }
 
     boolean tieneAlgunTipoDeEntradaConCupo() {
@@ -301,6 +332,10 @@ public class Evento {
 
     public EstadoEvento getEstado() {
         return estado;
+    }
+
+    public OffsetDateTime getPortadaActualizadaEn() {
+        return portadaActualizadaEn;
     }
 
     public List<TipoEntrada> getTiposEntrada() {

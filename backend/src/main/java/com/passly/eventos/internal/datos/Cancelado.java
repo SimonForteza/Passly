@@ -60,6 +60,11 @@ final class Cancelado implements EstadoDeEvento {
     }
 
     @Override
+    public void cambiarPortada(Evento evento, OffsetDateTime actualizadaEn) {
+        throw rechazo("cambiar la portada", evento);
+    }
+
+    @Override
     public boolean admiteVentas() {
         return false;
     }

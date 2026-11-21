@@ -45,8 +45,20 @@ class EventoMapper {
                 evento.getFechaHora(),
                 evento.getLugar(),
                 evento.getEstado(),
-                tipos
+                tipos,
+                portadaUrl(evento)
         );
+    }
+
+    static String portadaUrl(Evento evento) {
+        return evento.tienePortada()
+                ? "/api/eventos/" + evento.getId() + "/portada?v=" + version(evento)
+                : null;
+    }
+
+    /** Version de la portada vigente: los milisegundos de su ultima subida. Alimenta la URL y el ETag. */
+    static long version(Evento evento) {
+        return evento.getPortadaActualizadaEn().toInstant().toEpochMilli();
     }
 
     TipoEntradaDTO aDTO(TipoEntrada tipoEntrada) {

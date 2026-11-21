@@ -22,6 +22,8 @@ export interface EventoDTO {
   lugar: string;
   estado: EstadoEvento;
   tiposEntrada: TipoEntradaDTO[];
+  /** Ruta versionada de la portada (PAS-47), o null si el evento no tiene. */
+  portadaUrl: string | null;
 }
 
 export interface CrearTipoEntradaRequest {

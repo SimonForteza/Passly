@@ -1,6 +1,10 @@
 package com.passly.eventos.internal.web;
 
+import com.passly.eventos.ArchivoDePortadaInvalidoException;
 import com.passly.eventos.EdicionDeEventoInvalidaException;
+import com.passly.eventos.PortadaNoEncontradaException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import com.passly.eventos.EventoNoEncontradoException;
 import com.passly.eventos.ProductoraNoGestionableException;
 import com.passly.eventos.TipoEntradaNoEncontradoException;
@@ -24,6 +28,32 @@ import java.util.Map;
  */
 @RestControllerAdvice
 class ManejadorDeErrores {
+
+    @ExceptionHandler(ArchivoDePortadaInvalidoException.class)
+    ProblemDetail portadaInvalida(ArchivoDePortadaInvalidoException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(PortadaNoEncontradaException.class)
+    ProblemDetail sinPortada(PortadaNoEncontradaException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    /**
+     * El archivo supera {@code spring.servlet.multipart.max-file-size}: lo corta el contenedor
+     * antes de llegar al controller, sin leerlo entero en memoria (PAS-47).
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ProblemDetail archivoDemasiadoGrande(MaxUploadSizeExceededException ex) {
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONTENT_TOO_LARGE, "La imagen supera el maximo de 2 MB");
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    ProblemDetail faltaArchivo(MissingServletRequestPartException ex) {
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, "Falta el archivo de la portada (campo \"archivo\")");
+    }
 
     @ExceptionHandler(EventoNoEncontradoException.class)
     ProblemDetail evento(EventoNoEncontradoException ex) {

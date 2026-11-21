@@ -2,7 +2,10 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { EstadoError } from '../layout/EstadoError';
 import { useAuth } from '../lib/auth/AuthContext';
-import { crearEvento } from './api';
+import { crearEvento, subirPortada } from './api';
+import { CampoPortada } from './CampoPortada';
+import { errorDePortada, useObjectUrl } from './portada';
+import { mensajeDeError } from '../lib/http/ApiError';
 import type { CrearTipoEntradaRequest } from './types';
 import { useProductoraActual } from '../productoras/GestionLayout';
 import { useCambiosSinGuardar } from '../lib/useCambiosSinGuardar';
@@ -28,6 +31,10 @@ export function CrearEventoPage() {
   const [tiposEntrada, setTiposEntrada] = useState<CrearTipoEntradaRequest[]>([
     { ...TIPO_ENTRADA_INICIAL },
   ]);
+  // La portada se elige acá pero se sube recién cuando el evento existe (necesita su id).
+  const [portada, setPortada] = useState<File | null>(null);
+  const [errorPortada, setErrorPortada] = useState<string | null>(null);
+  const vistaPortada = useObjectUrl(portada);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -43,6 +50,7 @@ export function CrearEventoPage() {
         fecha ||
         hora ||
         lugar ||
+        portada ||
         tiposEntrada.some((t) => t.nombre || t.precio || t.cupoTotal)
       ),
   );
@@ -81,9 +89,19 @@ export function CrearEventoPage() {
         lugar: lugar.trim(),
         tiposEntrada,
       });
+      // Si la portada falla, el evento igual quedó creado: se avisa en su gestión, donde se puede
+      // volver a subir, en vez de dejar a la persona en un formulario que ya se guardó.
+      let falloPortada: string | null = null;
+      if (portada) {
+        try {
+          await subirPortada(creado.id, portada);
+        } catch (causa: unknown) {
+          falloPortada = mensajeDeError(causa);
+        }
+      }
       navigate(`/productoras/${idProductora}/eventos/${creado.id}`, {
         replace: true,
-        state: { eventoCreado: true },
+        state: { eventoCreado: true, falloPortada },
       });
     } catch (causa: unknown) {
       setError(causa);
@@ -184,6 +202,20 @@ export function CrearEventoPage() {
             onChange={(e) => setLugar(e.target.value)}
           />
         </label>
+
+        <CampoPortada
+          vistaPrevia={vistaPortada}
+          nombreArchivo={portada?.name}
+          pesoArchivo={portada?.size}
+          ocupado={guardando}
+          error={errorPortada}
+          onElegir={(archivo) => {
+            const invalido = errorDePortada(archivo);
+            setErrorPortada(invalido);
+            if (!invalido) setPortada(archivo);
+          }}
+          onQuitar={() => setPortada(null)}
+        />
 
         <div>
           <div className="titulo-seccion">

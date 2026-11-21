@@ -25,6 +25,12 @@ public record EventoDTO(
         OffsetDateTime fechaHora,
         String lugar,
         EstadoEvento estado,
-        List<TipoEntradaDTO> tiposEntrada
+        List<TipoEntradaDTO> tiposEntrada,
+        /**
+         * Ruta de la imagen de portada, o {@code null} si no tiene (PAS-47). Lleva {@code ?v=} con
+         * la fecha de la ultima subida: al cambiarla cambia la URL y el navegador no muestra la
+         * version vieja que tenia en cache.
+         */
+        String portadaUrl
 ) {
 }

@@ -6,6 +6,7 @@ import { useProductoraActual } from '../productoras/GestionLayout';
 import { formatearFechaEvento, formatearPrecio } from '../ventas/formato';
 import { obtenerEvento } from './api';
 import { CancelarEvento } from './CancelarEvento';
+import { PortadaDelEvento } from './PortadaDelEvento';
 import { PublicarEvento } from './PublicarEvento';
 import type { EventoDTO } from './types';
 export function GestionEventoPage() {
@@ -36,8 +37,12 @@ export function GestionEventoPage() {
   if (error) return <EstadoError error={error} />;
   if (!evento) return <EstadoCarga mensaje="Cargando tu evento…" />;
   const base = '/productoras/' + p.id + '/eventos';
-  const creado = (location.state as { eventoCreado?: boolean } | null)
-    ?.eventoCreado;
+  const estadoDeNavegacion = location.state as {
+    eventoCreado?: boolean;
+    falloPortada?: string | null;
+  } | null;
+  const creado = estadoDeNavegacion?.eventoCreado;
+  const falloPortada = estadoDeNavegacion?.falloPortada;
   async function copiar() {
     try {
       await navigator.clipboard.writeText(
@@ -61,6 +66,11 @@ export function GestionEventoPage() {
       {creado && evento.estado === 'BORRADOR' ? (
         <p className="mensaje-exito" role="status">
           Tu evento se guardó como borrador. Revisalo antes de publicarlo.
+        </p>
+      ) : null}
+      {falloPortada ? (
+        <p className="estado-error" role="alert">
+          No pudimos subir la portada: {falloPortada} Probá de nuevo desde acá abajo.
         </p>
       ) : null}
       {mensaje ? (
@@ -126,6 +136,9 @@ export function GestionEventoPage() {
         ) : null}
       </div>
       {evento.descripcion ? <p>{evento.descripcion}</p> : null}
+      {evento.estado !== 'CANCELADO' ? (
+        <PortadaDelEvento evento={evento} onCambio={setEvento} />
+      ) : null}
       <div className="panel stack-chico">
         <h3>Entradas de este evento</h3>
         <ul className="lista-resumen">

@@ -50,6 +50,12 @@ sealed interface EstadoDeEvento permits Borrador, Publicado, Cancelado {
 
     void ampliarCupo(Evento evento, Long idTipoEntrada, int cantidad);
 
+    /**
+     * Cambia o quita la portada del evento (PAS-47). {@code actualizadaEn} nulo es quitarla. La
+     * admiten borrador y publicado: cambiar la imagen no perjudica a quien ya compro.
+     */
+    void cambiarPortada(Evento evento, OffsetDateTime actualizadaEn);
+
     /** Si se pueden vender entradas del evento en este estado. */
     boolean admiteVentas();
 }

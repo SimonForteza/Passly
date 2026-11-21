@@ -8,6 +8,7 @@ import com.passly.eventos.dto.DisponibilidadDTO;
 import com.passly.eventos.dto.EditarEventoRequest;
 import com.passly.eventos.dto.EditarTipoEntradaRequest;
 import com.passly.eventos.dto.EventoDTO;
+import com.passly.eventos.dto.PortadaDTO;
 
 import java.util.List;
 
@@ -221,4 +222,41 @@ public interface EventoService {
      */
     EventoDTO ampliarCupo(
             Long idEvento, Long idTipoEntrada, AmpliarCupoRequest solicitud, Long idUsuarioActuante);
+
+    /**
+     * Sube o reemplaza la portada de un evento (PAS-47). Se admite con el evento en
+     * {@code BORRADOR} o {@code PUBLICADO}: cambiar la imagen no perjudica a quien ya compro.
+     *
+     * <p>El tipo de la imagen se detecta de los primeros bytes del archivo, no del header que manda
+     * el cliente.
+     *
+     * @param contenido los bytes del archivo subido
+     * @param idUsuarioActuante quien opera; tiene que poder gestionar la productora dueña del evento
+     * @throws EventoNoEncontradoException si no existe
+     * @throws ProductoraNoGestionableException si el evento es de una productora que no gestiona
+     * @throws ArchivoDePortadaInvalidoException si no es JPEG, PNG o WebP, o supera 2 MB
+     * @throws EdicionDeEventoInvalidaException si el evento esta CANCELADO
+     */
+    EventoDTO cambiarPortada(Long idEvento, byte[] contenido, Long idUsuarioActuante);
+
+    /**
+     * Quita la portada: la cartelera vuelve a mostrar el respaldo con el nombre. Mismas reglas
+     * que {@link #cambiarPortada}. Quitar una portada que no existe no es un error.
+     */
+    EventoDTO quitarPortada(Long idEvento, Long idUsuarioActuante);
+
+    /**
+     * La portada para el publico. La de un borrador no existe para el publico (404), con el mismo
+     * criterio que {@link #consultarEventoPublico}.
+     *
+     * @throws EventoNoEncontradoException si no existe o es un borrador
+     * @throws PortadaNoEncontradaException si el evento no tiene portada
+     */
+    PortadaDTO obtenerPortadaPublica(Long idEvento);
+
+    /**
+     * La portada para quien esta autenticado: ademas de lo publico, quien gestiona la productora ve
+     * la de sus borradores (para la vista previa al editar).
+     */
+    PortadaDTO obtenerPortada(Long idEvento, Long idUsuarioActuante);
 }
