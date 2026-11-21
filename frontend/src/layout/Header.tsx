@@ -1,27 +1,17 @@
 import { useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../lib/auth/AuthContext';
 import { MenuDeCuenta } from './MenuDeCuenta';
+import { useSalir } from './useSalir';
 import { useOrganizaciones } from '../productoras/OrganizacionContext';
-import { vaciarCarrito } from '../ventas/api';
-import { actualizarCarrito, useCantidadCarrito } from '../ventas/carritoEstado';
+import { useCantidadCarrito } from '../ventas/carritoEstado';
 
 export function Header() {
-  const { usuario, estaAutenticado, cerrarSesion } = useAuth();
+  const { usuario, estaAutenticado } = useAuth();
   const { organizaciones } = useOrganizaciones();
   const cantidad = useCantidadCarrito();
-  const navigate = useNavigate();
   const [menu, setMenu] = useState(false);
-  const [saliendo, setSaliendo] = useState(false);
-  async function salir() {
-    setSaliendo(true);
-    await vaciarCarrito().catch(() => undefined);
-    actualizarCarrito(null);
-    cerrarSesion();
-    setMenu(false);
-    setSaliendo(false);
-    navigate('/');
-  }
+  const { salir, saliendo } = useSalir(() => setMenu(false));
   return (
     <header className="cabecera">
       <Link className="marca" to="/" aria-label="Passly, ir a eventos">
