@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { ApiError } from '../lib/http/ApiError';
+import { ApiError, mensajeDeError } from '../lib/http/ApiError';
 import { crearUsuario } from './api';
 import { BotonPrimario, CampoTexto, estilos } from './componentes';
 import type { Rol } from './types';
@@ -37,7 +37,7 @@ export function AltaDeUsuarioAdmin() {
       } else if (e instanceof ApiError && e.status === 403) {
         setErrorGeneral('No tenés permiso para dar de alta este rol.');
       } else if (e instanceof ApiError) {
-        setErrorGeneral(e.detail || e.title);
+        setErrorGeneral(mensajeDeError(e));
       } else {
         setErrorGeneral('No pudimos crear el usuario. Intentá de nuevo.');
       }

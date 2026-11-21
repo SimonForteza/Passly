@@ -23,6 +23,7 @@ export function CarteleraPage() {
   const [productoras, setProductoras] = useState<ProductoraDTO[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<unknown>(null);
+  const [intento, setIntento] = useState(0);
 
   useEffect(() => {
     let vigente = true;
@@ -49,7 +50,13 @@ export function CarteleraPage() {
     return () => {
       vigente = false;
     };
-  }, [filtroProductora]);
+  }, [filtroProductora, intento]);
+
+  function reintentar() {
+    setError(null);
+    setCargando(true);
+    setIntento((n) => n + 1);
+  }
 
   function cambiarFiltro(idProductora: string) {
     if (idProductora) {
@@ -104,7 +111,7 @@ export function CarteleraPage() {
         </label>
       </div>
 
-      {error ? <EstadoError error={error} /> : null}
+      {error ? <EstadoError error={error} onReintentar={reintentar} /> : null}
 
       {cargando ? (
         <EstadoCarga mensaje="Cargando la cartelera..." />

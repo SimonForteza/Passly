@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ApiError } from '../lib/http/ApiError';
+import { ApiError, esSinConexion, mensajeDeError } from '../lib/http/ApiError';
 import { useAuth } from '../lib/auth/AuthContext';
 import { iniciarSesion as pedirToken } from './api';
 import {
@@ -49,6 +49,8 @@ export function LoginPage() {
       // erronea). Cualquier otra cosa es un error inesperado del backend o de red.
       if (e instanceof ApiError && e.status === 401) {
         setError('Email o contraseña inválidos.');
+      } else if (esSinConexion(e)) {
+        setError(mensajeDeError(e));
       } else {
         setError('No pudimos validar tus credenciales. Intentá de nuevo.');
       }
