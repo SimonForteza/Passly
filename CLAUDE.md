@@ -1407,6 +1407,31 @@ pregunten):*
   dependen del estado y porque `sealed` + `switch` exhaustivo impiden agregar un estado a medias.
 - **Stateful:** no escala horizontalmente sin sesiones pegadas. Es el trade-off declarado.
 
+**Portada de evento y cartelera con tarjetas-imagen (PAS-47).** La productora sube la portada del
+evento (JPG, PNG o WebP, hasta 2 MB), y la cartelera y la página pública de la productora la muestran
+como tarjeta vertical 4:5. Toda la tarjeta es el link al detalle, sin botón ni precio, al estilo
+FlashPass (Figma Web 25 a 27). Sin portada, la tarjeta muestra el nombre sobre un degradado.
+- **Dónde se guarda:** en la base, tabla `eventos.portada` (`bytea`), y no en disco ni en un bucket.
+  No suma infraestructura, viaja con los backups y entra en la misma transacción que marca el evento.
+  El costo es el tamaño de la base, de ahí el límite de 2 MB. Va en una tabla aparte para que la
+  cartelera no lea imágenes: `evento.portada_actualizada_en` alcanza para armar `portadaUrl`
+  (`/api/eventos/{id}/portada?v=...`), que cambia con cada subida.
+- **State:** `EstadoDeEvento.cambiarPortada`. Borrador y publicado la admiten, porque cambiar la
+  imagen no perjudica a quien compró. Cancelado responde 409. Está en la matriz de
+  `MatrizDeEstadosDeEventoTest`.
+- **Seguridad:** el tipo se detecta por la firma del archivo (primeros bytes) en `ValidadorDePortada`,
+  nunca por el `Content-Type` del cliente; SVG queda afuera porque puede llevar scripts. Subir y quitar
+  llevan la misma autorización que editar un evento. Leer es `permitAll` (un `<img>` no manda
+  token), pero la portada de un borrador da 404 al público, con el mismo criterio que PAS-25.
+- **Cache:** `GET /api/eventos/{id}/portada` responde con `ETag` y, ante `If-None-Match`, con
+  **304** sin bytes. Adelanta el requisito de ETag del 30/11.
+- **Tamaño:** más de 2 MB lo corta Tomcat antes de leer el archivo y responde **413** con
+  ProblemDetail. `server.tomcat.max-swallow-size` evita que el navegador vea un error de red en vez
+  del 413.
+- **Tests:** `PortadaDeEventoTest` (integración, JWT real) y `ValidadorDePortadaTest` (unitario).
+  Demo: `docs/http/15-portada-evento.http`. El perfil `demo` sube portadas generadas
+  (`resources/demo/portadas/`) con el mismo contrato que usa la API.
+
 **Orden de implementación sugerido** (sale del grafo de dependencias):
 
 1. ~~`ServicioDeEventos` — primer componente implementado~~ ✅ hecho

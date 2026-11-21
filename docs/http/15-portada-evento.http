@@ -1,0 +1,57 @@
+@baseUrl = http://localhost:8080
+
+# Portada de evento (PAS-47).
+#
+# - Subir: PUT multipart con el campo "archivo". Solo JPG, PNG o WebP de hasta 2 MB; el tipo se
+#   detecta por los primeros bytes del archivo, no por el Content-Type que manda el cliente.
+# - Se admite en BORRADOR y PUBLICADO; en CANCELADO responde 409 (patron State).
+# - Leer es publico (la cartelera la pide con un <img>), salvo la de un borrador: 404.
+# - Se sirve con ETag: con If-None-Match responde 304 sin bytes.
+#
+# omar es DUENIO de Aurora (perfil demo). Evento 1 = Festival de Jazz (publicado).
+@omar = organizador@passly.test
+@clave = passly1234
+@evento = 1
+
+### Login de organizador@passly.test
+# @name loginOmar
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{"email": "{{omar}}", "password": "{{clave}}"}
+
+### Subir la portada -> 200, EventoDTO con portadaUrl "/api/eventos/1/portada?v=..."
+PUT {{baseUrl}}/api/eventos/{{evento}}/portada
+Authorization: Bearer {{loginOmar.response.body.token}}
+Content-Type: multipart/form-data; boundary=passly
+
+--passly
+Content-Disposition: form-data; name="archivo"; filename="portada.jpg"
+Content-Type: image/jpeg
+
+< ../../backend/src/main/resources/demo/portadas/festival-de-jazz.jpg
+--passly--
+
+### Verla (publico, sin token) -> 200 image/jpeg, ETag y Cache-Control: public
+# @name portada
+GET {{baseUrl}}/api/eventos/{{evento}}/portada
+
+### Con el mismo ETag -> 304, sin bytes
+GET {{baseUrl}}/api/eventos/{{evento}}/portada
+If-None-Match: {{portada.response.headers.ETag}}
+
+### Un archivo que no es imagen, aunque diga image/jpeg -> 400 con ProblemDetail
+PUT {{baseUrl}}/api/eventos/{{evento}}/portada
+Authorization: Bearer {{loginOmar.response.body.token}}
+Content-Type: multipart/form-data; boundary=passly
+
+--passly
+Content-Disposition: form-data; name="archivo"; filename="foto.jpg"
+Content-Type: image/jpeg
+
+<html>no soy una foto</html>
+--passly--
+
+### Quitarla -> 200, portadaUrl null; la cartelera vuelve al respaldo con el nombre
+DELETE {{baseUrl}}/api/eventos/{{evento}}/portada
+Authorization: Bearer {{loginOmar.response.body.token}}

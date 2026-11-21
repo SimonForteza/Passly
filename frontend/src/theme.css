@@ -173,22 +173,274 @@ button:disabled {
   grid-column: 1 / -1;
 }
 
-.tarjeta-evento {
+/* ===== Cartelera con portadas (PAS-47, Figma Web 25 a 27) ===== */
+.grilla-portadas {
   display: grid;
-  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2.25rem 1.5rem;
+}
+@media (max-width: 1100px) {
+  .grilla-portadas {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .grilla-portadas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem 0.75rem;
+  }
+}
+/* Toda la tarjeta es el link: sin botón, como FlashPass. */
+.tarjeta-portada {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+.tarjeta-portada-imagen {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radio-card);
+  background: var(--color-surface);
+  transition: border-color 0.2s ease;
+}
+.tarjeta-portada-imagen img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.35s ease;
+}
+.tarjeta-portada:hover .tarjeta-portada-imagen,
+.tarjeta-portada:focus-visible .tarjeta-portada-imagen {
+  border-color: var(--color-acento);
+}
+.tarjeta-portada:hover img,
+.tarjeta-portada:focus-visible img {
+  transform: scale(1.04);
+}
+.tarjeta-portada:focus-visible {
+  outline: none;
+}
+.tarjeta-portada:focus-visible .tarjeta-portada-imagen {
+  box-shadow: 0 0 0 3px var(--color-acento-tinte), 0 0 0 4px var(--color-acento);
+}
+/* Respaldo sin portada: el nombre del evento sobre el degradado de la marca. */
+.portada-respaldo {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 1.25rem;
+  background: linear-gradient(155deg, var(--color-acento) 0%, #33050f 55%, var(--color-bg) 100%);
+  color: var(--color-texto);
+  font: clamp(1.4rem, 3vw, 2.1rem) / 0.95 var(--font-display);
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.tarjeta-portada-apagada .tarjeta-portada-imagen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 0.45);
+}
+.tarjeta-portada-etiqueta {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 1;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radio-pill);
+  background: var(--color-bg);
+  color: var(--color-texto);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.tarjeta-portada-info {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.tarjeta-portada-fecha {
+  color: var(--color-acento-legible, var(--color-acento));
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.tarjeta-portada-info h3 {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font: 700 1.05rem/1.3 var(--font-texto);
+  letter-spacing: 0;
+  text-transform: none;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.tarjeta-portada-lugar {
+  overflow: hidden;
+  color: var(--color-texto-secundario);
+  font-size: 0.82rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+@media (max-width: 760px) {
+  .tarjeta-portada-info h3 {
+    font-size: 0.95rem;
+  }
+  .tarjeta-portada-fecha {
+    font-size: 0.68rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tarjeta-portada-imagen img,
+  .tarjeta-portada-imagen {
+    transition: none;
+  }
+  .tarjeta-portada:hover img {
+    transform: none;
+  }
+}
+
+/* Campo de portada en crear / gestionar evento */
+.campo-portada h3,
+.campo-portada p {
+  margin: 0;
+}
+.campo-portada-fila {
+  display: grid;
+  grid-template-columns: 176px minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+.campo-portada-vista,
+.campo-portada-zona {
+  width: 176px;
+  aspect-ratio: 4 / 5;
+  border-radius: 12px;
+}
+.campo-portada-vista {
+  object-fit: cover;
+  border: 1px solid var(--color-border);
+}
+.campo-portada-zona {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.5rem;
+  border: 1.5px dashed var(--color-border-fuerte);
+  background: var(--color-input);
+  color: var(--color-texto-secundario);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.campo-portada-zona:hover,
+.campo-portada-zona.arrastrando {
+  border-color: var(--color-acento);
+  color: var(--color-texto);
+}
+@media (max-width: 520px) {
+  .campo-portada-fila {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Buscador + selector de productora de la cartelera (PAS-26): lado a lado en escritorio, uno
    debajo del otro cuando no entran (en 375px cada uno ocupa todo el ancho). */
+/* Encabezado de la cartelera (Figma Web 25, PAS-47): buscador en píldora + chips por fecha. */
+.titulo-cartelera {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1;
+}
 .filtros-cartelera {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.75rem 1rem;
 }
-
-.filtros-cartelera label {
-  flex: 1 1 15rem;
+.buscador-pildora {
+  display: flex;
+  flex: 0 1 30rem;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: min(100%, 16rem);
+  padding: 0 1.1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radio-pill);
+  background: var(--color-surface);
+  color: var(--color-texto-terciario);
+}
+.buscador-pildora:focus-within {
+  border-color: var(--color-acento);
+}
+.buscador-pildora input {
+  flex: 1;
   min-width: 0;
+  padding: 0.7rem 0;
+  border: 0;
+  background: none;
+  color: var(--color-texto);
+  font: inherit;
+  font-size: 0.9rem;
+  outline: none;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.chip {
+  padding: 0.5rem 1.1rem;
+  border: 1px solid transparent;
+  border-radius: var(--radio-pill);
+  background: var(--color-surface-alt);
+  color: var(--color-texto-secundario);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.chip:hover {
+  color: var(--color-texto);
+}
+.chip-activo,
+.chip-activo:hover {
+  background: var(--color-acento);
+  color: var(--color-acento-texto);
+  font-weight: 600;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .buscador-pildora {
+    flex-basis: 100%;
+  }
+  /* En el celular los chips se desplazan de costado; min-width: 0 evita que la fila empuje el
+     ancho de toda la página. */
+  .chips {
+    flex: 1 1 100%;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .chip {
+    flex: none;
+  }
 }
 
 /* El organizador en el detalle del evento es un link a su página pública (PAS-26). */
@@ -201,12 +453,6 @@ button:disabled {
   text-decoration: underline;
 }
 
-.tarjeta-evento-pie {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
 
 .badge-borrador {
   border-color: var(--color-advertencia);

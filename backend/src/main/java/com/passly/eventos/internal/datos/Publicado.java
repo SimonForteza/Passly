@@ -68,6 +68,11 @@ final class Publicado implements EstadoDeEvento {
     }
 
     @Override
+    public void cambiarPortada(Evento evento, OffsetDateTime actualizadaEn) {
+        evento.aplicarPortada(actualizadaEn);
+    }
+
+    @Override
     public boolean admiteVentas() {
         return true;
     }

@@ -49,3 +49,22 @@ create table eventos.tipo_entrada (
 --   consulta del camino caliente.
 -- * productora_id es updatable=false en la entidad: un evento no cambia de dueño.
 --   Transferirlo seria una operacion de negocio con sus propias reglas, no un update.
+
+-- ---------------------------------------------------------------------------------------
+-- Portada de evento (PAS-47)
+-- ---------------------------------------------------------------------------------------
+alter table eventos.evento add column if not exists portada_actualizada_en timestamptz;
+
+create table if not exists eventos.portada (
+    evento_id       bigint primary key,           -- sin FK, como el resto (ver arriba)
+    contenido       bytea        not null,        -- la imagen; maximo 2 MB (lo valida el servicio)
+    tipo_contenido  varchar(30)  not null,        -- image/jpeg | image/png | image/webp
+    actualizada_en  timestamptz  not null
+);
+
+-- * La imagen va en la base y no en disco ni en un bucket: no suma infraestructura, viaja con
+--   los backups y entra en la misma transaccion que marca el evento. El costo es el tamaño de
+--   la base, de ahi el limite de 2 MB.
+-- * Tabla aparte de evento: listar la cartelera no lee imagenes. evento.portada_actualizada_en
+--   alcanza para armar la URL versionada (?v=) y el ETag.
+-- * bytea y no large object (oid): por eso la entidad no usa @Lob.

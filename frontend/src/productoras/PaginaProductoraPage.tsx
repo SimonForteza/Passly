@@ -106,7 +106,7 @@ export function PaginaProductoraPage() {
               <p className="texto-secundario">Volvé a mirar más tarde.</p>
             </div>
           ) : (
-            <div className="grilla-tarjetas">
+            <div className="grilla-portadas">
               {eventos.map((evento) => (
                 <TarjetaEvento
                   key={evento.id}

@@ -44,7 +44,9 @@ class MatrizDeEstadosDeEventoTest {
         EDITAR_DATOS(e -> e.editarDatos("Otro", "otra", OffsetDateTime.now().plusMonths(2), "Otro lugar")),
         EDITAR_TIPO_ENTRADA(e -> e.editarTipoEntrada(ID_TIPO, "General", new BigDecimal("900.00"), 20)),
         AGREGAR_TIPO_ENTRADA(e -> e.sumarTipoEntrada("VIP", new BigDecimal("5000.00"), 10)),
-        AMPLIAR_CUPO(e -> e.ampliarCupo(ID_TIPO, 5));
+        AMPLIAR_CUPO(e -> e.ampliarCupo(ID_TIPO, 5)),
+        CAMBIAR_PORTADA(e -> e.cambiarPortada(OffsetDateTime.now())),
+        QUITAR_PORTADA(e -> e.quitarPortada());
 
         final Consumer<Evento> aplicar;
 
@@ -64,6 +66,8 @@ class MatrizDeEstadosDeEventoTest {
                 Arguments.of(BORRADOR, Operacion.EDITAR_TIPO_ENTRADA, null),
                 Arguments.of(BORRADOR, Operacion.AGREGAR_TIPO_ENTRADA, null),
                 Arguments.of(BORRADOR, Operacion.AMPLIAR_CUPO, null),
+                Arguments.of(BORRADOR, Operacion.CAMBIAR_PORTADA, null),
+                Arguments.of(BORRADOR, Operacion.QUITAR_PORTADA, null),
 
                 Arguments.of(PUBLICADO, Operacion.PUBLICAR, transicion),
                 Arguments.of(PUBLICADO, Operacion.CANCELAR, null),
@@ -71,13 +75,17 @@ class MatrizDeEstadosDeEventoTest {
                 Arguments.of(PUBLICADO, Operacion.EDITAR_TIPO_ENTRADA, edicion),
                 Arguments.of(PUBLICADO, Operacion.AGREGAR_TIPO_ENTRADA, null),
                 Arguments.of(PUBLICADO, Operacion.AMPLIAR_CUPO, null),
+                Arguments.of(PUBLICADO, Operacion.CAMBIAR_PORTADA, null),
+                Arguments.of(PUBLICADO, Operacion.QUITAR_PORTADA, null),
 
                 Arguments.of(CANCELADO, Operacion.PUBLICAR, transicion),
                 Arguments.of(CANCELADO, Operacion.CANCELAR, transicion),
                 Arguments.of(CANCELADO, Operacion.EDITAR_DATOS, edicion),
                 Arguments.of(CANCELADO, Operacion.EDITAR_TIPO_ENTRADA, edicion),
                 Arguments.of(CANCELADO, Operacion.AGREGAR_TIPO_ENTRADA, edicion),
-                Arguments.of(CANCELADO, Operacion.AMPLIAR_CUPO, edicion)
+                Arguments.of(CANCELADO, Operacion.AMPLIAR_CUPO, edicion),
+                Arguments.of(CANCELADO, Operacion.CAMBIAR_PORTADA, edicion),
+                Arguments.of(CANCELADO, Operacion.QUITAR_PORTADA, edicion)
         );
     }
 

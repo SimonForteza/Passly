@@ -103,7 +103,7 @@ class AccesoServiceImplTest {
     private void eventoEn(EstadoEvento estado) {
         when(eventos.consultarEventoPublico(EVENTO)).thenReturn(new EventoDTO(
                 EVENTO, new OrganizadorDeEventoDTO(PRODUCTORA, "Aurora"), "Fiesta", null,
-                OffsetDateTime.now().plusDays(1), "Club", estado, List.of()));
+                OffsetDateTime.now().plusDays(1), "Club", estado, List.of(), null));
     }
 
     private Validacion auditada() {

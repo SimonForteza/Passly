@@ -103,6 +103,9 @@ class ConfiguracionDeSeguridad {
                         .requestMatchers("/api/ventas/invitados/transferencia").authenticated()
                         .requestMatchers("/api/ventas/invitados/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/eventos", "/api/eventos/*").permitAll()
+                        // Portada (PAS-47): la cartelera la pide con un <img>, que no manda token.
+                        // El borrador igual da 404 al publico: lo decide el servicio.
+                        .requestMatchers(HttpMethod.GET, "/api/eventos/*/portada").permitAll()
                         // Cartelera de productoras: publico, es lo que elige el comprador.
                         .requestMatchers(HttpMethod.GET, "/api/productoras", "/api/productoras/*").permitAll()
                         // Alta publica: el POST es anonimo; que solo pueda crear COMPRADOR lo impone
