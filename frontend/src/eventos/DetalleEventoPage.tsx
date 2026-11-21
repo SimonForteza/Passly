@@ -42,6 +42,7 @@ export function DetalleEventoPage() {
   const [evento, setEvento] = useState<EventoDTO | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<unknown>(null);
+  const [intento, setIntento] = useState(0);
   const [cantidades, setCantidades] = useState<Record<number, number>>({});
   const [agregando, setAgregando] = useState(false);
   const [errorAlAgregar, setErrorAlAgregar] = useState<unknown>(null);
@@ -65,7 +66,13 @@ export function DetalleEventoPage() {
     return () => {
       vigente = false;
     };
-  }, [idEvento, idValido]);
+  }, [idEvento, idValido, intento]);
+
+  function reintentar() {
+    setError(null);
+    setCargando(true);
+    setIntento((n) => n + 1);
+  }
 
   if (!idValido) {
     return (
@@ -131,7 +138,7 @@ export function DetalleEventoPage() {
           </p>
         </div>
       ) : error ? (
-        <EstadoError error={error} />
+        <EstadoError error={error} onReintentar={reintentar} />
       ) : null}
 
       {evento ? (

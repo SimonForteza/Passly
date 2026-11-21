@@ -1,5 +1,5 @@
 import { avisarSesionVencida, getToken } from '../auth/session';
-import { ApiError, type ProblemDetail } from './ApiError';
+import { ApiError, MENSAJE_SIN_CONEXION, type ProblemDetail } from './ApiError';
 
 const BASE_URL = import.meta.env.DEV
   ? ''
@@ -49,14 +49,31 @@ async function enviarRequest<T>(
   token: string | null,
 ): Promise<T> {
   const { headers } = init;
-  const respuesta = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers,
-    // El carrito de ventas vive en una HttpSession (@SessionScope) aunque la
-    // autenticación sea STATELESS: sin esto la cookie JSESSIONID no viaja y el
-    // carrito no persiste entre llamadas (CLAUDE.md §4.7 / §4.11).
-    credentials: 'include',
-  });
+  let respuesta: Response;
+  try {
+    respuesta = await fetch(`${BASE_URL}${path}`, {
+      ...init,
+      headers,
+      // El carrito de ventas vive en una HttpSession (@SessionScope) aunque la
+      // autenticación sea STATELESS: sin esto la cookie JSESSIONID no viaja y el
+      // carrito no persiste entre llamadas (CLAUDE.md §4.7 / §4.11).
+      credentials: 'include',
+    });
+  } catch (causa) {
+    // fetch solo rechaza cuando no hubo respuesta (red caida, backend apagado sin proxy, CORS).
+    // Un abort es decision de quien llamo: se propaga tal cual.
+    if (causa instanceof DOMException && causa.name === 'AbortError') throw causa;
+    throw new ApiError(
+      {
+        status: 0,
+        title: 'Sin conexión',
+        detail: MENSAJE_SIN_CONEXION,
+        type: 'about:blank',
+        instance: path,
+      },
+      true,
+    );
+  }
 
   if (respuesta.status === 204) {
     return undefined as T;
@@ -74,14 +91,20 @@ async function enviarRequest<T>(
     if (respuesta.status === 401 && token && getToken() === token) {
       avisarSesionVencida();
     }
+    if (cuerpo) throw new ApiError(cuerpo as ProblemDetail);
+    // Sin ProblemDetail la respuesta no la armo el backend: un 502/503/504 es el proxy (Vite en
+    // desarrollo) avisando que el backend no contesta. No se usa statusText: llega en ingles
+    // ("Bad Gateway") y no le dice nada a quien usa la app.
+    const sinConexion = [502, 503, 504].includes(respuesta.status);
     throw new ApiError(
-      (cuerpo ?? {
+      {
         status: respuesta.status,
-        title: respuesta.statusText,
-        detail: '',
+        title: sinConexion ? 'Sin conexión' : 'Error',
+        detail: sinConexion ? MENSAJE_SIN_CONEXION : '',
         type: 'about:blank',
         instance: path,
-      }) as ProblemDetail,
+      },
+      sinConexion,
     );
   }
 

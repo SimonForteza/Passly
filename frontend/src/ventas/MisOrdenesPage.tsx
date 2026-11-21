@@ -50,6 +50,7 @@ export function MisOrdenesPage() {
   const [ordenes, setOrdenes] = useState<OrdenDTO[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<unknown>(null);
+  const [intento, setIntento] = useState(0);
   const [pestania, setPestania] = useState<Pestania>('proximas');
   const eventos = useEventos(
     ordenes.flatMap((orden) => orden.items.map((item) => item.idEvento)),
@@ -73,7 +74,13 @@ export function MisOrdenesPage() {
     return () => {
       vigente = false;
     };
-  }, [usuario]);
+  }, [usuario, intento]);
+
+  function reintentar() {
+    setError(null);
+    setCargando(true);
+    setIntento((n) => n + 1);
+  }
 
   const grupos = agrupar(ordenes)
     .filter(
@@ -110,7 +117,7 @@ export function MisOrdenesPage() {
         ))}
       </div>
 
-      {error ? <EstadoError error={error} /> : null}
+      {error ? <EstadoError error={error} onReintentar={reintentar} /> : null}
 
       {cargando ? (
         <EstadoCarga mensaje="Cargando tus órdenes..." />

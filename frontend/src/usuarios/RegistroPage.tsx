@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ApiError } from '../lib/http/ApiError';
+import { ApiError, mensajeDeError } from '../lib/http/ApiError';
 import { useAuth } from '../lib/auth/AuthContext';
 import { crearUsuario, iniciarSesion as pedirToken } from './api';
 import {
@@ -72,7 +72,7 @@ export function RegistroPage() {
       if (e instanceof ApiError && e.status === 400 && e.errores) {
         setErroresCampo(e.errores);
       } else if (e instanceof ApiError) {
-        setErrorGeneral(e.detail || e.title);
+        setErrorGeneral(mensajeDeError(e));
       } else {
         setErrorGeneral('No pudimos crear la cuenta. Intentá de nuevo.');
       }

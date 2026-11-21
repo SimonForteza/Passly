@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth/AuthContext';
+import { MenuDeCuenta } from './MenuDeCuenta';
 import { useOrganizaciones } from '../productoras/OrganizacionContext';
 import { vaciarCarrito } from '../ventas/api';
 import { actualizarCarrito, useCantidadCarrito } from '../ventas/carritoEstado';
@@ -26,14 +27,6 @@ export function Header() {
       <Link className="marca" to="/" aria-label="Passly, ir a eventos">
         Passly
       </Link>
-      <button
-        className="menu-movil boton boton-secundario"
-        aria-controls="navegacion-principal"
-        aria-expanded={menu}
-        onClick={() => setMenu(!menu)}
-      >
-        {menu ? 'Cerrar menú' : 'Menú'}
-      </button>
       <nav
         id="navegacion-principal"
         className={'cabecera-nav' + (menu ? ' abierto' : '')}
@@ -59,25 +52,25 @@ export function Header() {
         ) : (
           <NavLink to="/organizar">Organizar eventos</NavLink>
         )}
+      </nav>
+      {/* Fuera del nav: en el celular el avatar se ve sin abrir el menú hamburguesa. */}
+      <div className="cabecera-acciones">
         {usuario ? (
-          <>
-            <NavLink to="/perfil" className="cuenta-cabecera">
-              {usuario.nombre}
-            </NavLink>
-            <button
-              className="boton boton-secundario salir-cabecera"
-              disabled={saliendo}
-              onClick={salir}
-            >
-              {saliendo ? 'Saliendo…' : 'Salir'}
-            </button>
-          </>
+          <MenuDeCuenta usuario={usuario} saliendo={saliendo} onSalir={salir} />
         ) : (
           <Link className="boton boton-primario" to="/login">
             Ingresar
           </Link>
         )}
-      </nav>
+        <button
+          className="menu-movil boton boton-secundario"
+          aria-controls="navegacion-principal"
+          aria-expanded={menu}
+          onClick={() => setMenu(!menu)}
+        >
+          {menu ? 'Cerrar menú' : 'Menú'}
+        </button>
+      </div>
     </header>
   );
 }
